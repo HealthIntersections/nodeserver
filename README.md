@@ -7,32 +7,18 @@ This server provides various support functions to the FHIR community: package re
 [![Release](https://img.shields.io/github/v/release/HealthIntersections/nodeserver?include_prereleases)](https://github.com/HealthIntersections/nodeserver/releases)
 [![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/HealthIntersections/nodeserver/pkgs/container/nodeserver)
 
-Note: In production, this server always runs behind an nginx reverse proxy, so there's no support for SSL 
+Note: In production, this server always runs behind an nginx reverse proxy, so there's no
+in-build support for SSL, rate limiting etc. 
 
-## Features
+## Modules
 
-### 📦 **Package Server**
-- **NPM-style FHIR package registry** with search, versioning, and downloads, consistent with the FHIR NPM Specification
-- **Automated package crawling** from FHIR package feeds
-- **Package mirroring** with local storage and optional cloud bucket integration
-- **Dependency analysis** and broken dependency detection
+This server is composed of a set of modules:
 
-### 📊 **XIG (Implementation Guide Statistics)**
-- **Comprehensive FHIR IG analytics** with resource breakdowns by version, authority, and realm
-- **Resource search and filtering** across all published implementation guides
-- **Dependency tracking** between FHIR resources
-- **Automated daily updates** from fhir.org/guides/stats database
-
-### 🔗 **SHL (SMART Health Links)**
-- **Create and manage SMART Health Links** with expiration and access control
-- **File upload and serving** with embedded content support
-- **FHIR validation integration** using the official FHIR validator
-- **Digital signing** with COSE Sign1 for VHL (Verifiable Health Links)
-
-### 🔍 **VCL (ValueSet Compose Language)**
-- **Parse VCL expressions** into FHIR ValueSet resources
-- **Syntax validation** and error reporting
-- **REST API** for integration with other tools
+* [Tx Ecosystem Registry](registry): **Terminology System Registry** as [described by the terminology ecosystem specification](https://build.fhir.org/ig/HL7/fhir-tx-ecosystem-ig)
+* [FHIR Package Server](package): **NPM-style FHIR package registry** with search, versioning, and downloads, consistent with the FHIR NPM Specification
+* [XIG (Implementation Guide Statistics)](xig): **Comprehensive FHIR IG analytics** with resource breakdowns by version, authority, and realm 
+* [VCL (ValueSet Compose Language) Server](vcl): **Parse VCL expressions** into FHIR ValueSet resources for http://fhir.org/vcl
+* [SHL/VHL Services](shl): A set of services to support SHL And VHL usage on healthintersections.com.au
 
 ## Quick Start
 
@@ -60,19 +46,7 @@ cp config.example.json config.json
 # Edit configuration as needed
 nano config.json
 ```
-
-### Docker Installation
-
-```bash
-# Pull the latest image
-docker pull ghcr.io/healthintersections/nodeserver:latest
-
-# Run with configuration mounted
-docker run -p 3000:3000 \
-  -v /path/to/config.json:/app/config.json \
-  -v /path/to/data:/app/data \
-  ghcr.io/healthintersections/nodeserver:latest
-```
+Each Module has it's own entry in the config, as described by the module.
 
 ### Basic Configuration
 
@@ -88,32 +62,7 @@ Create a `config.json` file (use `config-template.json`):
     }
   },
   "modules": {
-    "packages": {
-      "enabled": true,
-      "database": "./data/packages.db",
-      "mirrorPath": "./data/packages",
-      "masterUrl": "https://fhir.github.io/ig-registry/package-feeds.json",
-      "crawler": {
-        "enabled": true,
-        "schedule": "0 */2 * * *"
-      }
-    },
-    "xig": {
-      "enabled": true
-    },
-    "shl": {
-      "enabled": true,
-      "database": "./data/shl.db",
-      "password": "your-admin-password-here",
-      "validator": {
-        "enabled": true,
-        "version": "6.3.18",
-        "port": 8080
-      }
-    },
-    "vcl": {
-      "enabled": true
-    }
+    // per modules...
   }
 }
 ```
@@ -130,70 +79,24 @@ npm start
 
 The server will be available at `http://localhost:{port}` using the port specified in the config.
 
-## Development
-
-### Project Structure
-```
-├── server.js              # Main server and module coordination
-├── packages.js             # Package server module
-├── package-crawler.js      # Package crawling engine
-├── xig.js                  # XIG statistics module  
-├── shl.js                  # SHL server module
-├── vcl.js                  # VCL parser module
-├── html-server.js          # Shared HTML templating
-├── config.json             # Server configuration
-├── data/                   # Databases and cached data
-├── static/                 # Static web assets
-└── logs/                   # Application logs
-```
-
-### Adding Modules
-
-1. Create module file implementing the standard interface:
-```javascript
-class MyModule {
-  constructor() {
-    this.router = express.Router();
-  }
-  
-  async initialize(config) { /* setup */ }
-  setupRoutes() { /* define routes */ }
-  async shutdown() { /* cleanup */ }
-  getStatus() { /* health info */ }
-}
-```
-
-2. Register in `server.js`:
-```javascript
-if (config.modules.mymodule.enabled) {
-  modules.mymodule = new MyModule();
-  await modules.mymodule.initialize(config.modules.mymodule);
-  app.use('/mymodule', modules.mymodule.router);
-}
-```
-
-### Testing
+## Testing
 
 ```bash
-# Run health check
-curl http://localhost:3000/health
-
-# Test package search
-curl "http://localhost:3000/packages/catalog?name=core&fhirversion=R4"
-
-# Test VCL parsing
-curl "http://localhost:3000/VCL?vcl=http://loinc.org"
+npm test
 ```
+
+You need to provide additional data files for testing:
+- (none yet)
 
 ## Deployment
 
-### Docker (Recommended)
+### Docker Installation
 
 The server is available as a Docker image:
 
 ```bash
-# Pull specific version
-docker pull ghcr.io/healthintersections/nodeserver:v1.0.0
+# Pull the latest image
+docker pull ghcr.io/healthintersections/nodeserver:latest
 
 # Run with mounted volumes
 docker run -d --name fhir-server \
@@ -216,22 +119,9 @@ export NODE_ENV=production
 export FHIR_SERVER_CONFIG=/path/to/config.json
 ```
 
-### Reverse Proxy (nginx)
+### Windows Installation
 
-```nginx
-server {
-    listen 80;
-    server_name fhir-server.example.com;
-    
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
+You can install as a windows service using...
 
 ## Releases
 
