@@ -18,3 +18,5 @@ xig/xig-download.log
 .idea/codeStyles/
 
 logs/
+
+registry/registry-data.json

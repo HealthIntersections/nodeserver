@@ -13,15 +13,16 @@ const cron = require('node-cron');
 const sqlite3 = require('sqlite3').verbose();
 const { EventEmitter } = require('events');
 const zlib = require('zlib');
-const htmlServer = require('../html-server');
+const htmlServer = require('../common/html-server');
 
+const Logger = require('../common/logger');
+const xigLog = Logger.getInstance().child({ module: 'xig' });
 
 const router = express.Router();
 
 // Configuration
 const XIG_DB_URL = 'http://fhir.org/guides/stats/xig.db';
 const XIG_DB_PATH = path.join(__dirname, 'data', 'xig.db');
-const DOWNLOAD_LOG_PATH = path.join(__dirname, 'xig-download.log');
 const TEMPLATE_PATH = path.join(__dirname, 'xig-template.html');
 
 // Global database instance
@@ -50,38 +51,98 @@ const cacheEmitter = new EventEmitter();
 // Cache loading lock to prevent concurrent loads
 let cacheLoadInProgress = false;
 
-// Utility function to log messages
-function logMessage(message) {
-  const timestamp = new Date().toISOString();
-  const logEntry = `[${timestamp}] ${message}\n`;
-  
-  console.log(`[XIG] ${message}`);
-  
-  // Also write to log file
-  fs.appendFile(DOWNLOAD_LOG_PATH, logEntry, (err) => {
-    if (err) {
-      console.error('[XIG] Failed to write to log file:', err.message);
-    }
+// Security Middleware Setup
+function setupSecurityMiddleware() {
+  // Security headers middleware
+  router.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Content-Security-Policy', [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "font-src 'self'",
+      "connect-src 'self'",
+      "frame-ancestors 'none'"
+    ].join('; '));
+    res.removeHeader('X-Powered-By');
+    next();
   });
+
 }
 
-// Template Functions
-
-function loadTemplate() {
-  try {
-    // Load using shared HTML server
-    const templateLoaded = htmlServer.loadTemplate('xig', TEMPLATE_PATH);
-    if (templateLoaded) {
-      logMessage('HTML template loaded successfully via shared framework');
-    } else {
-      logMessage('Failed to load HTML template via shared framework');
+// Parameter validation middleware
+function validateQueryParams(allowedParams = {}) {
+  return (req, res, next) => {
+    try {
+      const normalized = {};
+      
+      // Check for parameter pollution (arrays) and validate
+      for (const [key, value] of Object.entries(req.query)) {
+        if (Array.isArray(value)) {
+          return res.status(400).json({ 
+            error: 'Parameter pollution detected',
+            parameter: key 
+          });
+        }
+        
+        if (allowedParams[key]) {
+          const config = allowedParams[key];
+          
+          if (value !== undefined) {
+            if (typeof value !== 'string') {
+              return res.status(400).json({ 
+                error: `Parameter ${key} must be a string` 
+              });
+            }
+            
+            if (value.length > (config.maxLength || 255)) {
+              return res.status(400).json({ 
+                error: `Parameter ${key} too long (max ${config.maxLength || 255})` 
+              });
+            }
+            
+            if (config.pattern && !config.pattern.test(value)) {
+              return res.status(400).json({ 
+                error: `Parameter ${key} has invalid format` 
+              });
+            }
+            
+            normalized[key] = value;
+          } else if (config.required) {
+            return res.status(400).json({ 
+              error: `Parameter ${key} is required` 
+            });
+          } else {
+            normalized[key] = config.default || '';
+          }
+        } else if (value !== undefined) {
+          return res.status(400).json({ 
+            error: `Unknown parameter: ${key}` 
+          });
+        }
+      }
+      
+      // Set default values for missing optional parameters
+      for (const [key, config] of Object.entries(allowedParams)) {
+        if (normalized[key] === undefined && !config.required) {
+          normalized[key] = config.default || '';
+        }
+      }
+      
+      req.query = normalized;
+      next();
+    } catch (error) {
+      xigLog.error('Parameter validation error:', error);
+      res.status(500).json({ error: 'Parameter validation failed' });
     }
-  } catch (error) {
-    logMessage(`Failed to load HTML template: ${error.message}`);
-  }
+  };
 }
 
-// HTML escape function for safety
+// Enhanced HTML escaping
 function escapeHtml(text) {
   if (typeof text !== 'string') {
     return String(text);
@@ -92,10 +153,372 @@ function escapeHtml(text) {
     '<': '&lt;',
     '>': '&gt;',
     '"': '&quot;',
-    "'": '&#39;'
+    "'": '&#x27;',
+    '/': '&#x2F;',
+    '`': '&#x60;',
+    '=': '&#x3D;'
   };
   
-  return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+  return text.replace(/[&<>"'`=\/]/g, function(m) { return map[m]; });
+}
+
+// URL validation for external requests
+function validateExternalUrl(url) {
+  try {
+    const parsed = new URL(url);
+    
+    // Only allow http and https
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      throw new Error(`Protocol ${parsed.protocol} not allowed`);
+    }
+    
+    // Block private IP ranges
+    const hostname = parsed.hostname;
+    if (hostname === 'localhost' || 
+        hostname === '127.0.0.1' ||
+        hostname.startsWith('10.') ||
+        hostname.startsWith('192.168.') ||
+        /^172\.(1[6-9]|2[0-9]|3[01])\./.test(hostname)) {
+      throw new Error('Private IP addresses not allowed');
+    }
+    
+    return parsed;
+  } catch (error) {
+    throw new Error(`Invalid URL: ${error.message}`);
+  }
+}
+
+// Secure SQL query building with parameterized queries
+function buildSecureResourceQuery(queryParams, offset = 0, limit = 50) {
+  const { realm, auth, ver, type, rt, text } = queryParams;
+  
+  let baseQuery = `
+    SELECT 
+      ResourceKey, ResourceType, Type, Kind, Description, PackageKey,
+      Realm, Authority, R2, R2B, R3, R4, R4B, R5, R6,
+      Id, Url, Version, Status, Date, Name, Title, Content,
+      Supplements, Details, FMM, WG, StandardsStatus, Web
+    FROM Resources
+    WHERE 1=1
+  `;
+  
+  const conditions = [];
+  const params = [];
+  
+  // Realm filter
+  if (realm && realm !== '') {
+    conditions.push('AND realm = ?');
+    params.push(realm);
+  }
+  
+  // Authority filter
+  if (auth && auth !== '') {
+    conditions.push('AND authority = ?');
+    params.push(auth);
+  }
+  
+  // Version filter
+  if (ver) {
+    switch (ver) {
+      case 'R2':
+        conditions.push('AND R2 = 1');
+        break;
+      case 'R2B':
+        conditions.push('AND R2B = 1');
+        break;
+      case 'R3':
+        conditions.push('AND R3 = 1');
+        break;
+      case 'R4':
+        conditions.push('AND R4 = 1');
+        break;
+      case 'R4B':
+        conditions.push('AND R4B = 1');
+        break;
+      case 'R5':
+        conditions.push('AND R5 = 1');
+        break;
+      case 'R6':
+        conditions.push('AND R6 = 1');
+        break;
+    }
+  }
+  
+  // Type-specific filters
+  switch (type) {
+    case 'cs': // CodeSystem
+      conditions.push("AND ResourceType = 'CodeSystem'");
+      break;
+      
+    case 'rp': // Resource Profiles
+      conditions.push("AND ResourceType = 'StructureDefinition' AND kind = 'resource'");
+      if (rt && rt !== '' && hasCachedValue('profileResources', rt)) {
+        conditions.push('AND Type = ?');
+        params.push(rt);
+      }
+      break;
+      
+    case 'dp': // Datatype Profiles
+      conditions.push("AND ResourceType = 'StructureDefinition' AND (kind = 'complex-type' OR kind = 'primitive-type')");
+      if (rt && rt !== '' && hasCachedValue('profileTypes', rt)) {
+        conditions.push('AND Type = ?');
+        params.push(rt);
+      }
+      break;
+      
+    case 'lm': // Logical Models
+      conditions.push("AND ResourceType = 'StructureDefinition' AND kind = 'logical'");
+      break;
+      
+    case 'ext': // Extensions
+      conditions.push("AND ResourceType = 'StructureDefinition' AND Type = 'Extension'");
+      if (rt && rt !== '' && hasCachedValue('extensionContexts', rt)) {
+        conditions.push('AND ResourceKey IN (SELECT ResourceKey FROM Categories WHERE Mode = 2 AND Code = ?)');
+        params.push(rt);
+      }
+      break;
+      
+    case 'vs': // ValueSets
+      conditions.push("AND ResourceType = 'ValueSet'");
+      if (rt && rt !== '' && hasTerminologySource(rt)) {
+        conditions.push('AND ResourceKey IN (SELECT ResourceKey FROM Categories WHERE Mode = 1 AND Code = ?)');
+        params.push(rt);
+      }
+      break;
+      
+    case 'cm': // ConceptMaps
+      conditions.push("AND ResourceType = 'ConceptMap'");
+      if (rt && rt !== '' && hasTerminologySource(rt)) {
+        conditions.push('AND ResourceKey IN (SELECT ResourceKey FROM Categories WHERE Mode = 1 AND Code = ?)');
+        params.push(rt);
+      }
+      break;
+      
+    default:
+      // No specific type selected
+      if (rt && rt !== '' && hasCachedValue('resourceTypes', rt)) {
+        conditions.push('AND ResourceType = ?');
+        params.push(rt);
+      }
+      break;
+  }
+  
+  // Text search filter
+  if (text && text !== '') {
+    if (type === 'cs') {
+      conditions.push(`AND (ResourceKey IN (SELECT ResourceKey FROM ResourceFTS WHERE Description MATCH ? OR Narrative MATCH ?) 
+                      OR ResourceKey IN (SELECT ResourceKey FROM CodeSystemFTS WHERE Display MATCH ? OR Definition MATCH ?))`);
+      params.push(text, text, text, text);
+    } else {
+      conditions.push('AND ResourceKey IN (SELECT ResourceKey FROM ResourceFTS WHERE Description MATCH ? OR Narrative MATCH ?)');
+      params.push(text, text);
+    }
+  }
+  
+  // Build final query
+  const fullQuery = baseQuery + ' ' + conditions.join(' ') + ' ORDER BY ResourceType, Type, Description LIMIT ? OFFSET ?';
+  params.push(limit, offset);
+  
+  return { query: fullQuery, params };
+}
+
+function buildSecureResourceCountQuery(queryParams) {
+  const { realm, auth, ver, type, rt, text } = queryParams;
+  
+  let baseQuery = 'SELECT COUNT(*) as total FROM Resources WHERE 1=1';
+  const conditions = [];
+  const params = [];
+  
+  // Same conditions as main query but for counting
+  if (realm && realm !== '') {
+    conditions.push('AND realm = ?');
+    params.push(realm);
+  }
+  
+  if (auth && auth !== '') {
+    conditions.push('AND authority = ?');
+    params.push(auth);
+  }
+  
+  if (ver) {
+    switch (ver) {
+      case 'R2': conditions.push('AND R2 = 1'); break;
+      case 'R2B': conditions.push('AND R2B = 1'); break;
+      case 'R3': conditions.push('AND R3 = 1'); break;
+      case 'R4': conditions.push('AND R4 = 1'); break;
+      case 'R4B': conditions.push('AND R4B = 1'); break;
+      case 'R5': conditions.push('AND R5 = 1'); break;
+      case 'R6': conditions.push('AND R6 = 1'); break;
+    }
+  }
+  
+  switch (type) {
+    case 'cs':
+      conditions.push("AND ResourceType = 'CodeSystem'");
+      break;
+    case 'rp':
+      conditions.push("AND ResourceType = 'StructureDefinition' AND kind = 'resource'");
+      if (rt && rt !== '' && hasCachedValue('profileResources', rt)) {
+        conditions.push('AND Type = ?');
+        params.push(rt);
+      }
+      break;
+    case 'dp':
+      conditions.push("AND ResourceType = 'StructureDefinition' AND (kind = 'complex-type' OR kind = 'primitive-type')");
+      if (rt && rt !== '' && hasCachedValue('profileTypes', rt)) {
+        conditions.push('AND Type = ?');
+        params.push(rt);
+      }
+      break;
+    case 'lm':
+      conditions.push("AND ResourceType = 'StructureDefinition' AND kind = 'logical'");
+      break;
+    case 'ext':
+      conditions.push("AND ResourceType = 'StructureDefinition' AND Type = 'Extension'");
+      if (rt && rt !== '' && hasCachedValue('extensionContexts', rt)) {
+        conditions.push('AND ResourceKey IN (SELECT ResourceKey FROM Categories WHERE Mode = 2 AND Code = ?)');
+        params.push(rt);
+      }
+      break;
+    case 'vs':
+      conditions.push("AND ResourceType = 'ValueSet'");
+      if (rt && rt !== '' && hasTerminologySource(rt)) {
+        conditions.push('AND ResourceKey IN (SELECT ResourceKey FROM Categories WHERE Mode = 1 AND Code = ?)');
+        params.push(rt);
+      }
+      break;
+    case 'cm':
+      conditions.push("AND ResourceType = 'ConceptMap'");
+      if (rt && rt !== '' && hasTerminologySource(rt)) {
+        conditions.push('AND ResourceKey IN (SELECT ResourceKey FROM Categories WHERE Mode = 1 AND Code = ?)');
+        params.push(rt);
+      }
+      break;
+    default:
+      if (rt && rt !== '' && hasCachedValue('resourceTypes', rt)) {
+        conditions.push('AND ResourceType = ?');
+        params.push(rt);
+      }
+      break;
+  }
+  
+  if (text && text !== '') {
+    if (type === 'cs') {
+      conditions.push(`AND (ResourceKey IN (SELECT ResourceKey FROM ResourceFTS WHERE Description MATCH ? OR Narrative MATCH ?) 
+                      OR ResourceKey IN (SELECT ResourceKey FROM CodeSystemFTS WHERE Display MATCH ? OR Definition MATCH ?))`);
+      params.push(text, text, text, text);
+    } else {
+      conditions.push('AND ResourceKey IN (SELECT ResourceKey FROM ResourceFTS WHERE Description MATCH ? OR Narrative MATCH ?)');
+      params.push(text, text);
+    }
+  }
+  
+  const fullQuery = baseQuery + ' ' + conditions.join(' ');
+  return { query: fullQuery, params };
+}
+
+// Safe file download function
+function downloadFile(url, destination, maxRedirects = 5) {
+  return new Promise((resolve, reject) => {
+    xigLog.info(`Starting download from ${url}`);
+    
+    function attemptDownload(currentUrl, redirectCount = 0) {
+      if (redirectCount > maxRedirects) {
+        reject(new Error(`Too many redirects (${maxRedirects})`));
+        return;
+      }
+      
+      try {
+        const validatedUrl = validateExternalUrl(currentUrl);
+        const protocol = validatedUrl.protocol === 'https:' ? https : http;
+        
+        const request = protocol.get(validatedUrl, (response) => {
+          // Handle redirects
+          if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+            let redirectUrl = response.headers.location;
+            if (!redirectUrl.startsWith('http')) {
+              const urlObj = new URL(currentUrl);
+              if (redirectUrl.startsWith('/')) {
+                redirectUrl = `${urlObj.protocol}//${urlObj.host}${redirectUrl}`;
+              } else {
+                redirectUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}/${redirectUrl}`;
+              }
+            }
+            
+            attemptDownload(redirectUrl, redirectCount + 1);
+            return;
+          }
+          
+          if (response.statusCode !== 200) {
+            reject(new Error(`Download failed with status code: ${response.statusCode}`));
+            return;
+          }
+          
+          // Check content length
+          const contentLength = parseInt(response.headers['content-length'] || '0');
+          const maxSize = 100 * 1024 * 1024; // 100MB limit
+          if (contentLength > maxSize) {
+            reject(new Error('File too large'));
+            return;
+          }
+          
+          const fileStream = fs.createWriteStream(destination);
+          let downloadedBytes = 0;
+          
+          response.on('data', (chunk) => {
+            downloadedBytes += chunk.length;
+            if (downloadedBytes > maxSize) {
+              request.destroy();
+              fs.unlink(destination, () => {}); // Clean up
+              reject(new Error('File too large'));
+              return;
+            }
+          });
+          
+          response.pipe(fileStream);
+          
+          fileStream.on('finish', () => {
+            fileStream.close();
+            xigLog.info(`Download completed successfully. Downloaded ${downloadedBytes} bytes to ${destination}`);
+            resolve();
+          });
+          
+          fileStream.on('error', (err) => {
+            fs.unlink(destination, () => {}); // Delete partial file
+            reject(err);
+          });
+        });
+        
+        request.on('error', (err) => {
+          reject(err);
+        });
+        
+        request.setTimeout(300000, () => { // 5 minutes timeout
+          request.destroy();
+          reject(new Error('Download timeout'));
+        });
+        
+      } catch (error) {
+        reject(error);
+      }
+    }
+    
+    attemptDownload(url);
+  });
+}
+
+// Template Functions
+
+function loadTemplate() {
+  try {
+    // Load using shared HTML server
+    const templateLoaded = htmlServer.loadTemplate('xig', TEMPLATE_PATH);
+    if (!templateLoaded) {
+      xigLog.error('Failed to load HTML template via shared framework');
+    }
+  } catch (error) {
+    xigLog.error(`Failed to load HTML template: ${error.message}`);
+  }
 }
 
 function renderPage(title, content, options = {}) {
@@ -135,7 +558,7 @@ async function gatherPageStatistics() {
     };
     
   } catch (error) {
-    logMessage(`Error gathering page statistics: ${error.message}`);
+    xigLog.error(`Error gathering page statistics: ${error.message}`);
     
     const endTime = Date.now();
     const processingTime = endTime - startTime;
@@ -540,9 +963,9 @@ async function buildResourceTable(queryParams, resourceCount, offset = 0) {
     parts.push('</tr>');
     
     // Get resource data with pagination
-    const resourceQuery = buildResourceListQuery(queryParams, offset, 200);
+    const { query: resourceQuery, params: qp } = buildSecureResourceQuery(queryParams, offset, 200);
     const resourceRows = await new Promise((resolve, reject) => {
-      xigDb.all(resourceQuery, [], (err, rows) => {
+      xigDb.all(resourceQuery, qp, (err, rows) => {
         if (err) reject(err);
         else resolve(rows || []);
       });
@@ -582,12 +1005,12 @@ async function buildResourceTable(queryParams, resourceCount, offset = 0) {
       } else if (packageObj) {
         parts.push(`<td>${escapeHtml(packageObj.Id)}</td>`);
       } else {
-        parts.push(`<td>Package ${row.PackageKey}</td>`);
+        parts.push(`<td>Package ${escapeHtml(String(row.PackageKey))}</td>`);
       }
       
       // Version column (if not filtered)
       if (!ver || ver === '') {
-        parts.push(`<td>${showVersion(row)}</td>`);
+        parts.push(`<td>${escapeHtml(showVersion(row))}</td>`);
       }
       
       // Identity column with complex link logic
@@ -674,7 +1097,7 @@ async function buildResourceTable(queryParams, resourceCount, offset = 0) {
     return parts.join('');
     
   } catch (error) {
-    logMessage(`Error building resource table: ${error.message}`);
+    xigLog.error(`Error building resource table: ${error.message}`);
     return `<p class="text-danger">Error loading resource list: ${escapeHtml(error.message)}</p>`;
   }
 }
@@ -797,7 +1220,7 @@ async function buildSummaryStats(queryParams, baseUrl) {
       html += '</div><p>&nbsp;</p>';
     
   } catch (error) {
-    logMessage(`Error building summary stats: ${error.message}`);
+    xigLog.error(`Error building summary stats: ${error.message}`);
     html += `<p class="text-warning">Error loading summary statistics: ${escapeHtml(error.message)}</p>`;
   }
   
@@ -1251,7 +1674,7 @@ function getMetadata(key) {
 
 function downloadFile(url, destination, maxRedirects = 5) {
   return new Promise((resolve, reject) => {
-    logMessage(`Starting download from ${url}`);
+    xigLog.error(`Starting download from ${url}`);
     
     function attemptDownload(currentUrl, redirectCount = 0) {
       if (redirectCount > maxRedirects) {
@@ -1264,8 +1687,7 @@ function downloadFile(url, destination, maxRedirects = 5) {
       const request = protocol.get(currentUrl, (response) => {
         // Handle redirects
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-          logMessage(`Redirect ${response.statusCode} to: ${response.headers.location}`);
-          
+
           // Resolve relative URLs
           let redirectUrl = response.headers.location;
           if (!redirectUrl.startsWith('http')) {
@@ -1300,7 +1722,7 @@ function downloadFile(url, destination, maxRedirects = 5) {
         
         fileStream.on('finish', () => {
           fileStream.close();
-          logMessage(`Download completed successfully. Downloaded ${downloadedBytes} bytes to ${destination}`);
+          xigLog.error(`Download completed successfully. Downloaded ${downloadedBytes} bytes to ${destination}`);
           resolve();
         });
         
@@ -1355,18 +1777,16 @@ function validateDatabaseFile(filePath) {
 
 async function loadConfigCache() {
   if (cacheLoadInProgress) {
-    logMessage('Cache load already in progress, skipping');
     return;
   }
   
   if (!xigDb) {
-    logMessage('No database connection available for cache loading');
+    xigLog.error('No database connection available for cache loading');
     return;
   }
   
   cacheLoadInProgress = true;
-  logMessage('Starting config cache load');
-  
+
   try {
     // Create new cache object (this will be atomically replaced)
     const newCache = {
@@ -1389,16 +1809,13 @@ async function loadConfigCache() {
     };
     
     // Load metadata
-    logMessage('Loading metadata...');
     const metadataRows = await executeQuery('SELECT Name, Value FROM Metadata');
     newCache.maps.metadata = new Map();
     metadataRows.forEach(row => {
       newCache.maps.metadata.set(row.Name, row.Value);
     });
-    logMessage(`Loaded ${metadataRows.length} metadata entries`);
-    
+
     // Load realms
-    logMessage('Loading realms...');
     const realmRows = await executeQuery('SELECT Code FROM Realms');
     newCache.maps.realms = new Set();
     realmRows.forEach(row => {
@@ -1406,19 +1823,15 @@ async function loadConfigCache() {
         newCache.maps.realms.add(row.Code);
       }
     });
-    logMessage(`Loaded ${realmRows.length} realms`);
-    
+
     // Load authorities
-    logMessage('Loading authorities...');
     const authRows = await executeQuery('SELECT Code FROM Authorities');
     newCache.maps.authorities = new Set();
     authRows.forEach(row => {
       newCache.maps.authorities.add(row.Code);
     });
-    logMessage(`Loaded ${authRows.length} authorities`);
-    
+
     // Load packages
-    logMessage('Loading packages...');
     const packageRows = await executeQuery('SELECT PackageKey, Id, PID, Web, Canonical FROM Packages');
     newCache.maps.packages = new Map();
     newCache.maps.packagesById = new Map();
@@ -1440,8 +1853,7 @@ async function loadConfigCache() {
         newCache.maps.packagesById.set(pidKey, packageObj);
       }
     });
-    logMessage(`Loaded ${packageRows.length} packages`);
-    
+
     // Check if Resources table exists before querying it
     const tableCheckQuery = "SELECT name FROM sqlite_master WHERE type='table' AND name='Resources'";
     const resourcesTableExists = await executeQuery(tableCheckQuery);
@@ -1518,13 +1930,13 @@ async function loadConfigCache() {
     const oldCache = configCache;
     configCache = newCache;
     
-    logMessage(`Config cache updated successfully. Total cached collections: ${Object.keys(newCache.maps).length}`);
-    
+
     // Emit event
     cacheEmitter.emit('cacheUpdated', newCache, oldCache);
-    
+    xigLog.info(`XIG Loaded from database`);
+
   } catch (error) {
-    logMessage(`Config cache load failed: ${error.message}`);
+    xigLog.error(`Config cache load failed: ${error.message}`);
   } finally {
     cacheLoadInProgress = false;
   }
@@ -1533,22 +1945,21 @@ async function loadConfigCache() {
 function initializeDatabase() {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(XIG_DB_PATH)) {
-      logMessage('XIG database file not found, will download on first update');
+      xigLog.error('XIG database file not found, will download on first update');
       resolve();
       return;
     }
     
     xigDb = new sqlite3.Database(XIG_DB_PATH, sqlite3.OPEN_READONLY, async (err) => {
       if (err) {
-        logMessage(`Failed to open XIG database: ${err.message}`);
+        xigLog.error(`Failed to open XIG database: ${err.message}`);
         reject(err);
       } else {
-        logMessage('XIG database connected successfully');
-        
+
         try {
           await loadConfigCache();
         } catch (cacheError) {
-          logMessage(`Warning: Failed to load config cache: ${cacheError.message}`);
+          xigLog.warn(`Failed to load config cache: ${cacheError.message}`);
         }
         
         resolve();
@@ -1559,8 +1970,7 @@ function initializeDatabase() {
 
 async function updateXigDatabase() {
   try {
-    logMessage('Starting XIG database update process');
-    
+
     const tempPath = XIG_DB_PATH + '.tmp';
     
     await downloadFile(XIG_DB_URL, tempPath);
@@ -1570,7 +1980,7 @@ async function updateXigDatabase() {
       await new Promise((resolve) => {
         xigDb.close((err) => {
           if (err) {
-            logMessage(`Warning: Error closing existing database: ${err.message}`);
+            xigLog.warn(`Warning: Error closing existing database: ${err.message}`);
           }
           xigDb = null;
           resolve();
@@ -1584,11 +1994,11 @@ async function updateXigDatabase() {
     fs.renameSync(tempPath, XIG_DB_PATH);
     
     await initializeDatabase();
-    
-    logMessage('XIG database update completed successfully');
+
+    xigLog.info('XIG database updated');
     
   } catch (error) {
-    logMessage(`XIG database update failed: ${error.message}`);
+    xigLog.error(`XIG database update failed: ${error.message}`);
     
     const tempPath = XIG_DB_PATH + '.tmp';
     if (fs.existsSync(tempPath)) {
@@ -1838,7 +2248,6 @@ router.get('/:packagePid/:resourceType/:resourceId', async (req, res) => {
   
   if (isPackagePidFormat && isFhirResourceType) {
     // This looks like a legacy resource URL, redirect to the proper format
-    // logMessage(`Redirecting legacy URL: /${packagePid}/${resourceType}/${resourceId} -> /resource/${packagePid}/${resourceType}/${resourceId}`);
     res.redirect(301, `/xig/resource/${packagePid}/${resourceType}/${resourceId}`);
   } else {
     // Not a resource URL pattern, return 404
@@ -1892,7 +2301,7 @@ router.get('/', async (req, res) => {
       }
     } catch (error) {
       countError = error.message;
-      logMessage(`Error getting resource count: ${error.message}`);
+      xigLog.error(`Error getting resource count: ${error.message}`);
     }
     
     // Build resource count paragraph
@@ -1929,7 +2338,7 @@ router.get('/', async (req, res) => {
     res.send(html);
     
   } catch (error) {
-    logMessage(`Error rendering resources page: ${error.message}`);
+    xigLog.error(`Error rendering resources page: ${error.message}`);
     htmlServer.sendErrorResponse(res, 'xig', error);
   }
 });
@@ -1939,8 +2348,7 @@ router.get('/stats', async (req, res) => {
   const startTime = Date.now(); // Add this at the very beginning
 
   try {
-    logMessage('Generating stats page');
-    
+
     const [dbInfo, tableCounts] = await Promise.all([
       getDatabaseInfo(),
       getDatabaseTableCounts()
@@ -1980,7 +2388,7 @@ router.get('/stats', async (req, res) => {
     res.send(html);
     
   } catch (error) {
-    logMessage(`Error generating stats page: ${error.message}`);
+    xigLog.error(`Error generating stats page: ${error.message}`);
     htmlServer.sendErrorResponse(res, 'xig', error);
   }
 });
@@ -2034,7 +2442,7 @@ router.get('/resource/:packagePid/:resourceType/:resourceId', async (req, res) =
     res.send(html);
     
   } catch (error) {
-    logMessage(`Error rendering resource detail page: ${error.message}`);
+    xigLog.error(`Error rendering resource detail page: ${error.message}`);
     htmlServer.sendErrorResponse(res, 'xig', error);
   }
 });
@@ -2070,7 +2478,7 @@ async function buildResourceDetailPage(packageObj, resourceData, secure = false)
     html += await buildResourceSource(resourceData.ResourceKey);
     
   } catch (error) {
-    logMessage(`Error building resource detail content: ${error.message}`);
+    xigLog.error(`Error building resource detail content: ${error.message}`);
     html += `<div class="alert alert-warning">Error loading some content: ${escapeHtml(error.message)}</div>`;
   }
   
@@ -2252,7 +2660,7 @@ async function buildExtensionExamplesSection(resourceUrl) {
     }
     
   } catch (error) {
-    logMessage(`Error loading extension examples: ${error.message}`);
+    xigLog.error(`Error loading extension examples: ${error.message}`);
     html += `<div class="alert alert-warning">Error loading extension examples: ${escapeHtml(error.message)}</div>`;
   }
   
@@ -2364,7 +2772,7 @@ async function buildResourceNarrative(resourceKey, packageObj) {
     }
     
   } catch (error) {
-    logMessage(`Error loading narrative: ${error.message}`);
+    xigLog.error(`Error loading narrative: ${error.message}`);
     html += `<div class="alert alert-warning">Error loading narrative: ${escapeHtml(error.message)}</div>`;
   }
   
@@ -2418,7 +2826,7 @@ async function buildResourceSource(resourceKey) {
     html += '</pre>';
     
   } catch (error) {
-    logMessage(`Error loading source: ${error.message}`);
+    xigLog.error(`Error loading source: ${error.message}`);
     html += `<div class="alert alert-warning">Error loading source: ${escapeHtml(error.message)}</div>`;
   }
   
@@ -2439,7 +2847,7 @@ function fixNarrative(narrativeHtml, baseUrl) {
     
     return fixed;
   } catch (error) {
-    logMessage(`Error fixing narrative links: ${error.message}`);
+    xigLog.error(`Error fixing narrative links: ${error.message}`);
     return narrativeHtml; // Return original if fixing fails
   }
 }
@@ -2470,7 +2878,7 @@ router.get('/cache', (req, res) => {
 
 router.post('/update', async (req, res) => {
   try {
-    logMessage('Manual update triggered via API');
+    xigLog.info('Manual update triggered via API');
     await updateXigDatabase();
     res.json({
       status: 'SUCCESS',
@@ -2488,14 +2896,13 @@ router.post('/update', async (req, res) => {
 // Initialize the XIG module
 async function initializeXigModule() {
   try {
-    logMessage('Initializing XIG module');
-    
+
     loadTemplate();
     
     await initializeDatabase();
     
     if (!fs.existsSync(XIG_DB_PATH)) {
-      logMessage('No existing XIG database found, triggering initial download');
+      xigLog.info('No existing XIG database found, triggering initial download');
       setTimeout(() => {
         updateXigDatabase();
       }, 5000);
@@ -2503,16 +2910,12 @@ async function initializeXigModule() {
     
     // Check if auto-update is enabled
     // Note: This assumes we're called only when XIG is enabled
-    logMessage('Setting up XIG scheduled update');
     cron.schedule('0 2 * * *', () => {
-      logMessage('Scheduled daily update triggered');
       updateXigDatabase();
     });
-    
-    logMessage('XIG module initialized successfully');
-    
+
   } catch (error) {
-    logMessage(`XIG module initialization failed: ${error.message}`);
+    xigLog.error(`XIG module initialization failed: ${error.message}`);
     throw error; // Re-throw so caller knows about failure
   }
 }
@@ -2521,12 +2924,11 @@ async function initializeXigModule() {
 function shutdown() {
   return new Promise((resolve) => {
     if (xigDb) {
-      logMessage('Closing XIG database connection');
       xigDb.close((err) => {
         if (err) {
-          logMessage(`Error closing XIG database: ${err.message}`);
+          xigLog.error(`Error closing XIG database: ${err.message}`);
         } else {
-          logMessage('XIG database connection closed');
+          xigLog.error('XIG database connection closed');
         }
         resolve();
       });

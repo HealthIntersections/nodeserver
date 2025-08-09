@@ -255,6 +255,10 @@ class CodeSystem {
    * Validates that this is a proper CodeSystem resource
    * @throws {Error} If validation fails
    */
+  /**
+   * Enhanced validate method for CodeSystem class
+   * Add this to replace the existing validate() method
+   */
   validate() {
     if (!this.jsonObj || typeof this.jsonObj !== 'object') {
       throw new Error('Invalid CodeSystem: expected object');
@@ -272,42 +276,176 @@ class CodeSystem {
       throw new Error('Invalid CodeSystem: name is required and must be a string');
     }
 
-    if (!this.jsonObj.status || typeof this.jsonObj.status !== 'string') {
-      throw new Error('Invalid CodeSystem: status is required and must be a string');
+    if (this.jsonObj.status && typeof this.jsonObj.status !== 'string') {
+      throw new Error('Invalid CodeSystem: status must be a string');
+    }
+    if (this.jsonObj.status && typeof this.jsonObj.status == 'string') {
+      const validStatuses = ['draft', 'active', 'retired', 'unknown'];
+      if (!validStatuses.includes(this.jsonObj.status)) {
+        throw new Error(`Invalid CodeSystem: status must be one of ${validStatuses.join(', ')}, got "${this.jsonObj.status}"`);
+      }
     }
 
-    const validStatuses = ['draft', 'active', 'retired', 'unknown'];
-    if (!validStatuses.includes(this.jsonObj.status)) {
-      throw new Error(`Invalid CodeSystem: status must be one of ${validStatuses.join(', ')}, got "${this.jsonObj.status}"`);
-    }
-
-    // Validate identifier - could be object (R3) or array (R4/R5)
+    // Validate identifier array
     if (this.jsonObj.identifier) {
       // Convert single identifier object to array if needed (for R3)
       if (!Array.isArray(this.jsonObj.identifier)) {
         this.jsonObj.identifier = [this.jsonObj.identifier];
       }
 
-      // Validate each identifier in the array
-      this.jsonObj.identifier.forEach((identifier, index) => {
+      this._validateArray(this.jsonObj.identifier, 'identifier', (identifier, index) => {
         if (!identifier || typeof identifier !== 'object') {
           throw new Error(`Invalid CodeSystem: identifier[${index}] must be an object`);
         }
       });
     }
 
-    if (this.jsonObj.concept && !Array.isArray(this.jsonObj.concept)) {
-      throw new Error('Invalid CodeSystem: concept must be an array if present');
-    }
-
-    // Validate individual concepts
-    if (this.jsonObj.concept) {
-      this.jsonObj.concept.forEach((concept, index) => {
-        if (!concept.code || typeof concept.code !== 'string') {
-          throw new Error(`Invalid CodeSystem: concept[${index}].code is required and must be a string`);
+    // Validate jurisdiction array
+    if (this.jsonObj.jurisdiction) {
+      if (!Array.isArray(this.jsonObj.jurisdiction)) {
+        throw new Error('Invalid CodeSystem: jurisdiction must be an array if present');
+      }
+      this._validateArray(this.jsonObj.jurisdiction, 'jurisdiction', (jurisdiction, index) => {
+        if (!jurisdiction || typeof jurisdiction !== 'object') {
+          throw new Error(`Invalid CodeSystem: jurisdiction[${index}] must be an object`);
         }
       });
     }
+
+    // Validate useContext array
+    if (this.jsonObj.useContext) {
+      if (!Array.isArray(this.jsonObj.useContext)) {
+        throw new Error('Invalid CodeSystem: useContext must be an array if present');
+      }
+      this._validateArray(this.jsonObj.useContext, 'useContext', (useContext, index) => {
+        if (!useContext || typeof useContext !== 'object') {
+          throw new Error(`Invalid CodeSystem: useContext[${index}] must be an object`);
+        }
+      });
+    }
+
+    // Validate filter array
+    if (this.jsonObj.filter) {
+      if (!Array.isArray(this.jsonObj.filter)) {
+        throw new Error('Invalid CodeSystem: filter must be an array if present');
+      }
+      this._validateArray(this.jsonObj.filter, 'filter', (filter, index) => {
+        if (!filter || typeof filter !== 'object') {
+          throw new Error(`Invalid CodeSystem: filter[${index}] must be an object`);
+        }
+        if (filter.operator && !Array.isArray(filter.operator)) {
+          throw new Error(`Invalid CodeSystem: filter[${index}].operator must be an array if present`);
+        }
+        if (filter.operator) {
+          this._validateArray(filter.operator, `filter[${index}].operator`, (operator, opIndex) => {
+            if (typeof operator !== 'string') {
+              throw new Error(`Invalid CodeSystem: filter[${index}].operator[${opIndex}] must be a string`);
+            }
+          });
+        }
+      });
+    }
+
+    // Validate property array
+    if (this.jsonObj.property) {
+      if (!Array.isArray(this.jsonObj.property)) {
+        throw new Error('Invalid CodeSystem: property must be an array if present');
+      }
+      this._validateArray(this.jsonObj.property, 'property', (property, index) => {
+        if (!property || typeof property !== 'object') {
+          throw new Error(`Invalid CodeSystem: property[${index}] must be an object`);
+        }
+        if (!property.code || typeof property.code !== 'string') {
+          throw new Error(`Invalid CodeSystem: property[${index}].code is required and must be a string`);
+        }
+      });
+    }
+
+    // Validate concept array
+    if (this.jsonObj.concept) {
+      if (!Array.isArray(this.jsonObj.concept)) {
+        throw new Error('Invalid CodeSystem: concept must be an array if present');
+      }
+      this._validateConceptArray(this.jsonObj.concept, 'concept');
+    }
+  }
+
+  /**
+   * Helper method to validate arrays for null/undefined elements
+   * @param {Array} array - The array to validate
+   * @param {string} path - Path description for error messages
+   * @param {Function} [itemValidator] - Optional function to validate each item
+   * @private
+   */
+  _validateArray(array, path, itemValidator) {
+    if (!Array.isArray(array)) {
+      throw new Error(`Invalid CodeSystem: ${path} must be an array`);
+    }
+
+    array.forEach((item, index) => {
+      if (item === null || item === undefined) {
+        throw new Error(`Invalid CodeSystem: ${path}[${index}] is null or undefined`);
+      }
+      if (itemValidator) {
+        itemValidator(item, index);
+      }
+    });
+  }
+
+  /**
+   * Recursively validates concept arrays and their nested structure
+   * @param {Array} concepts - Array of concepts to validate
+   * @param {string} path - Path description for error messages
+   * @private
+   */
+  _validateConceptArray(concepts, path) {
+    this._validateArray(concepts, path, (concept, index) => {
+      const conceptPath = `${path}[${index}]`;
+
+      if (!concept || typeof concept !== 'object') {
+        throw new Error(`Invalid CodeSystem: ${conceptPath} must be an object`);
+      }
+
+      if (!concept.code || typeof concept.code !== 'string') {
+        throw new Error(`Invalid CodeSystem: ${conceptPath}.code is required and must be a string`);
+      }
+
+      // Validate designation array
+      if (concept.designation) {
+        if (!Array.isArray(concept.designation)) {
+          throw new Error(`Invalid CodeSystem: ${conceptPath}.designation must be an array if present`);
+        }
+        this._validateArray(concept.designation, `${conceptPath}.designation`, (designation, desigIndex) => {
+          if (!designation || typeof designation !== 'object') {
+            throw new Error(`Invalid CodeSystem: ${conceptPath}.designation[${desigIndex}] must be an object`);
+          }
+          // We could add more specific designation validation here if needed
+        });
+      }
+
+      // Validate property array
+      if (concept.property) {
+        if (!Array.isArray(concept.property)) {
+          throw new Error(`Invalid CodeSystem: ${conceptPath}.property must be an array if present`);
+        }
+        this._validateArray(concept.property, `${conceptPath}.property`, (property, propIndex) => {
+          if (!property || typeof property !== 'object') {
+            throw new Error(`Invalid CodeSystem: ${conceptPath}.property[${propIndex}] must be an object`);
+          }
+          if (!property.code || typeof property.code !== 'string') {
+            throw new Error(`Invalid CodeSystem: ${conceptPath}.property[${propIndex}].code is required and must be a string`);
+          }
+        });
+      }
+
+      // Recursively validate nested concepts
+      if (concept.concept) {
+        if (!Array.isArray(concept.concept)) {
+          throw new Error(`Invalid CodeSystem: ${conceptPath}.concept must be an array if present`);
+        }
+        this._validateConceptArray(concept.concept, `${conceptPath}.concept`);
+      }
+    });
   }
 
   /**
@@ -592,6 +730,10 @@ class CodeSystem {
       rootConceptCount: this.getRootConcepts().length,
       leafConceptCount: this.getLeafConcepts().length
     };
+  }
+
+  static isUseADisplay(use) {
+    return true; // for now
   }
 }
 

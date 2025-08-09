@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run tests
+      run: npm run test:ci
+      env:
+        SUPPRESS_LOGS: 'true'
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: ./test-results/junit.xml
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      with:
+        directory: ./coverage/
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Extract release notes from CHANGELOG.md
+      id: extract_release_notes
+      run: |
+        VERSION=$(echo ${{ steps.get_version.outputs.VERSION }} | sed 's/^v//')
+        # Extract section for current version from CHANGELOG
+        SECTION=$(sed -n "/## \\[v${VERSION}\\]/,/## \\[v[0-9]\\+\\.[0-9]\\+\\.[0-9]\\+\\]/p" CHANGELOG.md | sed '$d')
+        
+        # If no section found, use a default message
+        if [ -z "$SECTION" ]; then
+          SECTION="## [v${VERSION}] - $(date +%Y-%m-%d)\nNo detailed release notes available."
+        fi
+        
+        # Escape newlines and special characters for GitHub Actions
+        RELEASE_NOTES="${SECTION//'%'/'%25'}"
+        RELEASE_NOTES="${RELEASE_NOTES//$'\n'/'%0A'}"
+        RELEASE_NOTES="${RELEASE_NOTES//$'\r'/'%0D'}"
+        
+        echo "RELEASE_NOTES<<EOF" >> $GITHUB_OUTPUT
+        echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.get_version.outputs.VERSION }}
+        name: Release ${{ steps.get_version.outputs.VERSION }}
+        body: ${{ steps.extract_release_notes.outputs.RELEASE_NOTES }}
+        draft: false
+        prerelease: false
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: release
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Get version from tag
+      id: get_version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "VERSION_NO_V=${VERSION#v}" >> $GITHUB_OUTPUT
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}:latest
+          ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.VERSION }}
+          ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.VERSION_NO_V }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          VERSION=${{ steps.get_version.outputs.VERSION_NO_V }}

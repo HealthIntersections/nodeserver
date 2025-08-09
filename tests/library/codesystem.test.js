@@ -138,12 +138,6 @@ describe('CodeSystem', () => {
       expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: name is required');
     });
 
-    test('should throw error for missing status', () => {
-      const invalid = { ...validCodeSystem };
-      delete invalid.status;
-      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: status is required');
-    });
-
     test('should throw error for invalid status', () => {
       const invalid = { ...validCodeSystem, status: "invalid" };
       expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: status must be one of');
@@ -1245,5 +1239,427 @@ describe('CodeSystem XML Support', () => {
 
     const xmlOutput = CodeSystemXML.toXMLString(cs, 'R4');
     expect(xmlOutput).toContain('<name value="Minimal"/>');
+  });
+});
+
+/**
+ * Additional tests for enhanced CodeSystem validation
+ * Add these to your existing CodeSystem test suite
+ */
+
+describe('Enhanced CodeSystem Validation', () => {
+  const validCodeSystem = {
+    "resourceType": "CodeSystem",
+    "url": "http://example.org/fhir/CodeSystem/test",
+    "name": "TestCodeSystem",
+    "status": "active"
+  };
+
+  describe('Array Null/Undefined Validation', () => {
+    test('should reject null elements in identifier array', () => {
+      const invalid = {
+        ...validCodeSystem,
+        identifier: [
+          { system: "http://example.org", value: "valid" },
+          null,
+          { system: "http://example.org", value: "valid2" }
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: identifier[1] is null or undefined');
+    });
+
+    test('should reject undefined elements in identifier array', () => {
+      const invalid = {
+        ...validCodeSystem,
+        identifier: [
+          { system: "http://example.org", value: "valid" },
+          undefined
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: identifier[1] is null or undefined');
+    });
+
+    test('should reject null elements in jurisdiction array', () => {
+      const invalid = {
+        ...validCodeSystem,
+        jurisdiction: [
+          { coding: [{ system: "http://unstats.un.org/unsd/methods/m49/m49.htm", code: "001" }] },
+          null
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: jurisdiction[1] is null or undefined');
+    });
+
+    test('should reject null elements in useContext array', () => {
+      const invalid = {
+        ...validCodeSystem,
+        useContext: [
+          { code: { system: "http://terminology.hl7.org/CodeSystem/usage-context-type", code: "focus" } },
+          null
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: useContext[1] is null or undefined');
+    });
+
+    test('should reject null elements in filter array', () => {
+      const invalid = {
+        ...validCodeSystem,
+        filter: [
+          { code: "concept", operator: ["="], value: "string" },
+          null
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: filter[1] is null or undefined');
+    });
+
+    test('should reject null elements in filter operator array', () => {
+      const invalid = {
+        ...validCodeSystem,
+        filter: [
+          { code: "concept", operator: ["=", null, "is-a"], value: "string" }
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: filter[0].operator[1] is null or undefined');
+    });
+
+    test('should reject null elements in property array', () => {
+      const invalid = {
+        ...validCodeSystem,
+        property: [
+          { code: "parent", type: "code" },
+          null
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: property[1] is null or undefined');
+    });
+
+    test('should reject null elements in concept array', () => {
+      const invalid = {
+        ...validCodeSystem,
+        concept: [
+          { code: "valid", display: "Valid Concept" },
+          null
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: concept[1] is null or undefined');
+    });
+
+    test('should reject null elements in concept designation array', () => {
+      const invalid = {
+        ...validCodeSystem,
+        concept: [
+          {
+            code: "test",
+            designation: [
+              { language: "en", value: "English" },
+              null,
+              { language: "fr", value: "French" }
+            ]
+          }
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: concept[0].designation[1] is null or undefined');
+    });
+
+    test('should reject null elements in concept property array', () => {
+      const invalid = {
+        ...validCodeSystem,
+        concept: [
+          {
+            code: "test",
+            property: [
+              { code: "parent", valueCode: "parent1" },
+              null
+            ]
+          }
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: concept[0].property[1] is null or undefined');
+    });
+
+    test('should reject null elements in nested concept arrays', () => {
+      const invalid = {
+        ...validCodeSystem,
+        concept: [
+          {
+            code: "parent",
+            concept: [
+              { code: "child1" },
+              null,
+              { code: "child2" }
+            ]
+          }
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: concept[0].concept[1] is null or undefined');
+    });
+
+    test('should reject null elements in deeply nested structures', () => {
+      const invalid = {
+        ...validCodeSystem,
+        concept: [
+          {
+            code: "level1",
+            concept: [
+              {
+                code: "level2",
+                concept: [
+                  { code: "level3a" },
+                  null  // Deep nesting null
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: concept[0].concept[0].concept[1] is null or undefined');
+    });
+
+    test('should reject null elements in nested concept designations', () => {
+      const invalid = {
+        ...validCodeSystem,
+        concept: [
+          {
+            code: "parent",
+            concept: [
+              {
+                code: "child",
+                designation: [
+                  { language: "en", value: "Child" },
+                  null
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: concept[0].concept[0].designation[1] is null or undefined');
+    });
+  });
+
+  describe('Array Type Validation', () => {
+    test('should reject non-array jurisdiction', () => {
+      const invalid = {
+        ...validCodeSystem,
+        jurisdiction: "not an array"
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: jurisdiction must be an array if present');
+    });
+
+    test('should reject non-array useContext', () => {
+      const invalid = {
+        ...validCodeSystem,
+        useContext: { code: "invalid" }
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: useContext must be an array if present');
+    });
+
+    test('should reject non-array filter', () => {
+      const invalid = {
+        ...validCodeSystem,
+        filter: { code: "concept" }
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: filter must be an array if present');
+    });
+
+    test('should reject non-array property', () => {
+      const invalid = {
+        ...validCodeSystem,
+        property: { code: "parent" }
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: property must be an array if present');
+    });
+
+    test('should reject non-array filter operator', () => {
+      const invalid = {
+        ...validCodeSystem,
+        filter: [
+          { code: "concept", operator: "=", value: "string" }  // Should be array
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: filter[0].operator must be an array if present');
+    });
+
+    test('should reject non-array concept designation', () => {
+      const invalid = {
+        ...validCodeSystem,
+        concept: [
+          {
+            code: "test",
+            designation: { language: "en", value: "English" }  // Should be array
+          }
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: concept[0].designation must be an array if present');
+    });
+
+    test('should reject non-array concept property', () => {
+      const invalid = {
+        ...validCodeSystem,
+        concept: [
+          {
+            code: "test",
+            property: { code: "parent", valueCode: "parent1" }  // Should be array
+          }
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: concept[0].property must be an array if present');
+    });
+
+    test('should reject non-array nested concepts', () => {
+      const invalid = {
+        ...validCodeSystem,
+        concept: [
+          {
+            code: "parent",
+            concept: { code: "child" }  // Should be array
+          }
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: concept[0].concept must be an array if present');
+    });
+  });
+
+  describe('Required Field Validation', () => {
+    test('should reject filter without code', () => {
+      const invalid = {
+        ...validCodeSystem,
+        filter: [
+          "string"
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: filter[0] must be an object');
+    });
+
+    test('should reject property without code', () => {
+      const invalid = {
+        ...validCodeSystem,
+        property: [
+          { type: "code" }  // Missing code
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: property[0].code is required and must be a string');
+    });
+
+    test('should reject concept property without code', () => {
+      const invalid = {
+        ...validCodeSystem,
+        concept: [
+          {
+            code: "test",
+            property: [
+              { valueCode: "value" }  // Missing code
+            ]
+          }
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: concept[0].property[0].code is required and must be a string');
+    });
+
+    test('should reject non-string filter operator elements', () => {
+      const invalid = {
+        ...validCodeSystem,
+        filter: [
+          { code: "concept", operator: ["=", 123, "is-a"], value: "string" }  // 123 is not string
+        ]
+      };
+
+      expect(() => new CodeSystem(invalid)).toThrow('Invalid CodeSystem: filter[0].operator[1] must be a string');
+    });
+  });
+
+  describe('Valid Cases', () => {
+    test('should accept valid CodeSystem with all arrays', () => {
+      const valid = {
+        ...validCodeSystem,
+        identifier: [
+          { system: "http://example.org", value: "id1" },
+          { system: "http://example.org", value: "id2" }
+        ],
+        jurisdiction: [
+          { coding: [{ system: "http://unstats.un.org/unsd/methods/m49/m49.htm", code: "001" }] }
+        ],
+        useContext: [
+          { code: { system: "http://terminology.hl7.org/CodeSystem/usage-context-type", code: "focus" } }
+        ],
+        filter: [
+          { code: "concept", operator: ["=", "is-a"], value: "string" }
+        ],
+        property: [
+          { code: "parent", type: "code" }
+        ],
+        concept: [
+          {
+            code: "parent",
+            display: "Parent",
+            designation: [
+              { language: "en", value: "Parent English" },
+              { language: "fr", value: "Parent French" }
+            ],
+            property: [
+              { code: "status", valueString: "active" }
+            ],
+            concept: [
+              {
+                code: "child",
+                display: "Child",
+                designation: [
+                  { language: "en", value: "Child English" }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      expect(() => new CodeSystem(valid)).not.toThrow();
+    });
+
+    test('should accept CodeSystem with empty arrays', () => {
+      const valid = {
+        ...validCodeSystem,
+        identifier: [],
+        jurisdiction: [],
+        useContext: [],
+        filter: [],
+        property: [],
+        concept: []
+      };
+
+      expect(() => new CodeSystem(valid)).not.toThrow();
+    });
+
+    test('should accept CodeSystem with no optional arrays', () => {
+      const valid = {
+        ...validCodeSystem
+        // No optional arrays
+      };
+
+      expect(() => new CodeSystem(valid)).not.toThrow();
+    });
   });
 });

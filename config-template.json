@@ -50,6 +50,14 @@
         "enabled": true,
         "schedule": "0 * * * *"
       }
+    },
+    "registry": {
+      "enabled": true,
+      "masterUrl": "https://fhir.github.io/ig-registry/tx-servers.json",
+      "crawlInterval": 30,
+      "timeout": 30000,
+      "userAgent": "YourServer/1.0",
+      "apiKeys": {}
     }
   }
 }

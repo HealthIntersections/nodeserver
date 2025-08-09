@@ -12,6 +12,8 @@ const fs = require('fs');
 const path = require('path');
 
 class PackageCrawler {
+  log;
+  
   constructor(config, db) {
     this.config = config;
     this.db = db;
@@ -20,7 +22,9 @@ class PackageCrawler {
     this.errors = '';
   }
 
-  async crawl() {
+  async crawl(log) {
+    this.log = log;
+    
     const startTime = Date.now();
     this.crawlerLog = {
       startTime: new Date().toISOString(),
@@ -30,8 +34,7 @@ class PackageCrawler {
       errors: ''
     };
 
-    console.log('Running web crawler for packages...');
-    console.log('Fetching master URL:', this.config.masterUrl);
+    this.log.info('Running web crawler for packages using master URL: '+ this.config.masterUrl);
 
     try {
       // Fetch the master JSON file
@@ -47,7 +50,7 @@ class PackageCrawler {
       // Process each feed
       for (const feedConfig of masterResponse.feeds) {
         if (!feedConfig.url) {
-          console.log('Skipping feed with no URL:', feedConfig);
+          this.log.info('Skipping feed with no URL: '+ feedConfig);
           continue;
         }
 
@@ -59,7 +62,7 @@ class PackageCrawler {
             packageRestrictions
           );
         } catch (feedError) {
-          console.error(`Failed to process feed ${feedConfig.url}:`, feedError.message);
+          this.log.error(`Failed to process feed ${feedConfig.url}: `+ feedError.message);
           // Continue with next feed even if this one fails
         }
       }
@@ -69,8 +72,8 @@ class PackageCrawler {
       this.crawlerLog.endTime = new Date().toISOString();
       this.crawlerLog.totalBytes = this.totalBytes;
 
-      console.log(`Web crawler completed successfully in ${runTime}ms`);
-      console.log(`Total bytes processed: ${this.totalBytes}`);
+      this.log.info(`Web crawler completed successfully in ${runTime}ms`);
+      this.log.info(`Total bytes processed: ${this.totalBytes}`);
 
       return this.crawlerLog;
 
@@ -80,7 +83,7 @@ class PackageCrawler {
       this.crawlerLog.fatalException = error.message;
       this.crawlerLog.endTime = new Date().toISOString();
 
-      console.error('Web crawler failed:', error);
+      this.log.error('Web crawler failed: '+ error);
       throw error;
     }
   }
@@ -157,7 +160,7 @@ class PackageCrawler {
     };
     this.crawlerLog.feeds.push(feedLog);
 
-    console.log('Processing feed:', url);
+    this.log.info('Processing feed: '+ url);
     const startTime = Date.now();
 
     try {
@@ -171,7 +174,7 @@ class PackageCrawler {
         items = Array.isArray(channel.item) ? channel.item : [channel.item].filter(Boolean);
       }
 
-      console.log(`Found ${items.length} items in feed`);
+      this.log.info(`Found ${items.length} items in feed`);
 
       for (let i = 0; i < items.length; i++) {
         try {
@@ -179,26 +182,26 @@ class PackageCrawler {
         } catch (itemError) {
           // Check if this is a 429 error on package download
           if (itemError.message.includes('RATE_LIMITED')) {
-            console.log(`Rate limited while downloading package from ${url}, stopping feed processing`);
+            this.log.info(`Rate limited while downloading package from ${url}, stopping feed processing`);
             feedLog.rateLimited = true;
             feedLog.rateLimitedAt = `item ${i}`;
             feedLog.rateLimitMessage = itemError.message;
             break; // Stop processing this feed
           }
           // For other errors, log and continue with next item
-          console.error(`Error processing item ${i} from ${url}:`, itemError.message);
+          this.log.error(`Error processing item ${i} from ${url}:`+ itemError.message);
         }
       }
 
       // TODO: Send email if there were errors and email is provided
       if (this.errors && email && !feedLog.rateLimited) {
-        console.log(`Would send error email to ${email} for feed ${url}`);
+        this.log.info(`Would send error email to ${email} for feed ${url}`);
       }
 
     } catch (error) {
       // Check if this is a 429 error on feed fetch
       if (error.message.includes('RATE_LIMITED')) {
-        console.log(`Rate limited while fetching feed ${url}, skipping this feed`);
+        this.log.info(`Rate limited while fetching feed ${url}, skipping this feed`);
         feedLog.rateLimited = true;
         feedLog.rateLimitMessage = error.message;
         feedLog.failTime = `${Date.now() - startTime}ms`;
@@ -207,11 +210,11 @@ class PackageCrawler {
 
       feedLog.exception = error.message;
       feedLog.failTime = `${Date.now() - startTime}ms`;
-      console.error(`Exception processing feed ${url}:`, error.message);
+      this.log.error(`Exception processing feed ${url}:`+ error.message);
 
       // TODO: Send email notification for non-rate-limit errors
       if (email) {
-        console.log(`Would send exception email to ${email} for feed ${url}`);
+        this.log.info(`Would send exception email to ${email} for feed ${url}`);
       }
     }
   }
@@ -226,7 +229,7 @@ class PackageCrawler {
       // Extract GUID
       if (!item.guid || !item.guid['#text']) {
         const error = `Error processing item from ${source}#item[${index}]: no guid provided`;
-        console.log(error);
+        this.log.info(error);
         itemLog.error = 'no guid provided';
         itemLog.status = 'error';
         return;
@@ -256,7 +259,7 @@ class PackageCrawler {
       if (!this.isPackageAllowed(id, source, packageRestrictions)) {
         if (!source.includes('simplifier.net')) {
           const error = `The package ${id} is not allowed to come from ${source}`;
-          console.log(error);
+          this.log.info(error);
           itemLog.error = error;
           itemLog.status = 'prohibited source';
         } else {
@@ -292,7 +295,7 @@ class PackageCrawler {
       }
 
       itemLog.url = url;
-      console.log('Fetching package:', url);
+      this.log.info('Fetching package: '+ url);
 
       const packageContent = await this.fetchUrl(url, 'application/tar+gzip');
       await this.store(source, url, guid, pubDate, packageContent, id, itemLog);
@@ -300,7 +303,7 @@ class PackageCrawler {
       itemLog.status = 'Fetched';
 
     } catch (error) {
-      console.error(`Exception processing item ${itemLog.guid || index}:`, error.message);
+      this.log.error(`Exception processing item ${itemLog.guid || index}:`+ error.message);
       itemLog.status = 'Exception';
       itemLog.error = error.message;
       if (error.message.includes('RATE_LIMITED')) {
@@ -361,7 +364,7 @@ class PackageCrawler {
 
       if (`${id}#${version}` !== idver) {
         const warning = `Warning processing ${idver}: actually found ${id}#${version} in the package`;
-        console.log(warning);
+        this.log.info(warning);
         itemLog.warning = warning;
       }
 
@@ -393,7 +396,7 @@ class PackageCrawler {
       await this.commit(packageBuffer, npmPackage, date, guid, id, version, canonical, urls);
 
     } catch (error) {
-      console.error(`Error storing package ${guid}:`, error.message);
+      this.log.error(`Error storing package ${guid}:`+ error.message);
       throw error;
     }
   }
@@ -527,7 +530,7 @@ class PackageCrawler {
             canonical = indexJson.canonical;
           }
         } catch (indexError) {
-          console.log(`Warning: Could not parse .index.json for ${id}: ${indexError.message}`);
+          this.log.this.warn(`Warning: Could not parse .index.json for ${id}: ${indexError.message}`);
         }
       }
 
@@ -545,7 +548,7 @@ class PackageCrawler {
             fhirVersionList = iniData.IG['fhir-version'];
           }
         } catch (iniError) {
-          console.log(`Warning: Could not parse ig.ini for ${id}: ${iniError.message}`);
+          this.log.warn(`Warning: Could not parse ig.ini for ${id}: ${iniError.message}`);
         }
       }
 

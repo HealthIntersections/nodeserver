@@ -1,6 +1,11 @@
 # FHIR Development Server
 
-This server provides various support functions to the FHIR community:  package registry, implementation guide statistics, SMART Health Link Support, and ValueSet Compose Language processing.
+This server provides various support functions to the FHIR community: package registry, implementation guide statistics, SMART Health Link Support, and ValueSet Compose Language processing.
+
+## Build Status
+![CI Build](https://github.com/HealthIntersections/nodeserver/actions/workflows/ci.yml/badge.svg)
+[![Release](https://img.shields.io/github/v/release/HealthIntersections/nodeserver?include_prereleases)](https://github.com/HealthIntersections/nodeserver/releases)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/HealthIntersections/nodeserver/pkgs/container/nodeserver)
 
 Note: In production, this server always runs behind an nginx reverse proxy, so there's no support for SSL 
 
@@ -54,6 +59,19 @@ cp config.example.json config.json
 
 # Edit configuration as needed
 nano config.json
+```
+
+### Docker Installation
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/healthintersections/nodeserver:latest
+
+# Run with configuration mounted
+docker run -p 3000:3000 \
+  -v /path/to/config.json:/app/config.json \
+  -v /path/to/data:/app/data \
+  ghcr.io/healthintersections/nodeserver:latest
 ```
 
 ### Basic Configuration
@@ -171,15 +189,24 @@ curl "http://localhost:3000/VCL?vcl=http://loinc.org"
 
 ### Docker (Recommended)
 
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-EXPOSE 3000
-CMD ["npm", "start"]
+The server is available as a Docker image:
+
+```bash
+# Pull specific version
+docker pull ghcr.io/healthintersections/nodeserver:v1.0.0
+
+# Run with mounted volumes
+docker run -d --name fhir-server \
+  -p 3000:3000 \
+  -v /path/to/config.json:/app/config.json \
+  -v /path/to/data:/app/data \
+  ghcr.io/healthintersections/nodeserver:v1.0.0
 ```
+
+Available tags:
+- `latest`: Latest stable release
+- `vX.Y.Z`: Specific version (e.g., `v1.0.0`)
+- `cibuild`: Latest build from the main branch
 
 ### Environment Variables
 
@@ -205,6 +232,22 @@ server {
     }
 }
 ```
+
+## Releases
+
+This project follows [Semantic Versioning](https://semver.org/) and uses a CHANGELOG.md file to track changes.
+
+To create a new release:
+
+1. Update CHANGELOG.md with your changes under a new version section
+2. Commit your changes
+3. Tag the commit with the new version: `git tag vX.Y.Z`
+4. Push the tag: `git push origin vX.Y.Z`
+
+GitHub Actions will automatically:
+- Run tests
+- Create a GitHub Release with notes from CHANGELOG.md
+- Build and publish Docker images with appropriate tags
 
 ## License
 

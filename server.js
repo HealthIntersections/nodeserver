@@ -9,12 +9,18 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 
+const Logger = require('./common/logger');
+const serverLog = Logger.getInstance().child({ module: 'server' });
+
 // Import modules
 const SHLModule = require('./shl/shl.js');
 const VCLModule = require('./vcl/vcl.js');
 const xigModule = require('./xig/xig.js');
 const PackagesModule = require('./packages/packages.js');
-const htmlServer = require('./html-server');
+const RegistryModule = require('./registry/registry.js');
+
+const htmlServer = require('./common/html-server');
+htmlServer.useLog(serverLog);
 
 const app = express();
 
@@ -24,9 +30,14 @@ try {
   const configPath = path.join(__dirname, 'config.json');
   const configData = fs.readFileSync(configPath, 'utf8');
   config = JSON.parse(configData);
-  console.log('Configuration loaded successfully');
+  
+  const activeModules = Object.keys(config.modules)
+    .filter(mod => config.modules[mod].enabled)
+    .join(', ');
+
+  serverLog.info(`Loaded Configuration. Active modules = ${activeModules}`);
 } catch (error) {
-  console.error('Failed to load configuration:', error.message);
+  serverLog.error('Failed to load configuration:'+error.message);
   process.exit(1);
 }
 
@@ -43,7 +54,6 @@ const modules = {};
 
 // Initialize modules based on configuration
 async function initializeModules() {
-  console.log('Initializing modules...');
 
   // Initialize SHL module
   if (config.modules.shl.enabled) {
@@ -51,13 +61,10 @@ async function initializeModules() {
       modules.shl = new SHLModule();
       await modules.shl.initialize(config.modules.shl);
       app.use('/shl', modules.shl.router);
-      console.log('SHL module loaded and routes registered');
     } catch (error) {
-      console.error('Failed to initialize SHL module:', error);
+      serverLog.error('Failed to initialize SHL module:', error);
       throw error;
     }
-  } else {
-    console.log('SHL module is disabled in configuration');
   }
 
   // Initialize VCL module
@@ -66,28 +73,22 @@ async function initializeModules() {
       modules.vcl = new VCLModule();
       await modules.vcl.initialize(config.modules.vcl);
       app.use('/VCL', modules.vcl.router);
-      console.log('VCL module loaded and routes registered');
     } catch (error) {
-      console.error('Failed to initialize VCL module:', error);
+      serverLog.error('Failed to initialize VCL module:', error);
       throw error;
     }
-  } else {
-    console.log('VCL module is disabled in configuration');
   }
-
+  
   // Initialize XIG module
   if (config.modules.xig.enabled) {
     try {
       await xigModule.initializeXigModule();
       app.use('/xig', xigModule.router);
       modules.xig = xigModule;
-      console.log('XIG module loaded and routes registered');
     } catch (error) {
-      console.error('Failed to initialize XIG module:', error);
+      serverLog.error('Failed to initialize XIG module:', error);
       throw error;
     }
-  } else {
-    console.log('XIG module is disabled in configuration');
   }
 
   // Initialize Packages module
@@ -96,20 +97,27 @@ async function initializeModules() {
       modules.packages = new PackagesModule();
       await modules.packages.initialize(config.modules.packages);
       app.use('/packages', modules.packages.router);
-      console.log('Packages module loaded and routes registered');
     } catch (error) {
-      console.error('Failed to initialize Packages module:', error);
+      serverLog.error('Failed to initialize Packages module:', error);
       throw error;
     }
-  } else {
-    console.log('Packages module is disabled in configuration');
   }
 
-  console.log('All enabled modules initialized successfully');
+  // Initialize Registry module
+  if (config.modules.registry && config.modules.registry.enabled) {
+    try {
+      modules.registry = new RegistryModule();
+      await modules.registry.initialize(config.modules.registry);
+      app.use('/tx-reg', modules.registry.router);
+    } catch (error) {
+      serverLog.error('Failed to initialize Registry module:', error);
+      throw error;
+    }
+  }
 }
 
 async function loadTemplates() {
-  console.log('Loading HTML templates...');
+  htmlServer.useLog(serverLog);
 
   try {
     // Load Root template
@@ -117,16 +125,18 @@ async function loadTemplates() {
     htmlServer.loadTemplate('root', rootTemplatePath);
 
     // Load XIG template
-    const xigTemplatePath = path.join(__dirname, 'xig-template.html');
+    const xigTemplatePath = path.join(__dirname, 'xig', 'xig-template.html');
     htmlServer.loadTemplate('xig', xigTemplatePath);
 
     // Load Packages template
-    const packagesTemplatePath = path.join(__dirname, 'packages-template.html');
+    const packagesTemplatePath = path.join(__dirname, 'packages', 'packages-template.html');
     htmlServer.loadTemplate('packages', packagesTemplatePath);
 
-    console.log('HTML templates loaded successfully');
+    const registryTemplatePath = path.join(__dirname, 'registry', 'registry-template.html');
+    htmlServer.loadTemplate('registry', registryTemplatePath);
+
   } catch (error) {
-    console.error('Failed to load templates:', error);
+    serverLog.error('Failed to load templates:', error);
     // Don't fail initialization if templates fail to load
   }
 }
@@ -163,6 +173,13 @@ function buildRootPageContent() {
     content += '</li>';
   }
 
+  if (config.modules.registry && config.modules.registry.enabled) {
+    content += '<li class="list-group-item">';
+    content += '<a href="/tx-reg" class="text-decoration-none">Terminology Server Registry</a>: ';
+    content += 'Discover and query FHIR terminology servers for code system and value set support';
+    content += '</li>';
+  }
+
   content += '</ul>';
   content += '</div>';
 
@@ -196,7 +213,7 @@ app.get('/', async (req, res) => {
       res.setHeader('Content-Type', 'text/html');
       res.send(html);
     } catch (error) {
-      console.error('Error rendering root page:', error);
+      serverLog.error('Error rendering root page:', error);
       htmlServer.sendErrorResponse(res, 'root', error);
     }
   } else {
@@ -267,69 +284,41 @@ async function startServer() {
 
     // Initialize modules
     await initializeModules().catch(error => {
-      console.error('Failed to initialize modules:', error);
+      serverLog.error('Failed to initialize modules:', error);
       throw error;
     });
 
     // Start server
     app.listen(PORT, () => {
-      console.log(`\n=== Server running on http://localhost:${PORT} ===`);
-      console.log(`Health check: http://localhost:${PORT}/health`);
-
-      if (config.modules.shl.enabled) {
-        console.log(`SHL endpoints: http://localhost:${PORT}/shl/`);
-
-        if (config.modules.shl.validator.enabled) {
-          console.log(`FHIR Validation endpoint: http://localhost:${PORT}/shl/validate`);
-          console.log(`Validator status: http://localhost:${PORT}/shl/validate/status`);
-        }
-      }
-
-      if (config.modules.vcl.enabled) {
-        console.log(`VCL parsing endpoint: http://localhost:${PORT}/VCL?vcl=<expression>`);
-      }
-
-      if (config.modules.xig.enabled) {
-        console.log(`XIG main (resources): http://localhost:${PORT}/xig`);
-        console.log(`XIG statistics: http://localhost:${PORT}/xig/stats`);
-      }
-
-      if (config.modules.packages.enabled) {
-        console.log(`Packages endpoints: http://localhost:${PORT}/packages`);
-        console.log(`Packages crawler: http://localhost:${PORT}/packages/crawl`);
-        console.log(`Packages stats: http://localhost:${PORT}/packages/stats`);
-        console.log(`Packages log: http://localhost:${PORT}/packages/log`);
-      }
-
-      console.log(`====================================================\n`);
+      serverLog.info(`=== Server running on http://localhost:${PORT} ===`);
     });
     if (modules.packages && config.modules.packages.enabled) {
       modules.packages.startInitialCrawler();
     }
   } catch (error) {
-    console.error('Failed to start server:', error);
+    serverLog.error('Failed to start server:', error);
     process.exit(1);
   }
 }
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\nShutting down server...');
+  serverLog.info('\nShutting down server...');
 
   // Shutdown all modules
   for (const [moduleName, moduleInstance] of Object.entries(modules)) {
     try {
       if (moduleInstance && typeof moduleInstance.shutdown === 'function') {
-        console.log(`Shutting down ${moduleName} module...`);
+        serverLog.info(`Shutting down ${moduleName} module...`);
         await moduleInstance.shutdown();
-        console.log(`${moduleName} module shut down`);
+        serverLog.info(`${moduleName} module shut down`);
       }
     } catch (error) {
-      console.error(`Error shutting down ${moduleName} module:`, error);
+      serverLog.error(`Error shutting down ${moduleName} module:`, error);
     }
   }
 
-  console.log('Server shutdown complete');
+  serverLog.info('Server shutdown complete');
   process.exit(0);
 });
 

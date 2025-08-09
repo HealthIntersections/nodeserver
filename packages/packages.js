@@ -9,8 +9,12 @@ const sqlite3 = require('sqlite3').verbose();
 const cron = require('node-cron');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const PackageCrawler = require('./package-crawler.js');
-const htmlServer = require('../html-server');
+const htmlServer = require('../common/html-server');
+
+const Logger = require('../common/logger');
+const pckLog = Logger.getInstance().child({ module: 'packages' });
 
 class PackagesModule {
   constructor() {
@@ -23,7 +27,327 @@ class PackagesModule {
     this.totalRuns = 0;
     this.lastCrawlerLog = {};
     this.crawlerRunning = false;
+    this.setupSecurityMiddleware();
     this.setupRoutes();
+  }
+
+  setupSecurityMiddleware() {
+    // Security headers middleware
+    this.router.use((req, res, next) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('X-XSS-Protection', '1; mode=block');
+      res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+      res.setHeader('Content-Security-Policy', [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https:",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "frame-ancestors 'none'"
+      ].join('; '));
+      res.removeHeader('X-Powered-By');
+      next();
+    });
+  }
+
+  // Parameter validation middleware
+  validateQueryParams(allowedParams = {}) {
+    return (req, res, next) => {
+      try {
+        // Check for parameter pollution (arrays) and validate
+        const normalized = {};
+        
+        for (const [key, value] of Object.entries(req.query)) {
+          if (Array.isArray(value)) {
+            return res.status(400).json({ 
+              error: 'Parameter pollution detected',
+              parameter: key 
+            });
+          }
+          
+          if (allowedParams[key]) {
+            const config = allowedParams[key];
+            
+            if (value !== undefined) {
+              if (typeof value !== 'string') {
+                return res.status(400).json({ 
+                  error: `Parameter ${key} must be a string` 
+                });
+              }
+              
+              if (value.length > (config.maxLength || 255)) {
+                return res.status(400).json({ 
+                  error: `Parameter ${key} too long (max ${config.maxLength || 255})` 
+                });
+              }
+              
+              if (config.pattern && !config.pattern.test(value)) {
+                return res.status(400).json({ 
+                  error: `Parameter ${key} has invalid format` 
+                });
+              }
+              
+              normalized[key] = value;
+            } else if (config.required) {
+              return res.status(400).json({ 
+                error: `Parameter ${key} is required` 
+              });
+            } else {
+              normalized[key] = config.default || '';
+            }
+          } else if (value !== undefined) {
+            // Unknown parameter
+            return res.status(400).json({ 
+              error: `Unknown parameter: ${key}` 
+            });
+          }
+        }
+        
+        // Set default values for missing optional parameters
+        for (const [key, config] of Object.entries(allowedParams)) {
+          if (normalized[key] === undefined && !config.required) {
+            normalized[key] = config.default || '';
+          }
+        }
+        
+        req.query = normalized;
+        next();
+      } catch (error) {
+        pckLog.error('Parameter validation error:', error);
+        res.status(500).json({ error: 'Parameter validation failed' });
+      }
+    };
+  }
+
+  // Enhanced HTML escaping
+  escapeHtml(str) {
+    if (!str || typeof str !== 'string') return '';
+    
+    const escapeMap = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+      '/': '&#x2F;',
+      '`': '&#x60;',
+      '=': '&#x3D;'
+    };
+    
+    return str.replace(/[&<>"'`=\/]/g, (match) => escapeMap[match]);
+  }
+
+  // Safe SQL parameter binding
+  buildSecureQuery(baseQuery, conditions = []) {
+    let query = baseQuery;
+    const params = [];
+    
+    conditions.forEach(condition => {
+      if (condition.operator === 'LIKE') {
+        query += ` AND ${condition.column} LIKE ?`;
+        params.push(`%${condition.value}%`);
+      } else if (condition.operator === '=') {
+        query += ` AND ${condition.column} = ?`;
+        params.push(condition.value);
+      } else if (condition.operator === 'IN') {
+        const placeholders = condition.values.map(() => '?').join(',');
+        query += ` AND ${condition.column} IN (${placeholders})`;
+        params.push(...condition.values);
+      }
+    });
+    
+    return { query, params };
+  }
+
+  // Secure package search with parameterized queries
+  async searchPackages(params, req = null, secure = false) {
+    const {
+      name = '',
+      dependson = '',
+      canonicalPkg = '',
+      canonicalUrl = '',
+      fhirVersion = '',
+      dependency = '',
+      sort = ''
+    } = params;
+
+    return new Promise((resolve, reject) => {
+      try {
+        let baseQuery;
+        const conditions = [];
+        let versioned = false;
+
+        // Build base query and conditions
+        if (name) {
+          versioned = name.includes('#');
+          if (name.includes('#')) {
+            const [packageId, version] = name.split('#');
+            conditions.push({ column: 'PackageVersions.Id', operator: 'LIKE', value: packageId });
+            conditions.push({ column: 'PackageVersions.Version', operator: 'LIKE', value: version });
+          } else {
+            conditions.push({ column: 'PackageVersions.Id', operator: 'LIKE', value: name });
+          }
+        }
+
+        if (canonicalPkg) {
+          if (canonicalPkg.endsWith('%')) {
+            conditions.push({ column: 'PackageVersions.Canonical', operator: 'LIKE', value: canonicalPkg.slice(0, -1) });
+          } else {
+            conditions.push({ column: 'PackageVersions.Canonical', operator: '=', value: canonicalPkg });
+          }
+        }
+
+        // Build appropriate base query
+        if (versioned) {
+          baseQuery = `SELECT Id, Version, PubDate, FhirVersions, Kind, Canonical, Description
+                       FROM PackageVersions 
+                       WHERE PackageVersions.PackageVersionKey > 0`;
+        } else {
+          baseQuery = `SELECT Packages.Id, Version, PubDate, FhirVersions, Kind, 
+                              PackageVersions.Canonical, Packages.DownloadCount, Description
+                       FROM Packages, PackageVersions
+                       WHERE Packages.CurrentVersion = PackageVersions.PackageVersionKey`;
+        }
+
+        const { query, params: queryParams } = this.buildSecureQuery(baseQuery, conditions);
+        
+        this.db.all(query + ' ORDER BY PubDate', queryParams, (err, rows) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          const results = rows.map(row => {
+            const packageInfo = {
+              name: row.Id,
+              version: row.Version,
+              fhirVersion: this.interpretVersion(row.FhirVersions),
+              canonical: row.Canonical,
+              kind: this.codeForKind(row.Kind),
+              url: this.buildPackageUrl(row.Id, row.Version, secure, req)
+            };
+
+            if (row.PubDate) {
+              packageInfo.date = new Date(row.PubDate).toISOString();
+            }
+
+            if (!versioned && row.DownloadCount) {
+              packageInfo.count = row.DownloadCount;
+            }
+
+            if (row.Description) {
+              packageInfo.description = Buffer.isBuffer(row.Description)
+                ? row.Description.toString('utf8')
+                : row.Description;
+            }
+
+            return packageInfo;
+          });
+
+          resolve(this.applySorting(results, sort));
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  // URL validation for external requests
+  validateExternalUrl(url) {
+    try {
+      const parsed = new URL(url);
+      
+      // Only allow http and https
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error(`Protocol ${parsed.protocol} not allowed`);
+      }
+      
+      // Block private IP ranges
+      const hostname = parsed.hostname;
+      if (hostname === 'localhost' || 
+          hostname === '127.0.0.1' ||
+          hostname.startsWith('10.') ||
+          hostname.startsWith('192.168.') ||
+          /^172\.(1[6-9]|2[0-9]|3[01])\./.test(hostname)) {
+        throw new Error('Private IP addresses not allowed');
+      }
+      
+      return parsed;
+    } catch (error) {
+      throw new Error(`Invalid URL: ${error.message}`);
+    }
+  }
+
+  // Safe HTTP request function
+  async safeHttpRequest(url, options = {}) {
+    return new Promise((resolve, reject) => {
+      try {
+        const validatedUrl = this.validateExternalUrl(url);
+        const { maxSize = 50 * 1024 * 1024, timeout = 30000 } = options;
+        
+        const protocol = validatedUrl.protocol === 'https:' ? require('https') : require('http');
+        
+        const request = protocol.get(validatedUrl, (response) => {
+          // Check content length
+          const contentLength = parseInt(response.headers['content-length'] || '0');
+          if (contentLength > maxSize) {
+            request.destroy();
+            reject(new Error('Response too large'));
+            return;
+          }
+          
+          // Handle redirects safely
+          if (response.statusCode >= 300 && response.statusCode < 400) {
+            const location = response.headers.location;
+            if (!location) {
+              reject(new Error('Redirect without location'));
+              return;
+            }
+            
+            const redirectCount = options.redirectCount || 0;
+            if (redirectCount >= 5) {
+              reject(new Error('Too many redirects'));
+              return;
+            }
+            
+            this.safeHttpRequest(location, { ...options, redirectCount: redirectCount + 1 })
+              .then(resolve)
+              .catch(reject);
+            return;
+          }
+          
+          if (response.statusCode !== 200) {
+            reject(new Error(`HTTP ${response.statusCode}`));
+            return;
+          }
+          
+          let data = Buffer.alloc(0);
+          response.on('data', (chunk) => {
+            data = Buffer.concat([data, chunk]);
+            if (data.length > maxSize) {
+              request.destroy();
+              reject(new Error('Response too large'));
+              return;
+            }
+          });
+          
+          response.on('end', () => {
+            resolve(data);
+          });
+        });
+        
+        request.on('error', reject);
+        request.setTimeout(timeout, () => {
+          request.destroy();
+          reject(new Error('Request timeout'));
+        });
+        
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 
   async gatherPackageStatistics() {
@@ -53,7 +377,7 @@ class PackagesModule {
       };
 
     } catch (error) {
-      console.error(`Error gathering package statistics: ${error.message}`);
+      pckLog.error(`Error gathering package statistics: ${error.message}`);
 
       return {
         downloadDate: 'Error',
@@ -178,10 +502,10 @@ class PackagesModule {
     // Set default masterUrl if not configured
     if (!this.config.masterUrl) {
       this.config.masterUrl = 'https://fhir.github.io/ig-registry/package-feeds.json';
-      console.log('No masterUrl configured, using default:', this.config.masterUrl);
+      pckLog.info('No masterUrl configured, using default:', this.config.masterUrl);
     }
 
-    console.log('Initializing Packages module...');
+    pckLog.info('Initializing Packages module...');
 
     // Initialize database
     await this.initializeDatabase();
@@ -198,20 +522,20 @@ class PackagesModule {
       this.startCrawlerJob();
     }
 
-    console.log('Packages module initialized successfully');
+    pckLog.info('Packages module initialized successfully');
   }
 
   async runCrawler() {
     this.totalRuns++;
-    console.log(`Running package crawler (run #${this.totalRuns})...`);
+    pckLog.info(`Running package crawler (run #${this.totalRuns})...`);
     this.crawlerRunning = true;
     try {
       try {
-        this.lastCrawlerLog = await this.crawler.crawl();
+        this.lastCrawlerLog = await this.crawler.crawl(pckLog);
         this.lastCrawlerLog.runNumber = this.totalRuns;
         this.lastRunTime = new Date().toISOString();
 
-        console.log(`Package crawler completed successfully`);
+        pckLog.info(`Package crawler completed successfully`);
         return this.lastCrawlerLog;
       } catch (error) {
         this.lastRunTime = new Date().toISOString();
@@ -219,11 +543,11 @@ class PackagesModule {
           this.lastCrawlerLog = this.crawler.crawlerLog;
           this.lastCrawlerLog.runNumber = this.totalRuns;
         }
-        console.error('Package crawler failed:', error.message);
+        pckLog.error('Package crawler failed:', error.message);
         throw error;
       }
     } finally {
-      this.crawlerRunning = false
+      this.crawlerRunning = false;
     }
   }
 
@@ -242,16 +566,16 @@ class PackagesModule {
 
       this.db = new sqlite3.Database(dbPath, (err) => {
         if (err) {
-          console.error('Error opening packages database:', err.message);
+          pckLog.error('Error opening packages database:', err.message);
           reject(err);
         } else {
-          console.log('Connected to packages SQLite database:', dbPath);
+          pckLog.info('Connected to packages SQLite database:', dbPath);
 
           if (!dbExists) {
-            console.log('Database does not exist, creating tables...');
+            pckLog.info('Database does not exist, creating tables...');
             this.createTables().then(resolve).catch(reject);
           } else {
-            console.log('Packages database already exists');
+            pckLog.info('Packages database already exists');
             resolve();
           }
         }
@@ -349,7 +673,7 @@ class PackagesModule {
       const checkTablesComplete = () => {
         tablesCompleted++;
         if (tablesCompleted === totalTables) {
-          console.log('All packages database tables created successfully');
+          pckLog.info('All packages database tables created successfully');
           // Now create indexes
           createIndexes();
         }
@@ -362,13 +686,13 @@ class PackagesModule {
         const checkIndexesComplete = () => {
           indexesCompleted++;
           if (indexesCompleted === totalIndexes) {
-            console.log('All packages database indexes created successfully');
+            pckLog.info('All packages database indexes created successfully');
             resolve();
           }
         };
 
         const handleIndexError = (err) => {
-          console.error('Error creating packages database index:', err);
+          pckLog.error('Error creating packages database index:', err);
           reject(err);
         };
 
@@ -385,7 +709,7 @@ class PackagesModule {
       };
 
       const handleTableError = (err) => {
-        console.error('Error creating packages database table:', err);
+        pckLog.error('Error creating packages database table:', err);
         reject(err);
       };
 
@@ -408,12 +732,12 @@ class PackagesModule {
 
       if (!fs.existsSync(mirrorPath)) {
         fs.mkdirSync(mirrorPath, {recursive: true});
-        console.log('Created mirror directory:', mirrorPath);
+        pckLog.info('Created mirror directory:', mirrorPath);
       } else {
-        console.log('Mirror directory exists:', mirrorPath);
+        pckLog.info('Mirror directory exists:', mirrorPath);
       }
     } catch (error) {
-      console.error('Error creating mirror directory:', error);
+      pckLog.error('Error creating mirror directory:', error);
       throw error;
     }
   }
@@ -421,15 +745,15 @@ class PackagesModule {
   startCrawlerJob() {
     if (this.config.crawler && this.config.crawler.schedule) {
       this.crawlerJob = cron.schedule(this.config.crawler.schedule, async () => {
-        console.log('Starting scheduled package crawler...');
+        pckLog.info('Starting scheduled package crawler...');
         try {
           await this.runCrawler();
-          console.log('Scheduled package crawler completed successfully');
+          pckLog.info('Scheduled package crawler completed successfully');
         } catch (error) {
-          console.error('Scheduled package crawler failed:', error.message);
+          pckLog.error('Scheduled package crawler failed:', error.message);
         }
       });
-      console.log(`Package crawler scheduled job started: ${this.config.crawler.schedule}`);
+      pckLog.info(`Package crawler scheduled job started: ${this.config.crawler.schedule}`);
     }
   }
 
@@ -437,7 +761,7 @@ class PackagesModule {
     if (this.crawlerJob) {
       this.crawlerJob.stop();
       this.crawlerJob = null;
-      console.log('Package crawler job stopped');
+      pckLog.info('Package crawler job stopped');
     }
   }
 
@@ -453,8 +777,8 @@ class PackagesModule {
       errors: ''
     };
 
-    console.log(`Running web crawler for packages (run #${this.totalRuns})...`);
-    console.log('Fetching master URL:', this.config.masterUrl);
+    pckLog.info(`Running web crawler for packages (run #${this.totalRuns})...`);
+    pckLog.info('Fetching master URL:', this.config.masterUrl);
 
     try {
       // Fetch the master JSON file
@@ -470,7 +794,7 @@ class PackagesModule {
       // Process each feed
       for (const feedConfig of masterResponse.feeds) {
         if (!feedConfig.url) {
-          console.log('Skipping feed with no URL:', feedConfig);
+          pckLog.info('Skipping feed with no URL:', feedConfig);
           continue;
         }
 
@@ -482,7 +806,7 @@ class PackagesModule {
             packageRestrictions
           );
         } catch (feedError) {
-          console.error(`Failed to process feed ${feedConfig.url}:`, feedError.message);
+          pckLog.error(`Failed to process feed ${feedConfig.url}:`, feedError.message);
           // Continue with next feed even if this one fails
         }
       }
@@ -493,8 +817,8 @@ class PackagesModule {
       this.crawlerLog.totalBytes = this.totalBytes;
       this.lastRunTime = new Date().toISOString();
 
-      console.log(`Web crawler completed successfully in ${runTime}ms`);
-      console.log(`Total bytes processed: ${this.totalBytes}`);
+      pckLog.info(`Web crawler completed successfully in ${runTime}ms`);
+      pckLog.info(`Total bytes processed: ${this.totalBytes}`);
 
     } catch (error) {
       const runTime = Date.now() - startTime;
@@ -503,22 +827,22 @@ class PackagesModule {
       this.crawlerLog.endTime = new Date().toISOString();
       this.lastRunTime = new Date().toISOString();
 
-      console.error('Web crawler failed:', error);
+      pckLog.error('Web crawler failed:', error);
       throw error;
     }
   }
 
   startInitialCrawler() {
     if (this.config.crawler.enabled) {
-      console.log('Starting initial package crawler...');
+      pckLog.info('Starting initial package crawler...');
 
       // Run crawler in background (non-blocking)
       setImmediate(async () => {
         try {
           await this.runCrawler();
-          console.log('Initial package crawler completed successfully');
+          pckLog.info('Initial package crawler completed successfully');
         } catch (error) {
-          console.error('Initial package crawler failed:', error.message);
+          pckLog.error('Initial package crawler failed:', error.message);
         }
       });
     }
@@ -528,32 +852,50 @@ class PackagesModule {
     // Helper function to check if request accepts HTML
     const acceptsHtml = (req) => req.headers.accept && req.headers.accept.includes('text/html');
 
+    // Parameter validation configs
+    const searchParams = {
+      name: { maxLength: 100, pattern: /^[a-zA-Z0-9._#-]*$/ },
+      dependson: { maxLength: 100, pattern: /^[a-zA-Z0-9._#-]*$/ },
+      pkgcanonical: { maxLength: 200, pattern: /^[a-zA-Z0-9._:/-]*%?$/ },
+      canonical: { maxLength: 200, pattern: /^[a-zA-Z0-9._:/-]*$/ },
+      fhirversion: { maxLength: 10, pattern: /^(R2|R2B|R3|R4|R4B|R5|R6)?$/ },
+      dependency: { maxLength: 100, pattern: /^[a-zA-Z0-9._#|-]*$/ },
+      sort: { maxLength: 20, pattern: /^-?(name|version|date|count|fhirversion|kind|canonical)$/ },
+      objWrapper: { maxLength: 10, pattern: /^(true|false)?$/ }
+    };
+
+    const updatesParams = {
+      dateType: { maxLength: 10, pattern: /^(relative|absolute)?$/, default: 'relative' },
+      daysValue: { maxLength: 3, pattern: /^\d{1,3}$/, default: '10' },
+      dateValue: { maxLength: 10, pattern: /^\d{4}-\d{2}-\d{2}$/, default: new Date().toISOString().split('T')[0] }
+    };
+
+    const versionParams = {
+      sort: { maxLength: 20, pattern: /^-?(version|fhirversion|kind|date|count)$/ }
+    };
     // GET /packages/catalog - Search packages or get updates
-    this.router.get('/catalog', async (req, res) => {
+    this.router.get('/catalog', this.validateQueryParams(searchParams), async (req, res) => {
       try {
-        const {name, dependson, pkgcanonical, canonical, fhirversion, dependency, sort} = req.query;
-        // Handle search request
         await this.serveSearch(req, res);
       } catch (error) {
-        console.error('Error in /packages/catalog:', error);
+        pckLog.error('Error in /packages/catalog:', error);
         res.status(500).json({error: 'Internal server error'});
       }
     });
 
     // GET /packages/-/v1/search - Search packages (v1 API)
-    this.router.get('/-/v1/search', async (req, res) => {
+    this.router.get('/-/v1/search', this.validateQueryParams(searchParams), async (req, res) => {
       try {
-        // Set objWrapper flag for v1 API format
-        req.query.objWrapper = true;
+        req.query.objWrapper = 'true';
         await this.serveSearch(req, res);
       } catch (error) {
-        console.error('Error in /packages/-/v1/search:', error);
+        pckLog.error('Error in /packages/-/v1/search:', error);
         res.status(500).json({error: 'Internal server error'});
       }
     });
 
-    // GET /packages/updates - Dedicated updates page (defaults to 10 days)
-    this.router.get('/updates', async (req, res) => {
+    // GET /packages/updates
+    this.router.get('/updates', this.validateQueryParams(updatesParams), async (req, res) => {
       try {
         let {dateType, daysValue, dateValue} = req.query;
         let dt = dateType || 'relative';
@@ -561,7 +903,7 @@ class PackagesModule {
         let date = dateValue || new Date().toISOString().split('T')[0];
         await this.serveUpdates(req.secure, res, req, dt, days, date);
       } catch (error) {
-        console.error('Error in /packages/updates:', error);
+        pckLog.error('Error in /packages/updates:', error);
         res.status(500).json({error: 'Internal server error'});
       }
     });
@@ -626,7 +968,7 @@ class PackagesModule {
           res.json(response);
         }
       } catch (error) {
-        console.error('Error in /packages/log:', error);
+        pckLog.error('Error in /packages/log:', error);
         if (req.headers.accept && req.headers.accept.includes('text/html')) {
           htmlServer.sendErrorResponse(res, 'packages', error);
         } else {
@@ -635,35 +977,60 @@ class PackagesModule {
       }
     });
 
-    // GET /packages/broken - Serve broken packages
-    this.router.get('/broken', async (req, res) => {
+    // GET /packages/broken
+    this.router.get('/broken', this.validateQueryParams({ 
+      filter: { maxLength: 100, pattern: /^[a-zA-Z0-9._-]*$/ } 
+    }), async (req, res) => {
       try {
         const {filter} = req.query;
         await this.serveBroken(req, res, filter);
       } catch (error) {
-        console.error('Error in /packages/broken:', error);
+        pckLog.error('Error in /packages/broken:', error);
         res.status(500).json({error: 'Internal server error'});
       }
     });
 
-    // GET /packages/:id/:version - Download specific package version
-    this.router.get('/:id/:version', async (req, res) => {
+    // GET /packages/:id/:version
+    this.router.get('/:id/:version', (req, res, next) => {
+      // Validate path parameters
+      const { id, version } = req.params;
+      
+      if (!id || !version || 
+          !/^[a-zA-Z0-9._-]+$/.test(id) || 
+          !/^[a-zA-Z0-9._-]+$/.test(version)) {
+        return res.status(400).json({error: 'Invalid package id or version format'});
+      }
+      
+      if (id.length > 100 || version.length > 50) {
+        return res.status(400).json({error: 'Package id or version too long'});
+      }
+      
+      next();
+    }, async (req, res) => {
       try {
         const {id, version} = req.params;
         await this.serveDownload(req.secure, id, version, res);
       } catch (error) {
-        console.error('Error in /packages/:id/:version:', error);
+        pckLog.error('Error in /packages/:id/:version:', error);
         res.status(500).json({error: 'Internal server error'});
       }
     });
 
-    // GET /packages/:page.html - Serve HTML page
-    this.router.get('/:page.html', async (req, res) => {
+    // GET /packages/:page.html
+    this.router.get('/:page.html', (req, res, next) => {
+      const { page } = req.params;
+      
+      if (!page || !/^[a-zA-Z0-9_-]+$/.test(page) || page.length > 50) {
+        return res.status(400).json({error: 'Invalid page name'});
+      }
+      
+      next();
+    }, async (req, res) => {
       try {
         const {page} = req.params;
         await this.servePage(`${page}.html`, req, res, req.secure);
       } catch (error) {
-        console.error('Error in /packages/:page.html:', error);
+        pckLog.error('Error in /packages/:page.html:', error);
         res.status(500).json({error: 'Internal server error'});
       }
     });
@@ -682,19 +1049,17 @@ class PackagesModule {
 
         await this.serveVersions(id, sort, req.secure, req, res);
       } catch (error) {
-        console.error('Error in /packages/:id:', error);
+        pckLog.error('Error in /packages/:id:', error);
         res.status(500).json({error: 'Internal server error'});
       }
     });
 
-    // Main packages endpoint (existing route)
-    this.router.get('/', async (req, res) => {
+    // Main packages endpoint
+    this.router.get('/', this.validateQueryParams(searchParams), async (req, res) => {
       try {
-        const {name, dependson, pkgcanonical, canonical, fhirversion, dependency, sort} = req.query;
-        // Handle search request - same as /packages/catalog
         await this.serveSearch(req, res);
       } catch (error) {
-        console.error('Error in /packages/:', error);
+        pckLog.error('Error in /packages/:', error);
         res.status(500).json({error: 'Internal server error'});
       }
     });
@@ -714,7 +1079,7 @@ class PackagesModule {
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('Manual crawler failed:', error);
+        pckLog.error('Manual crawler failed:', error);
         res.status(500).json({
           error: 'Crawler failed',
           message: error.message
@@ -768,7 +1133,7 @@ class PackagesModule {
           });
         }
       } catch (error) {
-        console.error('Error generating stats:', error);
+        pckLog.error('Error generating stats:', error);
         if (req.headers.accept && req.headers.accept.includes('text/html')) {
           htmlServer.sendErrorResponse(res, 'packages', error);
         } else {
@@ -863,7 +1228,7 @@ class PackagesModule {
       }
 
     } catch (error) {
-      console.error('Error in serveUpdates:', error);
+      pckLog.error('Error in serveUpdates:', error);
       res.status(500).json({
         error: 'Failed to get package updates',
         message: error.message
@@ -903,7 +1268,7 @@ class PackagesModule {
       res.setHeader('Content-Type', 'text/html');
       res.send(html);
     } catch (error) {
-      console.error('Error rendering updates HTML:', error);
+      pckLog.error('Error rendering updates HTML:', error);
       htmlServer.sendErrorResponse(res, 'packages', error);
     }
   }
@@ -1021,7 +1386,7 @@ class PackagesModule {
       await this.servePackageContent(packageData, id, version, res);
 
     } catch (error) {
-      console.error('Error in serveDownload:', error);
+      pckLog.error('Error in serveDownload:', error);
       res.status(500).json({error: 'Download failed', message: error.message});
     }
   }
@@ -1082,7 +1447,7 @@ class PackagesModule {
       });
 
     } catch (error) {
-      console.error('Error serving package content:', error);
+      pckLog.error('Error serving package content:', error);
       throw error;
     }
   }
@@ -1114,7 +1479,7 @@ class PackagesModule {
       });
 
     } catch (error) {
-      console.error('Error updating download counts:', error);
+      pckLog.error('Error updating download counts:', error);
       // Don't throw here - download counts are not critical
     }
   }
@@ -1150,7 +1515,7 @@ class PackagesModule {
         res.json(registryResponse);
       }
     } catch (error) {
-      console.error('Error in serveVersions:', error);
+      pckLog.error('Error in serveVersions:', error);
       res.status(500).json({error: 'Failed to get package versions', message: error.message});
     }
   }
@@ -1345,7 +1710,7 @@ class PackagesModule {
       res.setHeader('Content-Type', 'text/html');
       res.send(html);
     } catch (error) {
-      console.error('Error rendering versions HTML:', error);
+      pckLog.error('Error rendering versions HTML:', error);
       htmlServer.sendErrorResponse(res, 'packages', error);
     }
   }
@@ -1498,7 +1863,7 @@ class PackagesModule {
         res.json(responseData);
       }
     } catch (error) {
-      console.error('Error in search:', error);
+      pckLog.error('Error in search:', error);
       res.status(500).json({error: 'Search failed', message: error.message});
     }
   }
@@ -1706,7 +2071,7 @@ class PackagesModule {
       res.setHeader('Content-Type', 'text/html');
       res.send(html);
     } catch (error) {
-      console.error('Error rendering search HTML:', error);
+      pckLog.error('Error rendering search HTML:', error);
       htmlServer.sendErrorResponse(res, 'packages', error);
     }
   }
@@ -1828,7 +2193,6 @@ class PackagesModule {
 
     // Search form - matching existing format exactly
     content += '<form method="GET" action="/packages/catalog">';
-    content += '<input type="hidden" name="op" value="find">';
     content += '<table>';
     content += '<tbody>';
 
@@ -2054,7 +2418,7 @@ class PackagesModule {
   }
 
   async shutdown() {
-    console.log('Shutting down Packages module...');
+    pckLog.info('Shutting down Packages module...');
 
     this.stopCrawlerJob();
 
@@ -2063,16 +2427,16 @@ class PackagesModule {
       return new Promise((resolve) => {
         this.db.close((err) => {
           if (err) {
-            console.error('Error closing packages database:', err.message);
+            pckLog.error('Error closing packages database:', err.message);
           } else {
-            console.log('Packages database connection closed');
+            pckLog.info('Packages database connection closed');
           }
           resolve();
         });
       });
     }
 
-    console.log('Packages module shut down');
+    pckLog.info('Packages module shut down');
   }
 
   async serveBroken(req, res, filter) {
@@ -2101,7 +2465,7 @@ class PackagesModule {
       }
 
     } catch (error) {
-      console.error('Error in serveBroken:', error);
+      pckLog.error('Error in serveBroken:', error);
       res.status(500).json({
         error: 'Failed to generate broken dependencies report',
         message: error.message
@@ -2223,7 +2587,7 @@ class PackagesModule {
       res.setHeader('Content-Type', 'text/html');
       res.send(html);
     } catch (error) {
-      console.error('Error rendering broken dependencies HTML:', error);
+      pckLog.error('Error rendering broken dependencies HTML:', error);
       htmlServer.sendErrorResponse(res, 'packages', error);
     }
   }
