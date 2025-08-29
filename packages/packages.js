@@ -1869,6 +1869,12 @@ class PackagesModule {
       objWrapper = false
     } = req.query;
 
+    // Type confusion defense: reject array or non-string for critical params.
+    if (typeof dependson !== 'string') {
+      res.status(400).json({ error: 'Bad Request', message: 'Query parameter "dependson" must be a string.' });
+      return;
+    }
+
     const secure = req.secure || req.headers['x-forwarded-proto'] === 'https';
 
     try {
