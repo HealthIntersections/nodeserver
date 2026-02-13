@@ -21,6 +21,33 @@ This report is intended to show:
 3. Where it is better, where it is worse, and why.
 4. What changes are DB-specific vs core pipeline behavior.
 
+## 1.1 Key code changes (concise)
+
+1. Generic SQLite loader/runtime path:
+- `tx/library.js` now routes sqlite sources through the generic runtime factory path.
+- legacy terminology-specific loader branching was removed.
+
+2. Minimal-specialization model:
+- behavior selection is metadata/tag-driven in `cs_config` (`runtime.behaviorFlags.tags`).
+- specialization registration is centralized (`tx/cs/cs-sqlite-v0-specializers.js`), rather than hardcoded loader branches.
+
+3. Legacy terminology classes/importers removed:
+- legacy SNOMED/LOINC/RxNorm runtime classes and non-sqlite import modules were removed.
+- sqlite-v0 importers are now the maintained path for these vocabularies.
+
+4. Optional batched provider capability without breaking existing abstractions:
+- `tx/cs/cs-api.js` adds optional `filterPage(filterContext, set, count)` defaulting to `null` (unsupported).
+- `tx/workers/expand.js` uses batched iteration when available via `iteratePrimaryFilterSet(...)`.
+- fallback remains the existing `filterMore`/`filterConcept` loop, preserving compatibility with providers that do not implement batching.
+
+5. Runtime/provider performance hardening in shared worker path:
+- request-scope memoization for code-system provider resolution in `tx/workers/worker.js` (`codeSystemProviderCache`).
+- this is abstraction-safe and applies to all providers.
+
+6. Correctness fixes discovered during convergence:
+- `searchFilter(...)` argument-order bug fixed in `tx/workers/expand.js`.
+- RxNorm sqlite importer corrected to preserve all `RXCUI+TTY` pairs (no single-TTY collapse), enabling correct TTY filters.
+
 ## 2. Explicit test configurations used
 
 ### A) All-v0 unified SQLite config (new baseline)
