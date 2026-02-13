@@ -23,6 +23,18 @@ class SqliteRuntimeV0Iterator {
   }
 }
 
+class SqliteRuntimeV0QueryIterator {
+  constructor(mode, options = {}) {
+    this.mode = mode;
+    this.pageSize = Number(options.pageSize) > 0 ? Number(options.pageSize) : 512;
+    this.targetConceptId = options.targetConceptId || null;
+    this.rows = [];
+    this.cursor = 0;
+    this.lastCode = null;
+    this.done = false;
+  }
+}
+
 class SqliteRuntimeV0FilterSet {
   constructor(name, codes, closed = true) {
     this.name = name;
@@ -76,6 +88,8 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     this.meta = metadata;
     this.runtime = runtime || {};
     this.propertyDefs = new Map();
+    this.sharedState = options.sharedState || null;
+    this.statusCache = null;
     this.ownsDb = options.ownsDb === true;
     this.defaultIterationRegex = null;
     const regexSource = this.runtime?.iteration?.defaultCodeRegex;
@@ -90,6 +104,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
 
   close() {
     if (!this.db || !this.ownsDb) return;
+    this.statusCache = null;
     this.db.close();
     this.db = null;
   }
@@ -195,28 +210,89 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     const ctxt = await this.#ensureContext(context);
     if (!ctxt) return null;
 
-    const statusPropertyCode = this.runtime?.status?.statusProperty;
-    if (statusPropertyCode) {
-      const propDef = await this.#resolvePropertyDef(statusPropertyCode);
-      if (propDef) {
-        const row = await get(
-          this.db,
-          `SELECT COALESCE(value_text, value_raw) AS value
-           FROM concept_literal
-           WHERE source_concept_id = ?
-             AND property_id = ?
-             AND active = 1
-             AND COALESCE(value_text, value_raw) IS NOT NULL
-           LIMIT 1`,
-          [ctxt.conceptId, propDef.property_id]
-        );
-        if (row?.value) {
-          return row.value;
-        }
-      }
+    const statusValue = await this.#statusValueForConcept(ctxt.conceptId);
+    if (statusValue) {
+      return statusValue;
     }
 
     return ctxt.active ? 'active' : 'inactive';
+  }
+
+  async #statusValueForConcept(conceptId) {
+    const statusPropertyCode = this.runtime?.status?.statusProperty;
+    if (!statusPropertyCode) {
+      return null;
+    }
+
+    const propDef = await this.#resolvePropertyDef(statusPropertyCode);
+    if (!propDef?.property_id) {
+      return null;
+    }
+
+    await this.#ensureStatusCache(propDef.property_id);
+    return this.statusCache?.values?.get(conceptId) || null;
+  }
+
+  async #ensureStatusCache(propertyId) {
+    if (this.statusCache?.propertyId === propertyId && this.statusCache.values instanceof Map) {
+      return;
+    }
+
+    if (this.sharedState && this.sharedState.statusByPropertyId instanceof Map) {
+      const existing = this.sharedState.statusByPropertyId.get(propertyId);
+      if (existing instanceof Map) {
+        this.statusCache = { propertyId, values: existing };
+        return;
+      }
+
+      if (!(this.sharedState.statusLoadPromises instanceof Map)) {
+        this.sharedState.statusLoadPromises = new Map();
+      }
+
+      let promise = this.sharedState.statusLoadPromises.get(propertyId);
+      if (!promise) {
+        promise = this.#loadStatusMap(propertyId)
+          .then((values) => {
+            this.sharedState.statusByPropertyId.set(propertyId, values);
+            this.sharedState.statusLoadPromises.delete(propertyId);
+            return values;
+          })
+          .catch((error) => {
+            this.sharedState.statusLoadPromises.delete(propertyId);
+            throw error;
+          });
+        this.sharedState.statusLoadPromises.set(propertyId, promise);
+      }
+
+      const values = await promise;
+      this.statusCache = { propertyId, values };
+      return;
+    }
+
+    const values = await this.#loadStatusMap(propertyId);
+    this.statusCache = { propertyId, values };
+  }
+
+  async #loadStatusMap(propertyId) {
+    const rows = await all(
+      this.db,
+      `SELECT source_concept_id,
+              COALESCE(value_text, value_raw) AS value
+       FROM concept_literal
+       WHERE property_id = ?
+         AND active = 1
+         AND COALESCE(value_text, value_raw) IS NOT NULL
+       ORDER BY source_concept_id, literal_id`,
+      [propertyId]
+    );
+
+    const values = new Map();
+    for (const row of rows) {
+      if (!values.has(row.source_concept_id) && row.value != null) {
+        values.set(row.source_concept_id, row.value);
+      }
+    }
+    return values;
   }
 
   async designations(context, displays) {
@@ -311,6 +387,56 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     };
   }
 
+  async locateBatch(codes) {
+    const out = new Map();
+    if (!Array.isArray(codes) || codes.length === 0) {
+      return out;
+    }
+
+    const normalized = [];
+    const seen = new Set();
+    for (const raw of codes) {
+      const code = String(raw || '');
+      if (!code || seen.has(code)) {
+        continue;
+      }
+      seen.add(code);
+      normalized.push(code);
+    }
+    if (normalized.length === 0) {
+      return out;
+    }
+
+    const batchSize = 500;
+    for (let i = 0; i < normalized.length; i += batchSize) {
+      const batch = normalized.slice(i, i + batchSize);
+      const placeholders = batch.map(() => '?').join(', ');
+      const rows = await all(
+        this.db,
+        `SELECT concept_id, code, display, definition, active
+         FROM concept
+         WHERE cs_id = ?
+           AND code IN (${placeholders})`,
+        [this.meta.csId, ...batch]
+      );
+
+      for (const row of rows) {
+        out.set(row.code, {
+          context: new SqliteRuntimeV0Context(
+            row.concept_id,
+            row.code,
+            row.display,
+            row.definition,
+            row.active === 1
+          ),
+          message: null
+        });
+      }
+    }
+
+    return out;
+  }
+
   async locateIsA(code, parent, disallowParent = false) {
     const located = await this.locate(code);
     if (!located.context) {
@@ -339,71 +465,119 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       if (this.runtime?.iteration?.rootMode === 'all') {
         return this.iteratorAll();
       }
-      const rows = await all(
-        this.db,
-        `SELECT c.code
-         FROM concept c
-         LEFT JOIN concept_link l
-           ON l.source_concept_id = c.concept_id
-          AND l.property_id = ?
-          AND l.edge_set_id = ?
-          AND l.active = 1
-         WHERE c.cs_id = ?
-           AND c.active = 1
-           AND l.edge_id IS NULL
-         ORDER BY c.code`,
-        [this.meta.hierarchyPropertyId, this.meta.hierarchyEdgeSetId, this.meta.csId]
-      );
-      return new SqliteRuntimeV0Iterator(
-        rows.map(r => r.code).filter(code => this.#allowDefaultIterationCode(code))
-      );
+      return new SqliteRuntimeV0QueryIterator('roots');
     }
 
     const ctxt = await this.#ensureContext(code);
     if (!ctxt) return null;
 
+    if (this.runtime?.iteration?.children === false) {
+      return new SqliteRuntimeV0Iterator([]);
+    }
+
+    const hasChildren = await this.#conceptHasHierarchyChildren(ctxt.conceptId);
+    if (!hasChildren) {
+      return new SqliteRuntimeV0Iterator([]);
+    }
+
+    return new SqliteRuntimeV0QueryIterator('children', { targetConceptId: ctxt.conceptId });
+  }
+
+  async #conceptHasHierarchyChildren(conceptId) {
+    if (!conceptId || !this.meta.hierarchyPropertyId) {
+      return false;
+    }
+    const targets = await this.#getHierarchyChildTargetSet();
+    return targets.has(conceptId);
+  }
+
+  async #getHierarchyChildTargetSet() {
+    if (!this.meta.hierarchyPropertyId) {
+      return new Set();
+    }
+
+    const key = `${this.meta.hierarchyPropertyId}:${this.meta.hierarchyEdgeSetId}`;
+    if (this.sharedState && this.sharedState.childTargetSets instanceof Map) {
+      const existing = this.sharedState.childTargetSets.get(key);
+      if (existing instanceof Set) {
+        return existing;
+      }
+
+      if (!(this.sharedState.childTargetLoadPromises instanceof Map)) {
+        this.sharedState.childTargetLoadPromises = new Map();
+      }
+
+      let promise = this.sharedState.childTargetLoadPromises.get(key);
+      if (!promise) {
+        promise = this.#loadHierarchyChildTargetSet(
+          this.meta.hierarchyPropertyId,
+          this.meta.hierarchyEdgeSetId
+        ).then((set) => {
+          this.sharedState.childTargetSets.set(key, set);
+          this.sharedState.childTargetLoadPromises.delete(key);
+          return set;
+        }).catch((error) => {
+          this.sharedState.childTargetLoadPromises.delete(key);
+          throw error;
+        });
+        this.sharedState.childTargetLoadPromises.set(key, promise);
+      }
+      return promise;
+    }
+
+    return this.#loadHierarchyChildTargetSet(this.meta.hierarchyPropertyId, this.meta.hierarchyEdgeSetId);
+  }
+
+  async #loadHierarchyChildTargetSet(propertyId, edgeSetId) {
     const rows = await all(
       this.db,
-      `SELECT c.code
-       FROM concept_link l
-       JOIN concept c ON c.concept_id = l.source_concept_id
-       WHERE l.target_concept_id = ?
-         AND l.property_id = ?
-         AND l.edge_set_id = ?
-         AND l.active = 1
-       ORDER BY c.code`,
-      [ctxt.conceptId, this.meta.hierarchyPropertyId, this.meta.hierarchyEdgeSetId]
+      `SELECT DISTINCT target_concept_id
+       FROM concept_link
+       WHERE property_id = ?
+         AND edge_set_id = ?
+         AND active = 1`,
+      [propertyId, edgeSetId]
     );
-
-    return new SqliteRuntimeV0Iterator(rows.map(r => r.code));
+    return new Set(rows.map((r) => r.target_concept_id));
   }
 
   async iteratorAll() {
-    const rows = await all(
-      this.db,
-      `SELECT code
-       FROM concept
-       WHERE cs_id = ? AND active = 1
-       ORDER BY code`,
-      [this.meta.csId]
-    );
-    return new SqliteRuntimeV0Iterator(
-      rows.map(r => r.code).filter(code => this.#allowDefaultIterationCode(code))
-    );
+    return new SqliteRuntimeV0QueryIterator('all');
   }
 
   async nextContext(iteratorContext) {
-    if (!iteratorContext || !(iteratorContext instanceof SqliteRuntimeV0Iterator)) {
+    if (!iteratorContext) {
       return null;
     }
+
+    if (this.#isQueryIterator(iteratorContext)) {
+      while (iteratorContext.cursor >= iteratorContext.rows.length) {
+        if (iteratorContext.done) {
+          return null;
+        }
+        await this.#loadNextIteratorPage(iteratorContext);
+      }
+
+      const context = iteratorContext.rows[iteratorContext.cursor];
+      iteratorContext.cursor += 1;
+      return context || null;
+    }
+
+    if (!(iteratorContext instanceof SqliteRuntimeV0Iterator)) {
+      return null;
+    }
+
     if (iteratorContext.cursor >= iteratorContext.codes.length) {
       return null;
     }
 
-    const code = iteratorContext.codes[iteratorContext.cursor];
+    const entry = iteratorContext.codes[iteratorContext.cursor];
     iteratorContext.cursor += 1;
+    if (entry instanceof SqliteRuntimeV0Context) {
+      return entry;
+    }
 
-    const located = await this.locate(code);
+    const located = await this.locate(entry);
     return located.context;
   }
 
@@ -815,6 +989,14 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       return;
     }
 
+    if (this.#useMembershipPredicate(filterContext)) {
+      const predicate = await this.#buildPropertyPredicateFilter(filterName, propertyCfg, op, value);
+      if (predicate) {
+        filterContext.filters.push(predicate);
+        return;
+      }
+    }
+
     if (op === '=') {
       const candidates = normalizedFilterCandidates(value, propertyCfg.value);
       if (candidates.length === 0) {
@@ -856,6 +1038,70 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     throw new Error(`Unsupported sqlite runtime property operator '${op}'`);
   }
 
+  async #buildPropertyPredicateFilter(filterName, propertyCfg, op, value) {
+    const caseSensitive = propertyCfg.value?.caseSensitive === true;
+
+    if (op === '=') {
+      const candidates = normalizedFilterCandidates(value, propertyCfg.value);
+      if (candidates.length === 0) {
+        return new SqliteRuntimeV0FilterSet(filterName, [], true);
+      }
+      return new SqliteRuntimeV0PredicateFilter(
+        filterName,
+        'property-filter',
+        { propertyCfg, op, candidates, caseSensitive },
+        true
+      );
+    }
+
+    if (op === 'in') {
+      const members = splitFilterValueList(value);
+      const aggregate = new Set();
+      for (const member of members) {
+        const candidates = normalizedFilterCandidates(member, propertyCfg.value);
+        for (const candidate of candidates) {
+          aggregate.add(candidate);
+        }
+      }
+      const values = Array.from(aggregate);
+      if (values.length === 0) {
+        return new SqliteRuntimeV0FilterSet(filterName, [], true);
+      }
+      return new SqliteRuntimeV0PredicateFilter(
+        filterName,
+        'property-filter',
+        { propertyCfg, op, candidates: values, caseSensitive },
+        true
+      );
+    }
+
+    if (op === 'exists') {
+      const expectExists = String(value ?? 'true').toLowerCase() !== 'false';
+      return new SqliteRuntimeV0PredicateFilter(
+        filterName,
+        'property-filter',
+        { propertyCfg, op, expectExists },
+        true
+      );
+    }
+
+    if (op === 'regex') {
+      try {
+        new RegExp(String(value || ''));
+      } catch (error) {
+        throw new Error(`Invalid regex '${value}': ${error.message}`);
+      }
+      return new SqliteRuntimeV0PredicateFilter(
+        filterName,
+        'property-filter',
+        { propertyCfg, op, pattern: String(value || '') },
+        true
+      );
+    }
+
+    return null;
+  }
+
   async #propertyEqualsCodes(propertyCfg, candidates) {
     const codeSet = new Set();
     const caseSensitive = propertyCfg.value?.caseSensitive === true;
@@ -894,11 +1140,11 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
                 COALESCE(cl.value_text, cl.value_raw) AS value
          FROM concept_literal cl
          JOIN concept c ON c.concept_id = cl.source_concept_id
-         WHERE c.cs_id = ?
-           AND cl.property_id = ?
+         WHERE cl.property_id = ?
            AND cl.active = 1
+           AND c.cs_id = ?
            AND COALESCE(cl.value_text, cl.value_raw) IS NOT NULL`,
-        [this.meta.csId, propertyCfg.propertyId]
+        [propertyCfg.propertyId, this.meta.csId]
       );
       for (const row of rows) {
         if (regex.test(row.value)) {
@@ -916,11 +1162,11 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
          FROM concept_link l
          JOIN concept src ON src.concept_id = l.source_concept_id
          JOIN concept tgt ON tgt.concept_id = l.target_concept_id
-         WHERE src.cs_id = ?
-           AND l.property_id = ?
+         WHERE l.property_id = ?
            AND l.edge_set_id = ?
-           AND l.active = 1`,
-        [this.meta.csId, propertyCfg.propertyId, this.meta.hierarchyEdgeSetId]
+           AND l.active = 1
+           AND src.cs_id = ?`,
+        [propertyCfg.propertyId, this.meta.hierarchyEdgeSetId, this.meta.csId]
       );
       for (const row of rows) {
         const codeMatch = row.target_code && regex.test(row.target_code);
@@ -940,25 +1186,39 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       return [];
     }
 
-    const normalized = caseSensitive
-      ? candidates
-      : candidates.map(v => String(v).toLowerCase());
+    const normalized = candidates.map(v => String(v));
     const placeholders = normalized.map(() => '?').join(', ');
-    const comparator = caseSensitive
-      ? 'COALESCE(cl.value_text, cl.value_raw)'
-      : 'LOWER(COALESCE(cl.value_text, cl.value_raw))';
+    const textPredicate = caseSensitive
+      ? `cl.value_text IN (${placeholders})`
+      : `cl.value_text COLLATE NOCASE IN (${placeholders})`;
+    const rawPredicate = caseSensitive
+      ? `cl.value_raw IN (${placeholders})`
+      : `cl.value_raw COLLATE NOCASE IN (${placeholders})`;
 
     return all(
       this.db,
-      `SELECT DISTINCT c.code AS code
-       FROM concept_literal cl
-       JOIN concept c ON c.concept_id = cl.source_concept_id
+      `WITH matched_concepts AS (
+         SELECT cl.source_concept_id AS concept_id
+         FROM concept_literal cl
+         WHERE cl.property_id = ?
+           AND cl.active = 1
+           AND cl.value_text IS NOT NULL
+           AND ${textPredicate}
+         UNION
+         SELECT cl.source_concept_id AS concept_id
+         FROM concept_literal cl
+         WHERE cl.property_id = ?
+           AND cl.active = 1
+           AND cl.value_text IS NULL
+           AND cl.value_raw IS NOT NULL
+           AND ${rawPredicate}
+       )
+       SELECT DISTINCT c.code AS code
+       FROM matched_concepts m
+       JOIN concept c ON c.concept_id = m.concept_id
        WHERE c.cs_id = ?
-         AND cl.property_id = ?
-         AND cl.active = 1
-         AND COALESCE(cl.value_text, cl.value_raw) IS NOT NULL
-         AND ${comparator} IN (${placeholders})`,
-      [this.meta.csId, propertyId, ...normalized]
+       ORDER BY c.code`,
+      [propertyId, ...normalized, propertyId, ...normalized, this.meta.csId]
     );
   }
 
@@ -967,35 +1227,48 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       return [];
     }
 
-    const normalized = caseSensitive
-      ? candidates
-      : candidates.map(v => String(v).toLowerCase());
+    const normalized = candidates.map(v => String(v));
     const placeholders = normalized.map(() => '?').join(', ');
-    const codeExpr = caseSensitive ? 'tgt.code' : 'LOWER(tgt.code)';
-    const displayExpr = caseSensitive ? 'tgt.display' : 'LOWER(tgt.display)';
+    const codeExpr = caseSensitive
+      ? `code IN (${placeholders})`
+      : `code COLLATE NOCASE IN (${placeholders})`;
+    const displayExpr = caseSensitive
+      ? `display IN (${placeholders})`
+      : `display COLLATE NOCASE IN (${placeholders})`;
 
-    const where = propertyCfg.linkMatch === 'code-or-display'
-      ? `(${codeExpr} IN (${placeholders}) OR ${displayExpr} IN (${placeholders}))`
-      : `${codeExpr} IN (${placeholders})`;
+    const targetSql = [
+      `SELECT concept_id
+       FROM concept
+       WHERE cs_id = ?
+         AND ${codeExpr}`
+    ];
+    const params = [this.meta.csId, ...normalized];
 
-    const params = [this.meta.csId, propertyCfg.propertyId, this.meta.hierarchyEdgeSetId];
-    params.push(...normalized);
     if (propertyCfg.linkMatch === 'code-or-display') {
-      params.push(...normalized);
+      targetSql.push(
+        `SELECT concept_id
+         FROM concept
+         WHERE cs_id = ?
+           AND ${displayExpr}`
+      );
+      params.push(this.meta.csId, ...normalized);
     }
 
     return all(
       this.db,
-      `SELECT DISTINCT src.code AS code
+      `WITH matched_targets AS (
+         ${targetSql.join('\nUNION\n')}
+       )
+       SELECT DISTINCT src.code AS code
        FROM concept_link l
+       JOIN matched_targets mt ON mt.concept_id = l.target_concept_id
        JOIN concept src ON src.concept_id = l.source_concept_id
-       JOIN concept tgt ON tgt.concept_id = l.target_concept_id
        WHERE src.cs_id = ?
          AND l.property_id = ?
          AND l.edge_set_id = ?
          AND l.active = 1
-         AND ${where}`,
-      params
+       ORDER BY src.code`,
+      [...params, this.meta.csId, propertyCfg.propertyId, this.meta.hierarchyEdgeSetId]
     );
   }
 
@@ -1009,10 +1282,10 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         `SELECT DISTINCT c.code AS code
          FROM concept_literal cl
          JOIN concept c ON c.concept_id = cl.source_concept_id
-         WHERE c.cs_id = ?
-           AND cl.property_id = ?
-           AND cl.active = 1`,
-        [this.meta.csId, propertyCfg.propertyId]
+         WHERE cl.property_id = ?
+           AND cl.active = 1
+           AND c.cs_id = ?`,
+        [propertyCfg.propertyId, this.meta.csId]
       );
       for (const row of rows) {
         codeSet.add(row.code);
@@ -1025,11 +1298,11 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         `SELECT DISTINCT src.code AS code
          FROM concept_link l
          JOIN concept src ON src.concept_id = l.source_concept_id
-         WHERE src.cs_id = ?
-           AND l.property_id = ?
+         WHERE l.property_id = ?
            AND l.edge_set_id = ?
-           AND l.active = 1`,
-        [this.meta.csId, propertyCfg.propertyId, this.meta.hierarchyEdgeSetId]
+           AND l.active = 1
+           AND src.cs_id = ?`,
+        [propertyCfg.propertyId, this.meta.hierarchyEdgeSetId, this.meta.csId]
       );
       for (const row of rows) {
         codeSet.add(row.code);
@@ -1366,6 +1639,105 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     return set instanceof SqliteRuntimeV0PagedDescendantFilter;
   }
 
+  #isQueryIterator(iteratorContext) {
+    return iteratorContext instanceof SqliteRuntimeV0QueryIterator;
+  }
+
+  async #loadNextIteratorPage(iteratorContext) {
+    if (!this.#isQueryIterator(iteratorContext) || iteratorContext.done) {
+      return;
+    }
+
+    const sql = [];
+    const params = [];
+
+    if (iteratorContext.mode === 'all') {
+      sql.push(
+        `SELECT c.concept_id, c.code, c.display, c.definition, c.active`,
+        `FROM concept c`,
+        `WHERE c.cs_id = ?`,
+        `  AND c.active = 1`
+      );
+      params.push(this.meta.csId);
+    } else if (iteratorContext.mode === 'roots') {
+      sql.push(
+        `SELECT c.concept_id, c.code, c.display, c.definition, c.active`,
+        `FROM concept c`,
+        `LEFT JOIN concept_link l`,
+        `  ON l.source_concept_id = c.concept_id`,
+        ` AND l.property_id = ?`,
+        ` AND l.edge_set_id = ?`,
+        ` AND l.active = 1`,
+        `WHERE c.cs_id = ?`,
+        `  AND c.active = 1`,
+        `  AND l.edge_id IS NULL`
+      );
+      params.push(this.meta.hierarchyPropertyId, this.meta.hierarchyEdgeSetId, this.meta.csId);
+    } else if (iteratorContext.mode === 'children') {
+      if (!iteratorContext.targetConceptId) {
+        iteratorContext.done = true;
+        return;
+      }
+      sql.push(
+        `SELECT c.concept_id, c.code, c.display, c.definition, c.active`,
+        `FROM concept_link l`,
+        `JOIN concept c ON c.concept_id = l.source_concept_id`,
+        `WHERE l.target_concept_id = ?`,
+        `  AND l.property_id = ?`,
+        `  AND l.edge_set_id = ?`,
+        `  AND l.active = 1`,
+        `  AND c.cs_id = ?`
+      );
+      params.push(
+        iteratorContext.targetConceptId,
+        this.meta.hierarchyPropertyId,
+        this.meta.hierarchyEdgeSetId,
+        this.meta.csId
+      );
+    } else {
+      iteratorContext.done = true;
+      return;
+    }
+
+    if (iteratorContext.lastCode !== null) {
+      sql.push(`AND c.code > ?`);
+      params.push(iteratorContext.lastCode);
+    }
+
+    sql.push(`ORDER BY c.code`);
+    sql.push(`LIMIT ?`);
+    params.push(iteratorContext.pageSize);
+
+    const rows = await all(this.db, sql.join('\n'), params);
+    iteratorContext.rows = [];
+    iteratorContext.cursor = 0;
+
+    if (!rows.length) {
+      iteratorContext.done = true;
+      return;
+    }
+
+    for (const row of rows) {
+      if (!this.#allowDefaultIterationCode(row.code)) {
+        continue;
+      }
+      iteratorContext.rows.push(
+        new SqliteRuntimeV0Context(
+          row.concept_id,
+          row.code,
+          row.display,
+          row.definition,
+          row.active === 1
+        )
+      );
+    }
+
+    iteratorContext.lastCode = rows[rows.length - 1].code;
+    if (rows.length < iteratorContext.pageSize) {
+      iteratorContext.done = true;
+    }
+  }
+
   async #loadNextDescendantPage(set) {
     if (!this.#isPagedDescendantFilter(set) || set.done) {
       return;
@@ -1492,6 +1864,10 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       return this.#isConceptInValueSet(ctxt.conceptId, set.valueSetUrl);
     }
 
+    if (set.kind === 'property-filter') {
+      return this.#matchesPropertyPredicate(set, ctxt);
+    }
+
     throw new Error(`Unknown predicate filter kind '${set.kind}'`);
   }
 
@@ -1512,6 +1888,239 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     }
 
     return `Code '${code}' not found in filter set`;
+  }
+
+  async #matchesPropertyPredicate(set, context) {
+    const propertyCfg = set.propertyCfg;
+    if (!propertyCfg?.propertyId || !context?.conceptId) {
+      return false;
+    }
+
+    if (set.op === '=') {
+      return this.#conceptMatchesPropertyEquals(
+        context.conceptId,
+        propertyCfg,
+        set.candidates || [],
+        set.caseSensitive === true
+      );
+    }
+
+    if (set.op === 'in') {
+      return this.#conceptMatchesPropertyEquals(
+        context.conceptId,
+        propertyCfg,
+        set.candidates || [],
+        set.caseSensitive === true
+      );
+    }
+
+    if (set.op === 'exists') {
+      return this.#conceptMatchesPropertyExists(
+        context.conceptId,
+        propertyCfg,
+        set.expectExists !== false
+      );
+    }
+
+    if (set.op === 'regex') {
+      return this.#conceptMatchesPropertyRegex(
+        context.conceptId,
+        propertyCfg,
+        set.pattern || ''
+      );
+    }
+
+    throw new Error(`Unsupported property predicate operator '${set.op}'`);
+  }
+
+  async #conceptMatchesPropertyEquals(conceptId, propertyCfg, candidates, caseSensitive) {
+    if (!Array.isArray(candidates) || candidates.length === 0) {
+      return false;
+    }
+
+    const values = candidates.map(v => String(v));
+    if (propertyCfg.sources.includes('literal')) {
+      const literalHit = await this.#conceptHasLiteralEquals(conceptId, propertyCfg.propertyId, values, caseSensitive);
+      if (literalHit) {
+        return true;
+      }
+    }
+
+    if (propertyCfg.sources.includes('link')) {
+      const linkHit = await this.#conceptHasLinkEquals(conceptId, propertyCfg, values, caseSensitive);
+      if (linkHit) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  async #conceptHasLiteralEquals(conceptId, propertyId, values, caseSensitive) {
+    if (!conceptId || !propertyId || !Array.isArray(values) || values.length === 0) {
+      return false;
+    }
+
+    const placeholders = values.map(() => '?').join(', ');
+    const textPredicate = caseSensitive
+      ? `cl.value_text IN (${placeholders})`
+      : `cl.value_text COLLATE NOCASE IN (${placeholders})`;
+    const rawPredicate = caseSensitive
+      ? `cl.value_raw IN (${placeholders})`
+      : `cl.value_raw COLLATE NOCASE IN (${placeholders})`;
+
+    const row = await get(
+      this.db,
+      `SELECT 1 AS found
+       FROM concept_literal cl
+       WHERE cl.source_concept_id = ?
+         AND cl.property_id = ?
+         AND cl.active = 1
+         AND (
+           (cl.value_text IS NOT NULL AND ${textPredicate})
+           OR
+           (cl.value_text IS NULL AND cl.value_raw IS NOT NULL AND ${rawPredicate})
+         )
+       LIMIT 1`,
+      [conceptId, propertyId, ...values, ...values]
+    );
+    return !!row;
+  }
+
+  async #conceptHasLinkEquals(conceptId, propertyCfg, values, caseSensitive) {
+    if (!conceptId || !propertyCfg?.propertyId || !Array.isArray(values) || values.length === 0) {
+      return false;
+    }
+
+    const placeholders = values.map(() => '?').join(', ');
+    const codePredicate = caseSensitive
+      ? `tgt.code IN (${placeholders})`
+      : `tgt.code COLLATE NOCASE IN (${placeholders})`;
+    const displayPredicate = caseSensitive
+      ? `tgt.display IN (${placeholders})`
+      : `tgt.display COLLATE NOCASE IN (${placeholders})`;
+    const where = propertyCfg.linkMatch === 'code-or-display'
+      ? `(${codePredicate} OR ${displayPredicate})`
+      : `(${codePredicate})`;
+
+    const params = [
+      conceptId,
+      propertyCfg.propertyId,
+      this.meta.hierarchyEdgeSetId,
+      this.meta.csId,
+      ...values
+    ];
+    if (propertyCfg.linkMatch === 'code-or-display') {
+      params.push(...values);
+    }
+
+    const row = await get(
+      this.db,
+      `SELECT 1 AS found
+       FROM concept_link l
+       JOIN concept tgt ON tgt.concept_id = l.target_concept_id
+       WHERE l.source_concept_id = ?
+         AND l.property_id = ?
+         AND l.edge_set_id = ?
+         AND l.active = 1
+         AND tgt.cs_id = ?
+         AND ${where}
+       LIMIT 1`,
+      params
+    );
+    return !!row;
+  }
+
+  async #conceptMatchesPropertyExists(conceptId, propertyCfg, expectExists) {
+    let found = false;
+    if (propertyCfg.sources.includes('literal')) {
+      found = found || await this.#conceptHasLiteralAny(conceptId, propertyCfg.propertyId);
+    }
+    if (propertyCfg.sources.includes('link')) {
+      found = found || await this.#conceptHasLinkAny(conceptId, propertyCfg.propertyId);
+    }
+    return expectExists ? found : !found;
+  }
+
+  async #conceptHasLiteralAny(conceptId, propertyId) {
+    const row = await get(
+      this.db,
+      `SELECT 1 AS found
+       FROM concept_literal
+       WHERE source_concept_id = ?
+         AND property_id = ?
+         AND active = 1
+       LIMIT 1`,
+      [conceptId, propertyId]
+    );
+    return !!row;
+  }
+
+  async #conceptHasLinkAny(conceptId, propertyId) {
+    const row = await get(
+      this.db,
+      `SELECT 1 AS found
+       FROM concept_link
+       WHERE source_concept_id = ?
+         AND property_id = ?
+         AND edge_set_id = ?
+         AND active = 1
+       LIMIT 1`,
+      [conceptId, propertyId, this.meta.hierarchyEdgeSetId]
+    );
+    return !!row;
+  }
+
+  async #conceptMatchesPropertyRegex(conceptId, propertyCfg, pattern) {
+    let regex;
+    try {
+      regex = new RegExp(String(pattern || ''));
+    } catch (error) {
+      throw new Error(`Invalid regex '${pattern}': ${error.message}`);
+    }
+
+    if (propertyCfg.sources.includes('literal')) {
+      const rows = await all(
+        this.db,
+        `SELECT COALESCE(value_text, value_raw) AS value
+         FROM concept_literal
+         WHERE source_concept_id = ?
+           AND property_id = ?
+           AND active = 1
+           AND COALESCE(value_text, value_raw) IS NOT NULL`,
+        [conceptId, propertyCfg.propertyId]
+      );
+      for (const row of rows) {
+        if (row.value && regex.test(row.value)) {
+          return true;
+        }
+      }
+    }
+
+    if (propertyCfg.sources.includes('link')) {
+      const rows = await all(
+        this.db,
+        `SELECT tgt.code AS target_code,
+                tgt.display AS target_display
+         FROM concept_link l
+         JOIN concept tgt ON tgt.concept_id = l.target_concept_id
+         WHERE l.source_concept_id = ?
+           AND l.property_id = ?
+           AND l.edge_set_id = ?
+           AND l.active = 1`,
+        [conceptId, propertyCfg.propertyId, this.meta.hierarchyEdgeSetId]
+      );
+      for (const row of rows) {
+        const codeMatch = row.target_code && regex.test(row.target_code);
+        const displayMatch = propertyCfg.linkMatch === 'code-or-display' &&
+          row.target_display && regex.test(row.target_display);
+        if (codeMatch || displayMatch) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   async #isConceptInValueSet(conceptId, valueSetUrl) {
@@ -1759,6 +2368,12 @@ class SqliteRuntimeV0FactoryProvider extends CodeSystemFactoryProvider {
     this._db = null;
     this._meta = null;
     this._runtime = null;
+    this._sharedState = {
+      statusByPropertyId: new Map(),
+      statusLoadPromises: new Map(),
+      childTargetSets: new Map(),
+      childTargetLoadPromises: new Map()
+    };
   }
 
   system() {
@@ -1909,7 +2524,10 @@ class SqliteRuntimeV0FactoryProvider extends CodeSystemFactoryProvider {
     }
 
     this.recordUse();
-    return new SqliteRuntimeV0Provider(opContext, supplements, this._db, this._meta, this._runtime, { ownsDb: false });
+    return new SqliteRuntimeV0Provider(opContext, supplements, this._db, this._meta, this._runtime, {
+      ownsDb: false,
+      sharedState: this._sharedState
+    });
   }
 
   async buildKnownValueSet(url, version) {

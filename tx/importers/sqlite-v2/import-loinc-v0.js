@@ -1240,7 +1240,8 @@ class LoincSqliteV0Importer {
       })],
       ['runtime.iteration', JSON.stringify({
         defaultCodeRegex: '^[0-9]{3,}.*',
-        rootMode: 'all'
+        rootMode: 'all',
+        children: false
       })],
       ['runtime.search', JSON.stringify(runtimeSearch)],
       ['runtime.behaviorFlags', JSON.stringify({

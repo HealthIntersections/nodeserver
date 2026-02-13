@@ -38,6 +38,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_concept_cs_code
 CREATE INDEX IF NOT EXISTS idx_concept_active
   ON concept(cs_id, active);
 
+-- Case-insensitive lookups used by generic property/link filters.
+CREATE INDEX IF NOT EXISTS idx_concept_cs_code_nocase
+  ON concept(cs_id, code COLLATE NOCASE, concept_id);
+
+CREATE INDEX IF NOT EXISTS idx_concept_cs_display_nocase
+  ON concept(cs_id, display COLLATE NOCASE, concept_id);
+
 CREATE TABLE IF NOT EXISTS designation (
   designation_id INTEGER PRIMARY KEY AUTOINCREMENT,
   concept_id INTEGER NOT NULL,
@@ -86,6 +93,13 @@ CREATE INDEX IF NOT EXISTS idx_concept_link_source
 CREATE INDEX IF NOT EXISTS idx_concept_link_target
   ON concept_link(target_concept_id, property_id, edge_set_id, active);
 
+-- Property-driven link filters perform better with property-first access.
+CREATE INDEX IF NOT EXISTS idx_concept_link_prop_active_source
+  ON concept_link(property_id, edge_set_id, active, source_concept_id, target_concept_id);
+
+CREATE INDEX IF NOT EXISTS idx_concept_link_prop_active_target
+  ON concept_link(property_id, edge_set_id, active, target_concept_id, source_concept_id);
+
 CREATE TABLE IF NOT EXISTS concept_literal (
   literal_id INTEGER PRIMARY KEY AUTOINCREMENT,
   edge_set_id INTEGER NOT NULL DEFAULT 1,
@@ -103,6 +117,13 @@ CREATE TABLE IF NOT EXISTS concept_literal (
 
 CREATE INDEX IF NOT EXISTS idx_concept_literal_source
   ON concept_literal(source_concept_id, property_id, edge_set_id, active);
+
+-- Property/text predicates need value-oriented access paths.
+CREATE INDEX IF NOT EXISTS idx_concept_literal_prop_active_text_nocase
+  ON concept_literal(property_id, active, value_text COLLATE NOCASE, source_concept_id);
+
+CREATE INDEX IF NOT EXISTS idx_concept_literal_prop_active_raw_nocase
+  ON concept_literal(property_id, active, value_raw COLLATE NOCASE, source_concept_id);
 
 -- Broad text search surfaces (rowid-linked, contentless FTS5).
 -- These power fast filter text matching across display/designation/literal.

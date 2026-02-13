@@ -373,16 +373,16 @@ class ValueSetExpander {
       }
     }
 
+    if (!this.hasExclusions && this.count > -1 && this.offset > -1 && this.count + this.offset > 0 && this.fullList.length >= this.count + this.offset) {
+      this.noTotal();
+      throw new Issue('information', 'informational', null, null, null, null).setFinished();
+    }
+
     if (this.limitCount > 0 && this.fullList.length >= this.limitCount && !this.hasExclusions) {
-      if (this.count > -1 && this.offset > -1 && this.count + this.offset > 0 && this.fullList.length >= this.count + this.offset) {
-        this.noTotal();
-        throw new Issue('information', 'informational', null, null, null, null).setFinished();
-      } else {
-        if (!srcURL) {
-          srcURL = '??';
-        }
-        throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [srcURL, '>' + this.limitCount]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+      if (!srcURL) {
+        srcURL = '??';
       }
+      throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [srcURL, '>' + this.limitCount]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
     }
 
     if (expansion) {
@@ -522,15 +522,15 @@ class ValueSetExpander {
       return;
     }
 
+    if (!this.hasExclusions && this.count > -1 && this.offset > -1 && this.count + this.offset > 0 && this.fullList.length >= this.count + this.offset) {
+      throw new Issue('information', 'informational', null, null, null, null).setFinished();
+    }
+
     if (this.limitCount > 0 && this.fullList.length >= this.limitCount && !this.hasExclusions) {
-      if (this.count > -1 && this.offset > -1 && this.count + this.offset > 0 && this.fullList.length >= this.count + this.offset) {
-        throw new Issue('information', 'informational', null, null, null, null).setFinished();
-      } else {
-        if (!srcURL) {
-          srcURL = '??';
-        }
-        throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [srcURL, '>' + this.limitCount]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+      if (!srcURL) {
+        srcURL = '??';
       }
+      throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [srcURL, '>' + this.limitCount]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
     }
 
     if (expansion) {
@@ -817,12 +817,16 @@ class ValueSetExpander {
         if (cset.concept) {
           this.worker.opContext.log('iterate concepts');
           const cds = new Designations(this.worker.i18n.languageDefinitions);
+          let conceptBatch = null;
+          if (typeof cs.locateBatch === 'function' && cset.concept.length > 50) {
+            conceptBatch = await cs.locateBatch(cset.concept.map((cc) => cc.code), this.allAltCodes);
+          }
 
           for (const cc of cset.concept) {
             this.worker.deadCheck('processCodes#3');
             cds.clear();
             Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference');
-            const cctxt = await cs.locate(cc.code, this.allAltCodes);
+            const cctxt = conceptBatch?.get?.(cc.code) || await cs.locate(cc.code, this.allAltCodes);
             if (cctxt && cctxt.context && (!this.params.activeOnly || !await cs.isInactive(cctxt.context)) && await this.passesFilters(cs, cctxt.context, prep, filters, 0)) {
               await this.listDisplaysFromProvider(cds, cs, cctxt.context);
               this.listDisplaysFromIncludeConcept(cds, cc, vsSrc);
@@ -1051,11 +1055,15 @@ class ValueSetExpander {
       if (cset.concept) {
         this.worker.opContext.log('iterate concepts');
         const cds = new Designations(this.worker.i18n.languageDefinitions);
+        let conceptBatch = null;
+        if (typeof cs.locateBatch === 'function' && cset.concept.length > 50) {
+          conceptBatch = await cs.locateBatch(cset.concept.map((cc) => cc.code), this.allAltCodes);
+        }
         for (const cc of cset.concept) {
           this.worker.deadCheck('processCodes#3');
           cds.clear();
           Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference');
-          const cctxt = await cs.locate(cc.code, this.allAltCodes);
+          const cctxt = conceptBatch?.get?.(cc.code) || await cs.locate(cc.code, this.allAltCodes);
           if (cctxt && cctxt.context && (!this.params.activeOnly || !await cs.isInactive(cctxt)) && await this.passesFilters(cs, cctxt, prep, filters, 0)) {
             if (filter.passesDesignations(cds) || filter.passes(cc.code)) {
               let ov = Extensions.readString(cc, 'http://hl7.org/fhir/StructureDefinition/itemWeight');
@@ -1107,9 +1115,11 @@ class ValueSetExpander {
   async includeCodeAndDescendants(cs, context, expansion, imports, parent, excludeInactive, srcUrl) {
     let result = 0;
     this.worker.deadCheck('processCodeAndDescendants');
+    const system = await cs.system();
+    const version = await cs.version();
 
     if (expansion) {
-      const vs = this.canonical(await cs.system(), await cs.version());
+      const vs = this.canonical(system, version);
       this.addParamUri(expansion, 'used-codesystem', vs);
       const ts = cs.listSupplements();
       for (const v of ts) {
@@ -1119,11 +1129,13 @@ class ValueSetExpander {
     }
 
     let n = null;
-    if ((!this.params.excludeNotForUI || !await cs.isAbstract(context)) && (!this.params.activeOnly || !await cs.isInactive(context))) {
+    const isAbstract = await cs.isAbstract(context);
+    const isInactive = await cs.isInactive(context);
+    if ((!this.params.excludeNotForUI || !isAbstract) && (!this.params.activeOnly || !isInactive)) {
       const cds = new Designations(this.worker.i18n.languageDefinitions);
       await this.listDisplaysFromProvider(cds, cs, context);
       const csProperties = await this.loadProviderProperties(cs, context);
-      const t = await this.includeCode(cs, parent, await cs.system(), await cs.version(), context.code, await cs.isAbstract(context), await cs.isInactive(context), await cs.isDeprecated(context), await cs.getStatus(context), cds, await cs.definition(context),
+      const t = await this.includeCode(cs, parent, system, version, context.code, isAbstract, isInactive, await cs.isDeprecated(context), await cs.getStatus(context), cds, await cs.definition(context),
         await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, csProperties, null, excludeInactive, srcUrl);
       if (t != null) {
         result++;
@@ -1133,6 +1145,10 @@ class ValueSetExpander {
       }
     } else {
       n = parent;
+    }
+
+    if (!this.canBeHierarchy) {
+      return result;
     }
 
     const iter = await cs.iterator(context);
