@@ -18,34 +18,13 @@ Importers remain vocabulary-specific. Runtime should be generic.
 
 Use `runtime.*` namespaced keys.
 
-1. `runtime.schema`
-- `{ "version": 1 }`
-
-2. `runtime.versioning`
+1. `runtime.versioning`
 - `{ "algorithm": "date|semver|string-prefix", "partialMatch": true }`
 
-3. `runtime.languages`
-- `{ "default": "en", "normalization": { "en-AU": "en" } }`
+2. `runtime.languages`
+- `{ "default": "en" }`
 
-4. `runtime.display`
-- Controls concept display selection.
-- Example:
-```json
-{
-  "lookup": [
-    { "source": "designation", "useCode": "fsn", "preferred": true },
-    { "source": "designation", "useCode": "synonym", "preferred": true },
-    { "source": "concept.display" }
-  ],
-  "expand": [
-    { "source": "designation", "useCode": "synonym", "preferred": true },
-    { "source": "designation", "useCode": "synonym" },
-    { "source": "concept.display" }
-  ]
-}
-```
-
-5. `runtime.designations`
+3. `runtime.designations`
 - Use mapping, language behavior, optional use-display metadata.
 - Example:
 ```json
@@ -57,18 +36,23 @@ Use `runtime.*` namespaced keys.
 }
 ```
 
-6. `runtime.hierarchy`
+4. `runtime.hierarchy`
 - Declares which property is hierarchy, which edge set to use, and closure policy.
 - Example:
 ```json
 {
   "propertyCode": "116680003",
   "edgeSetId": 1,
-  "closure": { "enabled": true, "table": "closure", "fallbackRecursive": true }
+  "closure": { "enabled": true, "fallbackRecursive": false }
 }
 ```
 
-7. `runtime.filters`
+`runtime.hierarchy.closure.fallbackRecursive` semantics:
+- `true`: if closure rows are missing/unavailable, runtime may use recursive CTE traversal over `concept_link`.
+- `false`: runtime will not recurse when closure is unavailable (hierarchy checks requiring traversal return negative/empty results).
+- Recommended default for production SNOMED/RxNorm/LOINC DBs: `false` (fail closed on missing closure rather than degrade to expensive traversal).
+
+5. `runtime.filters`
 - Declares supported filter properties/operators and execution templates.
 - Example:
 ```json
@@ -78,25 +62,47 @@ Use `runtime.*` namespaced keys.
   },
   "code": {
     "operators": ["regex"]
-  },
-  "in": {
-    "resolver": "valueset-membership"
   }
 }
 ```
 
-8. `runtime.implicitValueSets`
+Property filters can also declare metadata-only derived handlers (still generic runtime, no vocab subclass code). Example:
+```json
+{
+  "properties": {
+    "byCode": {
+      "answers-for": {
+        "operators": ["=", "in"],
+        "sources": ["link"],
+        "specialHandler": {
+          "kind": "derived-link-filter",
+          "seed": {
+            "directCodePrefixes": ["LL"],
+            "inversePropertyCode": "answers-for"
+          },
+          "projection": {
+            "propertyCode": "Answer",
+            "side": "target"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+6. `runtime.implicitValueSets`
 - Declarative URL-pattern handling (instead of subclass string switches).
 - Example:
 ```json
 {
-  "all": { "query": "fhir_vs|fhir_vs=all", "compose": [{ "system": "{system}" }] },
+  "all": { "queries": ["fhir_vs", "fhir_vs=all"] },
   "isa": { "queryPrefix": "fhir_vs=isa/", "filter": { "property": "concept", "op": "is-a", "valueFromSuffix": true } },
   "refset": { "queryPrefix": "fhir_vs=refset/", "filter": { "property": "concept", "op": "in", "valueFromSuffix": true } }
 }
 ```
 
-9. `runtime.status`
+7. `runtime.status`
 - How to derive inactive/deprecated/abstract.
 - Example:
 ```json
@@ -107,7 +113,7 @@ Use `runtime.*` namespaced keys.
 }
 ```
 
-10. `runtime.search`
+8. `runtime.search`
 - Search behavior for `searchFilter`.
 - Example:
 ```json
@@ -126,22 +132,25 @@ Use `runtime.*` namespaced keys.
 }
 ```
 
-11. `runtime.behaviorFlags`
-- Optional generic toggles.
+9. `runtime.behaviorFlags`
+- Optional runtime tags for metadata-driven specialized factory registration.
 - Example:
 ```json
 {
-  "supportsBulkExpand": true,
-  "supportsSupplements": true
+  "tags": ["loinc", "implicit-vs-path"]
 }
 ```
+- Loader behavior is generic: `SqliteRuntimeV0FactoryProvider.createFromMetadata(...)` inspects
+  metadata tags and selects any registered specialized factory with matching tags.
+- Note: bulk filter/expand paging is **not** controlled here; it is a provider capability
+  (`filterPage()` implementation), selected by runtime class behavior.
 
 ## What becomes metadata-driven
 - System/version/name resolution: from `code_system`.
 - Hierarchy navigation/subsumption: from `runtime.hierarchy` + `property_def`.
 - Filter/operator surface: from `runtime.filters`.
 - Implicit value set URL behavior: from `runtime.implicitValueSets`.
-- Display and designation handling: from `runtime.display` + `runtime.designations`.
+- Display and designation handling: from `concept.display` + `runtime.designations`.
 
 ## What stays importer-specific
 - Parsing source files (RF2, RRF, LOINC release shapes).

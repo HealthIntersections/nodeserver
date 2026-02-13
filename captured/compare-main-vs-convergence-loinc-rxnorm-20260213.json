@@ -1,0 +1,226 @@
+{
+  "generatedAt": "2026-02-13T13:29:41.851Z",
+  "mainRoot": "/home/jmandel/hobby/FHIRsmith-main",
+  "convRoot": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence",
+  "mainLib": "/tmp/sample-main-loinc-rxnorm.yml",
+  "convLib": "/tmp/sample-loinc-rxnorm.yml",
+  "loinc": {
+    "name": "loinc",
+    "total": 172,
+    "both2xx": 158,
+    "same2xx": 38,
+    "diff2xx": 120,
+    "main2xxOnly": 0,
+    "conv2xxOnly": 1,
+    "bothNon2xx": 13,
+    "statusDiff": 1,
+    "statusSame": 171,
+    "diffExamples": [
+      {
+        "id": "b6533846-3be9-49ae-92c0-a9cc399d3d99",
+        "method": "POST",
+        "url": "/r4/CodeSystem/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 719,
+        "convLen": 719
+      },
+      {
+        "id": "346fb4c4-ee54-4454-857b-7213dfc24b68",
+        "method": "POST",
+        "url": "/r4/CodeSystem/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 697,
+        "convLen": 697
+      },
+      {
+        "id": "5df22255-f55c-494f-b67c-540cc37d6805",
+        "method": "POST",
+        "url": "/r4/ValueSet/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 2209,
+        "convLen": 2209
+      },
+      {
+        "id": "613b58af-9f21-43eb-8f77-149e2e35b7ff",
+        "method": "POST",
+        "url": "/r4/ValueSet/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 3447,
+        "convLen": 3440
+      },
+      {
+        "id": "45279c65-1cfc-4cc8-b773-441ebf061cb3",
+        "method": "POST",
+        "url": "/r4/ValueSet/$expand",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 759,
+        "convLen": 759
+      },
+      {
+        "id": "34247bfb-e895-444d-b8f5-46f5c94e5ddc",
+        "method": "POST",
+        "url": "/r4/CodeSystem/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 704,
+        "convLen": 704
+      },
+      {
+        "id": "c480b3b8-2a13-4978-bc09-9e42d3a85fbd",
+        "method": "POST",
+        "url": "/r4/CodeSystem/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 713,
+        "convLen": 713
+      },
+      {
+        "id": "0497f96d-c7a4-4d58-b6bd-ff231f5e7ad7",
+        "method": "POST",
+        "url": "/r4/ValueSet/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 2395,
+        "convLen": 2395
+      },
+      {
+        "id": "702ef3b2-0b2e-40d3-9a19-741c5f926cfe",
+        "method": "POST",
+        "url": "/r4/CodeSystem/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 695,
+        "convLen": 695
+      },
+      {
+        "id": "a4323a8b-f68b-4bb1-b5ed-0a5dfa03c718",
+        "method": "POST",
+        "url": "/r4/CodeSystem/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 725,
+        "convLen": 725
+      }
+    ]
+  },
+  "rxnorm": {
+    "name": "rxnorm",
+    "total": 180,
+    "both2xx": 161,
+    "same2xx": 149,
+    "diff2xx": 12,
+    "main2xxOnly": 0,
+    "conv2xxOnly": 0,
+    "bothNon2xx": 19,
+    "statusDiff": 0,
+    "statusSame": 180,
+    "diffExamples": [
+      {
+        "id": "5d57c16d-1189-4d0e-b7ae-034605c85238",
+        "method": "POST",
+        "url": "/r4/CodeSystem/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 1214,
+        "convLen": 1214
+      },
+      {
+        "id": "884c1704-e241-4428-afec-893608c71d52",
+        "method": "POST",
+        "url": "/r4/ValueSet/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 7965,
+        "convLen": 7965
+      },
+      {
+        "id": "a7e60144-2743-49f5-96d0-b9ddcafe0ed7",
+        "method": "POST",
+        "url": "/r4/ValueSet/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 7965,
+        "convLen": 7965
+      },
+      {
+        "id": "88d902b7-5d8d-454e-8aef-088a359b4bf1",
+        "method": "POST",
+        "url": "/r4/ValueSet/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 7965,
+        "convLen": 7965
+      },
+      {
+        "id": "71c15e76-2743-44b0-b68c-4a38c020c554",
+        "method": "POST",
+        "url": "/r4/ValueSet/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 7957,
+        "convLen": 7957
+      },
+      {
+        "id": "56f58c7b-b1bc-4613-936e-ce8b7f1eb13b",
+        "method": "POST",
+        "url": "/r4/ValueSet/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 1542,
+        "convLen": 1542
+      },
+      {
+        "id": "263af0ef-bb98-44cd-a0c1-56796dc7afd0",
+        "method": "POST",
+        "url": "/r4/ValueSet/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 8349,
+        "convLen": 8349
+      },
+      {
+        "id": "39e23f52-794d-44ad-a34c-a5ee6a66a1f7",
+        "method": "POST",
+        "url": "/r4/ValueSet/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 7965,
+        "convLen": 7965
+      },
+      {
+        "id": "82723c1b-c57e-4d06-b047-e78c159c0267",
+        "method": "POST",
+        "url": "/r4/ValueSet/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 1542,
+        "convLen": 1542
+      },
+      {
+        "id": "58f29e02-91fc-4df1-8f0a-282f73fffd05",
+        "method": "POST",
+        "url": "/r4/ValueSet/$validate-code?",
+        "mainStatus": 200,
+        "convStatus": 200,
+        "mainLen": 6366,
+        "convLen": 6366
+      }
+    ]
+  },
+  "combined": {
+    "total": 352,
+    "both2xx": 319,
+    "same2xx": 187,
+    "diff2xx": 132,
+    "main2xxOnly": 0,
+    "conv2xxOnly": 1,
+    "bothNon2xx": 32,
+    "statusDiff": 1,
+    "statusSame": 351
+  }
+}

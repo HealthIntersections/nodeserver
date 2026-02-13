@@ -7,7 +7,15 @@
  * Supports ECL v2.1 specification from SNOMED International
  */
 
-const { SnomedFilterContext } = require('../cs/cs-snomed');
+class SnomedFilterContext {
+  constructor() {
+    this.ndx = 0;
+    this.cursor = 0;
+    this.matches = [];
+    this.members = [];
+    this.descendants = [];
+  }
+}
 
 // ECL Token Types
 const ECLTokenType = {

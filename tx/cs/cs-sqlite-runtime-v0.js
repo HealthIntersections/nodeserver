@@ -4,6 +4,8 @@ const sqlite3 = require('sqlite3').verbose();
 const { CodeSystem } = require('../library/codesystem');
 const { CodeSystemProvider, CodeSystemFactoryProvider, FilterExecutionContext } = require('./cs-api');
 
+const SQLITE_RUNTIME_V0_FACTORY_REGISTRY = [];
+
 class SqliteRuntimeV0Context {
   constructor(conceptId, code, display, definition, active) {
     this.conceptId = conceptId;
@@ -738,8 +740,24 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   async #resolvePropertyFilterConfig(propertyCode) {
+    if (!propertyCode) return null;
+
     const filtersCfg = this.runtime.filters?.properties;
-    if (!filtersCfg || !propertyCode) return null;
+    if (!filtersCfg) {
+      const propertyDef = await this.#resolvePropertyDef(propertyCode);
+      if (!propertyDef) {
+        return null;
+      }
+      return {
+        propertyId: propertyDef.property_id,
+        propertyCode: propertyDef.property_code,
+        operators: ['=', 'in'],
+        sources: inferSourcesFromValueKind(propertyDef.value_kind),
+        linkMatch: 'code-only',
+        value: {},
+        specialHandler: null
+      };
+    }
 
     const aliases = filtersCfg.aliases || {};
     const rawCode = String(propertyCode);
@@ -1033,61 +1051,125 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
   }
 
   async #runSpecialPropertyHandler(propertyCfg, op, value) {
-    if (propertyCfg.specialHandler === 'loinc-answers-for') {
-      return this.#specialLoincAnswersFor(op, value, propertyCfg.propertyId);
+    const handler = propertyCfg.specialHandler;
+    if (handler && typeof handler === 'object' && handler.kind === 'derived-link-filter') {
+      return this.#runDerivedLinkPropertyHandler(propertyCfg, handler, op, value);
     }
-    throw new Error(`Unsupported sqlite runtime special handler '${propertyCfg.specialHandler}'`);
+    throw new Error(`Unsupported sqlite runtime special handler '${JSON.stringify(handler)}'`);
   }
 
-  async #specialLoincAnswersFor(op, value, answersForPropertyId) {
-    if (!answersForPropertyId) {
+  async #runDerivedLinkPropertyHandler(propertyCfg, handler, op, value) {
+    if (!propertyCfg?.propertyId || !handler) {
       return [];
     }
+
     if (!['=', 'in'].includes(op)) {
-      throw new Error(`Unsupported sqlite runtime property operator '${op}' for answers-for`);
+      throw new Error(`Unsupported sqlite runtime property operator '${op}' for derived-link-filter`);
     }
 
-    const answerPropDef = await this.#resolvePropertyDef('Answer');
-    if (!answerPropDef) {
+    const values = this.#normalizedFilterValuesForSpecialHandler(op, value, propertyCfg.value);
+    if (values.length === 0) {
       return [];
     }
 
-    const values = op === 'in' ? splitFilterValueList(value) : [String(value ?? '').trim()];
-    const listCodes = new Set();
+    const seedCfg = handler.seed || {};
+    const seedCodes = new Set();
+    const directPrefixes = Array.isArray(seedCfg.directCodePrefixes)
+      ? seedCfg.directCodePrefixes.map(v => String(v || '')).filter(Boolean)
+      : [];
+    const allowAnyDirect = seedCfg.allowAnyDirect === true;
 
     for (const raw of values) {
       if (!raw) continue;
-      if (raw.startsWith('LL')) {
-        listCodes.add(raw);
-        continue;
-      }
-
-      const rows = await all(
-        this.db,
-        `SELECT DISTINCT src.code AS code
-         FROM concept_link l
-         JOIN concept src ON src.concept_id = l.source_concept_id
-         JOIN concept tgt ON tgt.concept_id = l.target_concept_id
-         WHERE src.cs_id = ?
-           AND l.property_id = ?
-           AND l.edge_set_id = ?
-           AND l.active = 1
-           AND tgt.code = ?`,
-        [this.meta.csId, answersForPropertyId, this.meta.hierarchyEdgeSetId, raw]
-      );
-      for (const row of rows) {
-        listCodes.add(row.code);
+      if (allowAnyDirect || directPrefixes.some(prefix => raw.startsWith(prefix))) {
+        seedCodes.add(raw);
       }
     }
 
-    if (listCodes.size === 0) {
+    let inversePropertyId = null;
+    if (seedCfg.useCurrentPropertyAsInverse === true) {
+      inversePropertyId = propertyCfg.propertyId;
+    } else if (seedCfg.inversePropertyCode) {
+      const inversePropertyDef = await this.#resolvePropertyDef(seedCfg.inversePropertyCode);
+      inversePropertyId = inversePropertyDef?.property_id || null;
+    }
+
+    if (inversePropertyId) {
+      const reverseMatches = await this.#sourceCodesForTargetCodes(inversePropertyId, values);
+      for (const code of reverseMatches) {
+        seedCodes.add(code);
+      }
+    }
+
+    if (seedCodes.size === 0) {
       return [];
     }
 
-    const placeholders = Array.from(listCodes).map(() => '?').join(', ');
+    const projectionCfg = handler.projection || {};
+    const projectionPropertyCode = projectionCfg.propertyCode;
+    if (!projectionPropertyCode) {
+      throw new Error('derived-link-filter handler requires projection.propertyCode');
+    }
+    const projectionPropertyDef = await this.#resolvePropertyDef(projectionPropertyCode);
+    if (!projectionPropertyDef) {
+      return [];
+    }
+
+    const side = projectionCfg.side === 'source' ? 'source' : 'target';
+    return this.#codesFromSourceCodesViaProperty(
+      projectionPropertyDef.property_id,
+      Array.from(seedCodes),
+      side
+    );
+  }
+
+  #normalizedFilterValuesForSpecialHandler(op, value, valueCfg) {
+    const rawValues = op === 'in'
+      ? splitFilterValueList(value)
+      : [String(value ?? '').trim()];
+
+    const out = new Set();
+    for (const raw of rawValues) {
+      const normalized = normalizedFilterCandidates(raw, valueCfg);
+      for (const entry of normalized) {
+        if (entry) out.add(entry);
+      }
+    }
+    return Array.from(out);
+  }
+
+  async #sourceCodesForTargetCodes(propertyId, targetCodes) {
+    if (!propertyId || !Array.isArray(targetCodes) || targetCodes.length === 0) {
+      return [];
+    }
+
+    const placeholders = targetCodes.map(() => '?').join(', ');
     const rows = await all(
       this.db,
-      `SELECT DISTINCT tgt.code AS code
+      `SELECT DISTINCT src.code AS source_code
+       FROM concept_link l
+       JOIN concept src ON src.concept_id = l.source_concept_id
+       JOIN concept tgt ON tgt.concept_id = l.target_concept_id
+       WHERE src.cs_id = ?
+         AND l.property_id = ?
+         AND l.edge_set_id = ?
+         AND l.active = 1
+         AND tgt.code IN (${placeholders})`,
+      [this.meta.csId, propertyId, this.meta.hierarchyEdgeSetId, ...targetCodes]
+    );
+    return rows.map(row => row.source_code).filter(Boolean);
+  }
+
+  async #codesFromSourceCodesViaProperty(propertyId, sourceCodes, resultSide) {
+    if (!propertyId || !Array.isArray(sourceCodes) || sourceCodes.length === 0) {
+      return [];
+    }
+
+    const placeholders = sourceCodes.map(() => '?').join(', ');
+    const rows = await all(
+      this.db,
+      `SELECT DISTINCT src.code AS source_code,
+                      tgt.code AS target_code
        FROM concept_link l
        JOIN concept src ON src.concept_id = l.source_concept_id
        JOIN concept tgt ON tgt.concept_id = l.target_concept_id
@@ -1096,10 +1178,11 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
          AND l.edge_set_id = ?
          AND l.active = 1
          AND src.code IN (${placeholders})`,
-      [this.meta.csId, answerPropDef.property_id, this.meta.hierarchyEdgeSetId, ...Array.from(listCodes)]
+      [this.meta.csId, propertyId, this.meta.hierarchyEdgeSetId, ...sourceCodes]
     );
 
-    return rows.map(r => r.code).sort();
+    const picked = rows.map((row) => (resultSide === 'source' ? row.source_code : row.target_code));
+    return Array.from(new Set(picked.filter(Boolean))).sort();
   }
 
   #canUseFtsSearch(searchCfg) {
@@ -1468,6 +1551,10 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       return true;
     }
 
+    if (!this.#allowRecursiveHierarchyFallback()) {
+      return false;
+    }
+
     const row = await get(
       this.db,
       `WITH RECURSIVE descendants(concept_id) AS (
@@ -1511,6 +1598,10 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
       return rows
         .filter(r => includeSelf || r.descendant_id !== ancestorId)
         .map(r => r.code);
+    }
+
+    if (!this.#allowRecursiveHierarchyFallback()) {
+      return [];
     }
 
     const rows = await all(
@@ -1583,9 +1674,82 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     }
     return this.defaultIterationRegex.test(String(code || ''));
   }
+
+  #allowRecursiveHierarchyFallback() {
+    return this.runtime?.hierarchy?.closure?.fallbackRecursive !== false;
+  }
 }
 
 class SqliteRuntimeV0FactoryProvider extends CodeSystemFactoryProvider {
+  static registerSpecializedFactory(definition) {
+    if (!definition || typeof definition !== 'object') {
+      throw new Error('registerSpecializedFactory requires an object definition');
+    }
+    if (typeof definition.createFactory !== 'function') {
+      throw new Error('registerSpecializedFactory requires createFactory(context) function');
+    }
+    const matchTags = Array.isArray(definition.matchTags)
+      ? definition.matchTags.map((tag) => String(tag || '').trim()).filter(Boolean)
+      : [];
+    SQLITE_RUNTIME_V0_FACTORY_REGISTRY.push({
+      id: String(definition.id || `factory-${SQLITE_RUNTIME_V0_FACTORY_REGISTRY.length + 1}`),
+      priority: Number.isFinite(definition.priority) ? definition.priority : 0,
+      matchTags,
+      createFactory: definition.createFactory
+    });
+    SQLITE_RUNTIME_V0_FACTORY_REGISTRY.sort((a, b) => {
+      if (b.matchTags.length !== a.matchTags.length) {
+        return b.matchTags.length - a.matchTags.length;
+      }
+      return b.priority - a.priority;
+    });
+  }
+
+  static listSpecializedFactories() {
+    return SQLITE_RUNTIME_V0_FACTORY_REGISTRY.map((entry) => ({
+      id: entry.id,
+      priority: entry.priority,
+      matchTags: [...entry.matchTags]
+    }));
+  }
+
+  static async createFromMetadata(i18n, dbPath, options = {}) {
+    const probe = new SqliteRuntimeV0FactoryProvider(i18n, dbPath, options);
+    await probe.load();
+
+    const tags = metadataTagsFromRuntime(probe._runtime);
+    let selected = null;
+    for (const entry of SQLITE_RUNTIME_V0_FACTORY_REGISTRY) {
+      if (entry.matchTags.every((tag) => tags.has(tag))) {
+        selected = entry;
+        break;
+      }
+    }
+    if (!selected) {
+      return probe;
+    }
+
+    const resolved = await selected.createFactory({
+      i18n,
+      dbPath,
+      options,
+      tags,
+      runtime: probe._runtime,
+      metadata: probe._meta,
+      baseFactory: probe
+    });
+
+    if (!resolved || resolved === probe) {
+      return probe;
+    }
+
+    probe.close();
+    if (typeof resolved.load === 'function' && !resolved._loaded) {
+      await resolved.load();
+    }
+    return resolved;
+  }
+
   constructor(i18n, dbPath, options = {}) {
     super(i18n);
     this.dbPath = dbPath;
@@ -1664,7 +1828,7 @@ class SqliteRuntimeV0FactoryProvider extends CodeSystemFactoryProvider {
         const runtime = buildRuntimeConfig(cfg, codeSystem.base_uri);
         const searchCfg = normalizedSearchConfig(runtime.search);
 
-        let hierarchyPropertyCode = runtime.hierarchy?.propertyCode || cfg.hierarchyPropertyCode || null;
+        let hierarchyPropertyCode = runtime.hierarchy?.propertyCode || null;
         if (!hierarchyPropertyCode) {
           const hierarchyRow = await get(
             db,
@@ -1724,7 +1888,7 @@ class SqliteRuntimeV0FactoryProvider extends CodeSystemFactoryProvider {
           version: codeSystem.version,
           name: codeSystem.name || codeSystem.base_uri,
           totalConcepts: totalRow ? totalRow.n : 0,
-          defaultLanguage: runtime.languages?.default || cfg.defaultLanguage || 'en',
+          defaultLanguage: runtime.languages?.default || 'en',
           closureRows: closureCountRow ? closureCountRow.n : 0,
         hierarchyPropertyId,
         hierarchyEdgeSetId: runtime.hierarchy?.edgeSetId || 1,
@@ -1826,25 +1990,20 @@ class SqliteRuntimeV0FactoryProvider extends CodeSystemFactoryProvider {
 }
 
 function buildRuntimeConfig(cfg, system) {
-  const searchCfg = normalizedSearchConfig(
-    cfg['runtime.search'] || cfg.search || { designationTermLike: { caseInsensitive: true, activeOnly: true } }
-  );
+  const searchCfg = normalizedSearchConfig(cfg['runtime.search']);
 
   const runtime = {
-    schema: cfg['runtime.schema'] || { version: 1 },
     versioning: cfg['runtime.versioning'] || { algorithm: 'string', partialMatch: true },
-    languages: cfg['runtime.languages'] || { default: cfg.defaultLanguage || 'en' },
-    display: cfg['runtime.display'] || cfg.display || null,
+    languages: cfg['runtime.languages'] || { default: 'en' },
     designations: cfg['runtime.designations'] || {},
     hierarchy: cfg['runtime.hierarchy'] || {
-      propertyCode: cfg.hierarchyPropertyCode || null,
+      propertyCode: null,
       edgeSetId: 1,
-      closure: { enabled: true, fallbackRecursive: true }
+      closure: { enabled: true, fallbackRecursive: false }
     },
     filters: cfg['runtime.filters'] || {
-      concept: { operators: (cfg.filters?.conceptFilters || ['=', 'is-a', 'descendent-of', 'in']) },
-      code: { operators: ['regex'] },
-      in: { resolver: 'valueset-membership' }
+      concept: { operators: ['=', 'is-a', 'descendent-of', 'in'] },
+      code: { operators: ['regex'] }
     },
     implicitValueSets: cfg['runtime.implicitValueSets'] || defaultImplicitValueSets(system),
     status: cfg['runtime.status'] || {
@@ -1865,26 +2024,6 @@ function buildRuntimeConfig(cfg, system) {
 
 function normalizedSearchConfig(raw) {
   const value = raw || {};
-
-  // Backward-compatible shape from early v0 experiments.
-  if (value.designationTermLike && !value.mode) {
-    return {
-      mode: 'like',
-      activeOnly: value.designationTermLike.activeOnly !== false,
-      designationActiveOnly: value.designationTermLike.activeOnly !== false,
-      literalActiveOnly: true,
-      sources: ['designation'],
-      ftsTables: {
-        display: 'search_fts_display',
-        designation: 'search_fts_designation',
-        literal: 'search_fts_literal'
-      },
-      likeFallback: {
-        enabled: true,
-        caseInsensitive: value.designationTermLike.caseInsensitive !== false
-      }
-    };
-  }
 
   const sources = Array.isArray(value.sources) && value.sources.length > 0
     ? value.sources.filter(s => ['display', 'designation', 'literal'].includes(s))
@@ -1915,6 +2054,34 @@ function defaultImplicitValueSets(system) {
     refset: { queryPrefix: 'fhir_vs=refset/', filter: { property: 'concept', op: 'in', valueFromSuffix: true } },
     _system: system
   };
+}
+
+function metadataTagsFromRuntime(runtime) {
+  const flags = runtime?.behaviorFlags || {};
+  const tags = new Set();
+
+  if (Array.isArray(flags.tags)) {
+    for (const raw of flags.tags) {
+      const tag = String(raw || '').trim();
+      if (tag) tags.add(tag);
+    }
+  }
+
+  const legacyAdapter = String(flags.adapter || '').trim();
+  if (legacyAdapter) {
+    tags.add(`adapter:${legacyAdapter}`);
+    tags.add(legacyAdapter);
+    if (legacyAdapter === 'loinc-v0') {
+      tags.add('loinc');
+      tags.add('implicit-vs-path');
+    } else if (legacyAdapter === 'snomed-v0') {
+      tags.add('snomed');
+    } else if (legacyAdapter === 'rxnorm-v0') {
+      tags.add('rxnorm');
+    }
+  }
+
+  return tags;
 }
 
 function inferSourcesFromValueKind(valueKind) {

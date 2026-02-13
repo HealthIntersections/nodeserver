@@ -323,15 +323,26 @@ class RxNormSqliteV0Importer {
       const active = isSuppressed(suppress) ? 0 : 1;
       const existing = concepts.get(rxcui);
       if (!existing) {
+        const ttys = new Map();
+        if (tty) {
+          ttys.set(tty, active);
+        }
         concepts.set(rxcui, {
           display: str || rxcui,
           active,
           tty: tty || null,
-          rank
+          rank,
+          ttys
         });
       } else {
         if (active === 1) {
           existing.active = 1;
+        }
+        if (tty) {
+          const prev = existing.ttys.get(tty) || 0;
+          if (!existing.ttys.has(tty) || active > prev) {
+            existing.ttys.set(tty, active);
+          }
         }
 
         // Keep the best display according to configured TTY priority.
@@ -348,6 +359,7 @@ class RxNormSqliteV0Importer {
 
     const conceptRows = [];
     const ttyLiteralRows = [];
+    let ttyLiteralCount = 0;
     let imported = 0;
 
     for (const [rxcui, info] of concepts.entries()) {
@@ -363,18 +375,19 @@ class RxNormSqliteV0Importer {
         null
       ]);
 
-      if (info.tty) {
+      for (const [ttyValue, ttyActive] of info.ttys.entries()) {
         ttyLiteralRows.push([
           EDGE_SET_INFERRED,
           conceptId,
           this.ttyPropertyId,
           0,
-          1,
-          info.tty,
-          info.tty,
+          ttyActive,
+          ttyValue,
+          ttyValue,
           null,
           null
         ]);
+        ttyLiteralCount += 1;
       }
 
       imported += 1;
@@ -414,7 +427,7 @@ class RxNormSqliteV0Importer {
     }
 
     this.stats.concepts = imported;
-    this.stats.literals += concepts.size;
+    this.stats.literals += ttyLiteralCount;
     this.log(`Concept import complete: ${imported.toLocaleString()} concepts`);
   }
 
@@ -828,19 +841,6 @@ class RxNormSqliteV0Importer {
   }
 
   async writeCsConfig() {
-    const runtimeDisplay = {
-      lookup: [
-        { source: 'concept.display' },
-        { source: 'designation', useCode: 'PSN', preferred: true },
-        { source: 'designation', preferred: true }
-      ],
-      expand: [
-        { source: 'concept.display' },
-        { source: 'designation', useCode: 'PSN', preferred: true },
-        { source: 'designation', preferred: true }
-      ]
-    };
-
     const runtimeSearch = {
       mode: 'fts-broad',
       activeOnly: true,
@@ -858,7 +858,21 @@ class RxNormSqliteV0Importer {
     const runtimeFilters = {
       concept: { operators: ['=', 'is-a', 'descendent-of'] },
       code: { operators: ['regex'] },
-      in: { resolver: 'valueset-membership' }
+      properties: {
+        aliases: {
+          tty: TTY_PROPERTY_CODE,
+          TTY: TTY_PROPERTY_CODE
+        },
+        byCode: {
+          [TTY_PROPERTY_CODE]: {
+            operators: ['=', 'in'],
+            sources: ['literal'],
+            value: {
+              normalizeCase: true
+            }
+          }
+        }
+      }
     };
 
     const runtimeDesignations = {
@@ -872,26 +886,17 @@ class RxNormSqliteV0Importer {
     };
 
     const configRows = [
-      ['schemaVersion', 'rxnorm-sqlite-v0'],
-      ['sourceKind', 'rrf'],
-      ['hierarchyPropertyCode', IS_A_PROPERTY_CODE],
-      ['defaultLanguage', 'en'],
-      ['display', JSON.stringify(runtimeDisplay)],
-      ['filters', JSON.stringify({ conceptFilters: ['=', 'is-a', 'descendent-of'] })],
-
-      ['runtime.schema', JSON.stringify({ version: 1 })],
       ['runtime.versioning', JSON.stringify({ algorithm: 'string', partialMatch: false })],
       ['runtime.languages', JSON.stringify({ default: 'en' })],
-      ['runtime.display', JSON.stringify(runtimeDisplay)],
       ['runtime.designations', JSON.stringify(runtimeDesignations)],
       ['runtime.hierarchy', JSON.stringify({
         propertyCode: IS_A_PROPERTY_CODE,
         edgeSetId: EDGE_SET_INFERRED,
-        closure: { enabled: true, table: 'closure', fallbackRecursive: true }
+        closure: { enabled: true, fallbackRecursive: false }
       })],
       ['runtime.filters', JSON.stringify(runtimeFilters)],
       ['runtime.implicitValueSets', JSON.stringify({
-        all: { queries: ['fhir_vs', 'fhir_vs=all'], compose: [{ system: BASE_URI }] },
+        all: { queries: ['fhir_vs', 'fhir_vs=all'] },
         isa: { queryPrefix: 'fhir_vs=isa/', filter: { property: 'concept', op: 'is-a', valueFromSuffix: true } }
       })],
       ['runtime.status', JSON.stringify({
@@ -900,7 +905,9 @@ class RxNormSqliteV0Importer {
         abstract: { source: 'constant', value: false }
       })],
       ['runtime.search', JSON.stringify(runtimeSearch)],
-      ['runtime.behaviorFlags', JSON.stringify({ supportsBulkExpand: true, supportsSupplements: true })]
+      ['runtime.behaviorFlags', JSON.stringify({
+        tags: ['rxnorm']
+      })]
     ];
 
     for (const [key, value] of configRows) {

@@ -10,7 +10,7 @@ sources:
   - internal:usstates
   - internal:hgvs
   - ucum:tx/data/ucum-essence.xml
-  - snomed-sqlite-v0!:sct_intl_20250201.v0i.exp-fts-broad-inactive.db
-  - snomed-sqlite-v0:sct_us_20250301.v0i.db
+  - sqlite-v0!:sct_intl_20250201.v0.db
+  - sqlite-v0:sct_us_20250301.v0.db
   - npm:hl7.terminology
   - npm:fhir.tx.support.r4

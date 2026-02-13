@@ -1,0 +1,533 @@
+{
+  "generatedAt": "2026-02-13T15:21:42.551Z",
+  "replayFile": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/captured/snomed-replay-allsqlite-v0-20260213-rerun.json",
+  "ndjsonFile": "/home/jmandel/hobby/FHIRsmith/captured/snomed.ndjson",
+  "intendedSource": "prod",
+  "total": 180,
+  "intendedFail": 37,
+  "categories": [
+    {
+      "category": "endpoint_r5_not_enabled",
+      "count": 20,
+      "examples": [
+        {
+          "id": "a694f9d5-cec4-4aee-a89b-ec01381de53d",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r5/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "d3ef5724-c82c-4498-a1e2-afa2ee5723d4",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r5/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,x-system-cache-id,displayLanguage,diagnostics",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "35bb762c-c74a-40fe-a0e4-10d0a2931192",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r5/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,x-system-cache-id,diagnostics",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "b6ca131a-df4f-4e95-a2f0-b3fe8a32f42d",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r5/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "ab86e0ac-fcc8-4a4b-913b-b8210014208c",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r5/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "7110e821-88d4-474a-b94e-9d2f049a41ef",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 500,
+          "method": "GET",
+          "url": "/r5/ValueSet/$expand?url=http://hl7.org/fhir/ValueSet/participant-role&filter=care%20observer&count=20",
+          "signature": "GET ValueSet $expand q:count,filter,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "9990ff7e-f42e-4110-be1d-6c7d6a30ccb5",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 422,
+          "actualStatus": 404,
+          "prodStatus": 422,
+          "devStatus": 404,
+          "method": "POST",
+          "url": "/r5/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:url,count",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "63297839-4bb5-42ab-92ad-36288571729c",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r5/ValueSet/$expand?url=http%3a%2f%2fhl7.org%2ffhir%2fValueSet%2fparticipant-role&count=5&property=parent&property=child",
+          "signature": "GET ValueSet $expand q:count,property,property,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "52d4b88e-de6b-47a6-b446-2709efe150a4",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r5/CodeSystem/$lookup?system=http://snomed.info/sct&code=768829002&property=child&property=parent",
+          "signature": "GET CodeSystem $lookup q:code,property,property,system b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "d48aa838-d4f2-492a-aedb-5562103b1ae3",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 400,
+          "actualStatus": 404,
+          "prodStatus": 400,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r5/CodeSystem/$subsumes?system=http://snomed.info/sct&codeA=159033005&codeB=309414002",
+          "signature": "GET CodeSystem $subsumes q:codeA,codeB,system b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "fe886e82-9836-445e-9e30-b2e9e102116e",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r5/CodeSystem/$subsumes",
+          "signature": "POST CodeSystem $subsumes q:- b:system,codeA,codeB",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "0a993a4b-ef9b-48b8-b083-e34d295c1f3f",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r5/CodeSystem/$lookup?system=http://snomed.info/sct&code=83273008&property=child",
+          "signature": "GET CodeSystem $lookup q:code,property,system b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "cbedd8c2-e835-4141-84d9-5bffa6ec65c4",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r5/CodeSystem/$lookup?system=http://snomed.info/sct&code=310157000&property=child",
+          "signature": "GET CodeSystem $lookup q:code,property,system b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "f2304394-8f64-4b09-8529-046a5c327fc2",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r5/ValueSet/$expand?url=http%3a%2f%2fhl7.org%2ffhir%2fValueSet%2fparticipant-role&count=1000&offset=873",
+          "signature": "GET ValueSet $expand q:count,offset,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "5ff8d32a-9314-4c0b-8b31-2c2dfa1f6ff3",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r5/ValueSet/$expand?url=http%3a%2f%2fhl7.org%2ffhir%2fValueSet%2fparticipant-role&count=1000",
+          "signature": "GET ValueSet $expand q:count,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "6de963c5-63e7-4427-8d5c-6fe6c3fded55",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r5/ValueSet/$expand?url=http://hl7.org/fhir/ValueSet/participant-role&count=1000&property=parent",
+          "signature": "GET ValueSet $expand q:count,property,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "9d98cc23-857a-4a86-b79c-28d930257a3b",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r5/CodeSystem/$lookup?system=http://snomed.info/sct&code=309421002&property=parent",
+          "signature": "GET CodeSystem $lookup q:code,property,system b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "719b557b-942f-4983-bf20-ad22a6517017",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r5/CodeSystem/$lookup?system=http://snomed.info/sct&code=768825008&property=parent",
+          "signature": "GET CodeSystem $lookup q:code,property,system b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "1ca9b7f9-e19c-4142-adcf-59468b0f6b51",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r5/CodeSystem/$lookup?system=http://snomed.info/sct&code=878785002&property=parent",
+          "signature": "GET CodeSystem $lookup q:code,property,system b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "086d6281-7f41-4c30-aaef-45a4ff678ac3",
+          "category": "endpoint_r5_not_enabled",
+          "intendedStatus": 200,
+          "actualStatus": 404,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r5/CodeSystem/$lookup?system=http://snomed.info/sct&code=25941000087102&property=parent",
+          "signature": "GET CodeSystem $lookup q:code,property,system b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        }
+      ]
+    },
+    {
+      "category": "external_cts_valueset_not_loaded",
+      "count": 5,
+      "examples": [
+        {
+          "id": "f0d9b56c-4c73-4559-8ba8-aa3763e65258",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&code=103705002&_format=json&system=http:%2F%2Fsnomed.info%2Fsct",
+          "signature": "GET ValueSet $validate-code q:_format,code,system,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "43f1699e-fa94-4227-bd7f-86e2bf5478d7",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&_format=json",
+          "signature": "GET ValueSet $expand q:_format,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "eaa0e429-dfa0-4eb3-86e5-01557c6364ad",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&_format=json",
+          "signature": "GET ValueSet $expand q:_format,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "47604944-cd2f-4d5a-88c2-ec6e7fbf70af",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&code=183452005&_format=json&system=http:%2F%2Fsnomed.info%2Fsct",
+          "signature": "GET ValueSet $validate-code q:_format,code,system,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "84782d1e-e95d-481d-8aa4-0a40c0e9d03b",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:url",
+          "requestBodyParseError": false,
+          "hadBody": true
+        }
+      ]
+    },
+    {
+      "category": "upstream_prod_dev_disagree",
+      "count": 4,
+      "examples": [
+        {
+          "id": "3ec46b46-5dd8-4948-994f-c7700707c568",
+          "category": "upstream_prod_dev_disagree",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,valueSetMode,default-to-latest-version,url,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "5dcfca88-00dd-4e0d-a1a3-d8b53d872082",
+          "category": "upstream_prod_dev_disagree",
+          "intendedStatus": 422,
+          "actualStatus": 500,
+          "prodStatus": 422,
+          "devStatus": 500,
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,displayLanguage,includeDefinition,excludeNested,cache-id,count,offset,valueSet",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "d1ccb6e6-57cc-4656-bc30-318f280a5ff8",
+          "category": "upstream_prod_dev_disagree",
+          "intendedStatus": 200,
+          "actualStatus": 500,
+          "prodStatus": 200,
+          "devStatus": 500,
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fmedication-codes&filter=zet&incomplete-ok=true",
+          "signature": "GET ValueSet $expand q:filter,incomplete-ok,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "7ed3d0a9-0038-48ed-bcec-9e444a3ad949",
+          "category": "upstream_prod_dev_disagree",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,url,valueSetVersion,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        }
+      ]
+    },
+    {
+      "category": "invalid_displayLanguage_english",
+      "count": 3,
+      "examples": [
+        {
+          "id": "1f201a48-a36b-4ccd-8097-4ef6d7913105",
+          "category": "invalid_displayLanguage_english",
+          "intendedStatus": 422,
+          "actualStatus": 400,
+          "prodStatus": 422,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "edcbaa04-2a67-4087-ae21-7fd7a154ada6",
+          "category": "invalid_displayLanguage_english",
+          "intendedStatus": 422,
+          "actualStatus": 400,
+          "prodStatus": 422,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,url,valueSetVersion,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "728a0682-3d1c-4dbd-8005-f8e567ca57fb",
+          "category": "invalid_displayLanguage_english",
+          "intendedStatus": 422,
+          "actualStatus": 400,
+          "prodStatus": 422,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        }
+      ]
+    },
+    {
+      "category": "grammar_code_system_not_enumerable",
+      "count": 2,
+      "examples": [
+        {
+          "id": "a272aa8c-96d7-4905-a75a-ea21d67b83fc",
+          "category": "grammar_code_system_not_enumerable",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,count,offset,excludeNested,cache-id,valueSet",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "61379bfa-55fb-4e74-b380-2f1b9d469d3f",
+          "category": "grammar_code_system_not_enumerable",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,count,offset,excludeNested,cache-id,valueSet",
+          "requestBodyParseError": false,
+          "hadBody": true
+        }
+      ]
+    },
+    {
+      "category": "captured_post_body_unparsed_or_missing",
+      "count": 2,
+      "examples": [
+        {
+          "id": "7f2efb6a-0110-4a7a-84be-1e105016d679",
+          "category": "captured_post_body_unparsed_or_missing",
+          "intendedStatus": 200,
+          "actualStatus": 415,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/us-core-condition-code/$validate-code?code=247824007&system=http://snomed.info/sct",
+          "signature": "POST ValueSet $validate-code q:code,system b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "96663723-ded9-4b17-bcc8-72ede52acf6a",
+          "category": "captured_post_body_unparsed_or_missing",
+          "intendedStatus": 200,
+          "actualStatus": 415,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:-",
+          "requestBodyParseError": true,
+          "hadBody": false
+        }
+      ]
+    },
+    {
+      "category": "snomed_module_version_not_loaded",
+      "count": 1,
+      "examples": [
+        {
+          "id": "d2983287-5876-4b2f-b4ca-308b84baf9cb",
+          "category": "snomed_module_version_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,includeDefinition,excludeNested,cache-id,count,offset,valueSet",
+          "requestBodyParseError": false,
+          "hadBody": true
+        }
+      ]
+    }
+  ]
+}

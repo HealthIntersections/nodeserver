@@ -692,7 +692,12 @@ class ValueSetExpander {
               }
             }
             if (!imp && this.limitCount > 0 && cs.totalCount > this.limitCount) {
-              throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [srcURL, '>' + this.limitCount]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+              const canReturnPartial = this.offset > -1 || this.count > -1 || this.params.limitedExpansion || this.params.incompleteOK;
+              if (canReturnPartial) {
+                this.noTotal();
+              } else {
+                throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [srcURL, '>' + this.limitCount]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+              }
             }
           }
         }
@@ -843,7 +848,7 @@ class ValueSetExpander {
           const fcl = cset.filter;
           const prep = await cs.getPrepContext(true);
           if (!filter.isNull) {
-            await cs.searchFilter(filter, prep, true);
+            await cs.searchFilter(prep, filter, true);
           }
 
           if (cs.specialEnumeration()) {
@@ -1031,7 +1036,7 @@ class ValueSetExpander {
             notClosed.value = true;
           }
           const prep = await cs.getPrepContext(true);
-          const ctxt = await cs.searchFilter(filter, prep, false);
+          const ctxt = await cs.searchFilter(prep, filter, false);
           await cs.prepare(prep);
           while (await cs.filterMore(ctxt)) {
             this.worker.deadCheck('processCodes#4');
@@ -1067,7 +1072,7 @@ class ValueSetExpander {
         this.worker.opContext.log('prep filters');
         const prep = await cs.getPrepContext(true);
         if (!filter.isNull) {
-          await cs.searchFilter(filter, prep, true);
+          await cs.searchFilter(prep, filter, true);
         }
 
         if (cs.specialEnumeration()) {

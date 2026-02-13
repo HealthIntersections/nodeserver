@@ -1070,19 +1070,6 @@ class LoincSqliteV0Importer {
   }
 
   async writeCsConfig() {
-    const runtimeDisplay = {
-      lookup: [
-        { source: 'designation', useCode: 'LONG_COMMON_NAME', preferred: true },
-        { source: 'designation', useCode: 'SHORTNAME' },
-        { source: 'concept.display' }
-      ],
-      expand: [
-        { source: 'concept.display' },
-        { source: 'designation', useCode: 'LONG_COMMON_NAME', preferred: true },
-        { source: 'designation', useCode: 'SHORTNAME' }
-      ]
-    };
-
     const runtimeSearch = {
       mode: 'fts-broad',
       activeOnly: true,
@@ -1100,7 +1087,6 @@ class LoincSqliteV0Importer {
     const runtimeFilters = {
       concept: { operators: ['=', 'is-a', 'descendent-of', 'in'], isAIncludesSelf: false },
       code: { operators: ['regex'] },
-      in: { resolver: 'valueset-membership' },
       properties: {
         allPropertiesFilterable: true,
         defaultOperators: ['='],
@@ -1201,14 +1187,27 @@ class LoincSqliteV0Importer {
           'answers-for': {
             operators: ['=', 'in'],
             sources: ['link'],
-            specialHandler: 'loinc-answers-for'
+            specialHandler: {
+              kind: 'derived-link-filter',
+              seed: {
+                // Raw LL* values are already answer-list concept codes.
+                directCodePrefixes: ['LL'],
+                // Non-LL inputs can be resolved to answer-list codes through inverse links.
+                inversePropertyCode: 'answers-for'
+              },
+              projection: {
+                // Then project list -> answer links to produce the final candidate code set.
+                propertyCode: 'Answer',
+                side: 'target'
+              }
+            }
           }
         }
       }
     };
 
     const runtimeImplicitValueSets = {
-      all: { queries: ['fhir_vs', 'fhir_vs=all'], compose: [{ system: BASE_URI }] },
+      all: { queries: ['fhir_vs', 'fhir_vs=all'] },
       isa: { queryPrefix: 'fhir_vs=isa/', filter: { property: 'concept', op: 'is-a', valueFromSuffix: true } }
     };
 
@@ -1223,22 +1222,13 @@ class LoincSqliteV0Importer {
     };
 
     const configRows = [
-      ['schemaVersion', 'loinc-sqlite-v0'],
-      ['sourceKind', 'loinc-csv'],
-      ['hierarchyPropertyCode', PARENT_PROPERTY_CODE],
-      ['defaultLanguage', 'en-US'],
-      ['display', JSON.stringify(runtimeDisplay)],
-      ['filters', JSON.stringify({ conceptFilters: ['=', 'is-a', 'descendent-of', 'in'] })],
-
-      ['runtime.schema', JSON.stringify({ version: 1 })],
       ['runtime.versioning', JSON.stringify({ algorithm: 'string', partialMatch: false, output: 'version' })],
-      ['runtime.languages', JSON.stringify({ default: 'en-US', normalization: { en: 'en-US' } })],
-      ['runtime.display', JSON.stringify(runtimeDisplay)],
+      ['runtime.languages', JSON.stringify({ default: 'en-US' })],
       ['runtime.designations', JSON.stringify(runtimeDesignations)],
       ['runtime.hierarchy', JSON.stringify({
         propertyCode: PARENT_PROPERTY_CODE,
         edgeSetId: EDGE_SET_PRIMARY,
-        closure: { enabled: true, table: 'closure', fallbackRecursive: true }
+        closure: { enabled: true, fallbackRecursive: false }
       })],
       ['runtime.filters', JSON.stringify(runtimeFilters)],
       ['runtime.implicitValueSets', JSON.stringify(runtimeImplicitValueSets)],
@@ -1254,8 +1244,7 @@ class LoincSqliteV0Importer {
       })],
       ['runtime.search', JSON.stringify(runtimeSearch)],
       ['runtime.behaviorFlags', JSON.stringify({
-        supportsBulkExpand: true,
-        supportsSupplements: true
+        tags: ['loinc', 'implicit-vs-path']
       })]
     ];
 

@@ -1,0 +1,44 @@
+{
+  "resourceType": "Parameters",
+  "parameter": [
+    {
+      "name": "valueSet",
+      "resource": {
+        "resourceType": "ValueSet",
+        "id": "sct-inactive",
+        "url": "http://hl7.org/fhir/test/ValueSet/sct-inactive",
+        "version": "5.0.0",
+        "name": "SCTInactiveValueSet",
+        "title": "SCT Inactive ValueSet",
+        "status": "active",
+        "experimental": false,
+        "date": "2025-09-05",
+        "publisher": "FHIR Project",
+        "description": "Taken from the testing subset; contains an active code, an inactive code, and a code with an inactive designation",
+        "compose": {
+          "include": [
+            {
+              "system": "http://snomed.info/sct",
+              "version": "http://snomed.info/sct/900000000000207008/version/20250201",
+              "concept": [
+                {
+                  "code": "71650008"
+                },
+                {
+                  "code": "155729003"
+                },
+                {
+                  "code": "42463004"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "includeDesignations",
+      "valueBoolean": true
+    }
+  ]
+}

@@ -1,17 +1,8 @@
 'use strict';
 
-const {
-  SqliteRuntimeV0FactoryProvider,
-  SqliteRuntimeV0Provider,
-  SqliteRuntimeV0Context,
-  SqliteRuntimeV0FilterSet
-} = require('./cs-sqlite-runtime-v0');
+const { SqliteRuntimeV0FactoryProvider } = require('./cs-sqlite-runtime-v0');
 
-class LoincSqliteV0FactoryProvider extends SqliteRuntimeV0FactoryProvider {
-  constructor(i18n, dbPath) {
-    super(i18n, dbPath, { idPrefix: 'loinc-sqlite-v0' });
-  }
-
+class LoincImplicitValueSetFactory extends SqliteRuntimeV0FactoryProvider {
   async buildKnownValueSet(url, version) {
     if (!this._loaded) {
       await this.load();
@@ -19,7 +10,7 @@ class LoincSqliteV0FactoryProvider extends SqliteRuntimeV0FactoryProvider {
 
     const system = this.system();
     if (!url || !system || !url.startsWith(`${system}/vs`)) {
-      return null;
+      return super.buildKnownValueSet(url, version);
     }
 
     if (version && this._meta.canonicalUri && !this._meta.canonicalUri.startsWith(version)) {
@@ -28,15 +19,22 @@ class LoincSqliteV0FactoryProvider extends SqliteRuntimeV0FactoryProvider {
 
     const vsBase = `${system}/vs`;
     if (url === vsBase || url === `${vsBase}/`) {
-      return makeAllValueSet(url, this._meta.version, this.name(), system);
+      return {
+        resourceType: 'ValueSet',
+        url,
+        version: this._meta.version,
+        status: 'active',
+        name: `${sanitizeName(this.name())}All`,
+        description: `All concepts from ${this.name()}`,
+        compose: { include: [{ system }] }
+      };
     }
 
     if (!url.startsWith(`${vsBase}/`)) {
-      return null;
+      return super.buildKnownValueSet(url, version);
     }
 
     const token = decodeURIComponent(url.substring(vsBase.length + 1));
-
     if (token.startsWith('LL')) {
       return {
         resourceType: 'ValueSet',
@@ -69,29 +67,21 @@ class LoincSqliteV0FactoryProvider extends SqliteRuntimeV0FactoryProvider {
       };
     }
 
-    return null;
+    return super.buildKnownValueSet(url, version);
   }
 }
 
-function makeAllValueSet(url, version, name, system) {
-  return {
-    resourceType: 'ValueSet',
-    url,
-    version,
-    status: 'active',
-    name: `${sanitizeName(name)}All`,
-    description: `All concepts from ${name}`,
-    compose: { include: [{ system }] }
-  };
+function sanitizeName(value) {
+  return String(value || 'CS').replace(/[^A-Za-z0-9]/g, '').slice(0, 60) || 'CS';
 }
 
-function sanitizeName(value) {
-  return String(value || 'LOINC').replace(/[^A-Za-z0-9]/g, '').slice(0, 60) || 'LOINC';
-}
+SqliteRuntimeV0FactoryProvider.registerSpecializedFactory({
+  id: 'loinc-implicit-valuesets',
+  matchTags: ['loinc', 'implicit-vs-path'],
+  priority: 100,
+  createFactory: ({ i18n, dbPath, options }) => new LoincImplicitValueSetFactory(i18n, dbPath, options)
+});
 
 module.exports = {
-  LoincSqliteV0FactoryProvider,
-  LoincSqliteV0Provider: SqliteRuntimeV0Provider,
-  LoincSqliteV0Context: SqliteRuntimeV0Context,
-  LoincSqliteV0FilterSet: SqliteRuntimeV0FilterSet
+  LoincImplicitValueSetFactory
 };

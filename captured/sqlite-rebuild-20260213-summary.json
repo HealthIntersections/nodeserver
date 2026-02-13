@@ -1,0 +1,105 @@
+{
+  "date": "2026-02-13",
+  "outputs": [
+    {
+      "name": "snomed-intl-20250201",
+      "db": "/home/jmandel/hobby/sct/cache/sct_intl_20250201.v0.db",
+      "importLog": "/home/jmandel/hobby/sct/cache/import-logs/snomed-intl-20250201.log",
+      "realSec": 169.956,
+      "userSec": 162.370,
+      "sysSec": 17.119,
+      "sizeBytes": 929325056,
+      "closureRows": 7799292,
+      "ftsTablesPresent": 3,
+      "csConfigKeys": [
+        "runtime.behaviorFlags",
+        "runtime.designations",
+        "runtime.filters",
+        "runtime.hierarchy",
+        "runtime.implicitValueSets",
+        "runtime.languages",
+        "runtime.search",
+        "runtime.status",
+        "runtime.versioning"
+      ]
+    },
+    {
+      "name": "snomed-us-20250301",
+      "db": "/home/jmandel/hobby/sct/cache/sct_us_20250301.v0.db",
+      "importLog": "/home/jmandel/hobby/sct/cache/import-logs/snomed-us-20250301.log",
+      "realSec": 166.129,
+      "userSec": 158.081,
+      "sysSec": 16.947,
+      "sizeBytes": 941453312,
+      "closureRows": 7929948,
+      "ftsTablesPresent": 3,
+      "csConfigKeys": [
+        "runtime.behaviorFlags",
+        "runtime.designations",
+        "runtime.filters",
+        "runtime.hierarchy",
+        "runtime.implicitValueSets",
+        "runtime.languages",
+        "runtime.search",
+        "runtime.status",
+        "runtime.versioning"
+      ]
+    },
+    {
+      "name": "loinc-281",
+      "db": "/home/jmandel/hobby/sct/cache/loinc_281_full.v0.db",
+      "importLog": "/home/jmandel/hobby/sct/cache/import-logs/loinc-281.log",
+      "realSec": 98.762,
+      "userSec": 95.488,
+      "sysSec": 5.766,
+      "sizeBytes": 657887232,
+      "closureRows": 1265176,
+      "ftsTablesPresent": 3,
+      "csConfigKeys": [
+        "runtime.behaviorFlags",
+        "runtime.designations",
+        "runtime.filters",
+        "runtime.hierarchy",
+        "runtime.implicitValueSets",
+        "runtime.iteration",
+        "runtime.languages",
+        "runtime.search",
+        "runtime.status",
+        "runtime.versioning"
+      ]
+    },
+    {
+      "name": "rxnorm-02022026",
+      "db": "/home/jmandel/hobby/sct/cache/rxnorm_02022026.v0.db",
+      "importLog": "/home/jmandel/hobby/sct/cache/import-logs/rxnorm-02022026.log",
+      "realSec": 74.316,
+      "userSec": 75.279,
+      "sysSec": 5.186,
+      "sizeBytes": 308232192,
+      "closureRows": 483586,
+      "ftsTablesPresent": 3,
+      "csConfigKeys": [
+        "runtime.behaviorFlags",
+        "runtime.designations",
+        "runtime.filters",
+        "runtime.hierarchy",
+        "runtime.implicitValueSets",
+        "runtime.languages",
+        "runtime.search",
+        "runtime.status",
+        "runtime.versioning"
+      ],
+      "notes": [
+        "Required TMPDIR override to workspace due /tmp capacity during zip extraction"
+      ]
+    }
+  ],
+  "filenameNormalization": {
+    "policy": "all rebuilt sqlite outputs use .v0.db suffix",
+    "renames": [
+      "sct_intl_20250201.v0i.db -> sct_intl_20250201.v0.db",
+      "sct_us_20250301.v0i.db -> sct_us_20250301.v0.db",
+      "rxnorm_02022026_full_with_closure.v0i.db -> rxnorm_02022026.v0.db"
+    ]
+  }
+}

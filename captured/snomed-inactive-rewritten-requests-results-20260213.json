@@ -1,0 +1,24 @@
+{
+  "request1": {
+    "status": 200,
+    "result": true,
+    "display": "Genus Opisthorchis (organism)",
+    "message": null,
+    "issuesCode": "invalid",
+    "issuesDetails": "'Genus: Opisthorchis' is no longer considered a correct display for code '42463004' (status = inactive). The correct display is one of Genus Opisthorchis (organism),Opisthorchis",
+    "rewrittenVersion": "http://snomed.info/sct/900000000000207008/version/20250201"
+  },
+  "request2": {
+    "status": 200,
+    "resourceType": "ValueSet",
+    "expansionTotal": 3,
+    "containsCount": 3,
+    "firstCodes": [
+      "71650008",
+      "155729003",
+      "42463004"
+    ],
+    "error": null,
+    "rewrittenVersion": "http://snomed.info/sct/900000000000207008/version/20250201"
+  }
+}

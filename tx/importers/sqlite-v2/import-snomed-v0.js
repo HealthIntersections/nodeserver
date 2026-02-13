@@ -765,23 +765,9 @@ class SnomedSqliteV0Importer {
   }
 
   async writeCsConfig() {
-    const runtimeDisplay = {
-      lookup: [
-        { source: 'designation', useCode: 'fsn', preferred: true },
-        { source: 'designation', useCode: 'synonym', preferred: true },
-        { source: 'concept.display' }
-      ],
-      expand: [
-        { source: 'designation', useCode: 'synonym', preferred: true },
-        { source: 'designation', useCode: 'synonym' },
-        { source: 'concept.display' }
-      ]
-    };
-
     const runtimeFilters = {
       concept: { operators: ['=', 'is-a', 'descendent-of', 'in'] },
-      code: { operators: ['regex'] },
-      in: { resolver: 'valueset-membership' }
+      code: { operators: ['regex'] }
     };
 
     const runtimeSearch = {
@@ -799,18 +785,8 @@ class SnomedSqliteV0Importer {
     };
 
     const configRows = [
-      ['schemaVersion', 'snomed-sqlite-v0'],
-      ['sourceKind', 'rf2-snapshot'],
-      ['hierarchyPropertyCode', IS_A_TYPE_ID],
-      ['defaultLanguage', 'en'],
-      ['display', JSON.stringify(runtimeDisplay)],
-      ['filters', JSON.stringify({ conceptFilters: ['=', 'is-a', 'descendent-of', 'in'] })],
-
-      // v1 generic runtime contract
-      ['runtime.schema', JSON.stringify({ version: 1 })],
       ['runtime.versioning', JSON.stringify({ algorithm: 'date', partialMatch: true })],
-      ['runtime.languages', JSON.stringify({ default: 'en', normalization: { 'en-AU': 'en' } })],
-      ['runtime.display', JSON.stringify(runtimeDisplay)],
+      ['runtime.languages', JSON.stringify({ default: 'en' })],
       ['runtime.designations', JSON.stringify({
         useMapping: {
           fsn: { system: BASE_URI, code: FSN_TYPE_ID, display: 'Fully specified name' },
@@ -820,11 +796,11 @@ class SnomedSqliteV0Importer {
       ['runtime.hierarchy', JSON.stringify({
         propertyCode: IS_A_TYPE_ID,
         edgeSetId: EDGE_SET_INFERRED,
-        closure: { enabled: true, table: 'closure', fallbackRecursive: true }
+        closure: { enabled: true, fallbackRecursive: false }
       })],
       ['runtime.filters', JSON.stringify(runtimeFilters)],
       ['runtime.implicitValueSets', JSON.stringify({
-        all: { queries: ['fhir_vs', 'fhir_vs=all'], compose: [{ system: BASE_URI }] },
+        all: { queries: ['fhir_vs', 'fhir_vs=all'] },
         isa: { queryPrefix: 'fhir_vs=isa/', filter: { property: 'concept', op: 'is-a', valueFromSuffix: true } },
         refset: { queryPrefix: 'fhir_vs=refset/', filter: { property: 'concept', op: 'in', valueFromSuffix: true } }
       })],
@@ -834,7 +810,9 @@ class SnomedSqliteV0Importer {
         abstract: { source: 'constant', value: false }
       })],
       ['runtime.search', JSON.stringify(runtimeSearch)],
-      ['runtime.behaviorFlags', JSON.stringify({ supportsBulkExpand: true, supportsSupplements: true })]
+      ['runtime.behaviorFlags', JSON.stringify({
+        tags: ['snomed']
+      })]
     ];
 
     for (const [key, value] of configRows) {

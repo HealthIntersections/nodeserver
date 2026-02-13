@@ -2,6 +2,9 @@
 
 A comprehensive CLI tool for importing various medical terminology standards into SQLite databases and other formats. The tool supports LOINC, SNOMED CT, UNII, NDC, and provides extensible architecture for additional terminologies.
 
+> Note: legacy non-sqlite importers for `loinc`, `rxnorm`, and `snomed` were removed in this branch.
+> Use sqlite-v2 commands: `loinc-sqlite-v0`, `rxnorm-sqlite-v0`, `snomed-sqlite-v0`.
+
 ## Table of Contents
 
 - [Installation](#installation)

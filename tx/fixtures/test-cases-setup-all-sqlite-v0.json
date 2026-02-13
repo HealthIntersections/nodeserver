@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "consoleErrors": false,
+  "host": "local.host",
+  "librarySource": "tx/fixtures/sample-all-sqlite-v0.yml",
+  "endpoints": [
+    {
+      "path": "/r5",
+      "fhirVersion": "5.0",
+      "context": null
+    },
+    {
+      "path": "/r4",
+      "fhirVersion": "4.0",
+      "context": null
+    }
+  ]
+}

@@ -21,7 +21,7 @@ Primary target systems:
 
 ## Near-Term Convergence Decisions (2026-02)
 - Implement LOINC property filter parity in the generic SQLite v0 runtime (not in a LOINC-specific query path).
-- Keep `cs-loinc-sqlite-v0` as a temporary implicit-URL adapter only, for URL shape handling that is not yet generic (path-style `/vs/...`, token parsing nuances).
+- Keep implicit-URL handling as a minimal metadata-tag-registered specialization over the generic sqlite runtime (no loader special-casing).
 - Treat materialized implicit ValueSets as an optimization only:
   - semantics must work without precomputed `value_set` membership rows
   - precomputation may be enabled for latency/cost reasons, but not required for correctness
@@ -70,7 +70,7 @@ Primary target systems:
   - `designation.term`
   - literal text (`concept_literal.value_text`/`value_raw`)
 - We accept larger DB artifacts in exchange for latency wins on representative filter workloads.
-- Measured on SNOMED INT `20250201` v0i build:
+- Measured on SNOMED INT `20250201` v0 build:
   - size: `520,146,944` -> `833,286,144` bytes (`+60.2%`)
   - LIKE p50/p95: `782.6ms` / `853.9ms`
   - broad FTS p50/p95: `6.8ms` / `23.6ms`

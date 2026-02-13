@@ -1,0 +1,281 @@
+{
+  "generatedAt": "2026-02-13T15:21:42.730Z",
+  "replayFile": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/captured/rxnorm-replay-allsqlite-v0-20260213-rerun.json",
+  "ndjsonFile": "/home/jmandel/hobby/FHIRsmith/captured/rxnorm.ndjson",
+  "intendedSource": "prod",
+  "total": 180,
+  "intendedFail": 19,
+  "categories": [
+    {
+      "category": "captured_post_body_unparsed_or_missing",
+      "count": 8,
+      "examples": [
+        {
+          "id": "5e58fbe3-1de0-42e0-b9eb-1208998dc4f5",
+          "category": "captured_post_body_unparsed_or_missing",
+          "intendedStatus": 200,
+          "actualStatus": 415,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:-",
+          "requestBodyParseError": true,
+          "hadBody": false
+        },
+        {
+          "id": "40eb709f-1f22-40a5-acce-53a00bc36749",
+          "category": "captured_post_body_unparsed_or_missing",
+          "intendedStatus": 200,
+          "actualStatus": 415,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:-",
+          "requestBodyParseError": true,
+          "hadBody": false
+        },
+        {
+          "id": "7a20968d-c234-452f-9b44-ca6da0f226ef",
+          "category": "captured_post_body_unparsed_or_missing",
+          "intendedStatus": 200,
+          "actualStatus": 415,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:-",
+          "requestBodyParseError": true,
+          "hadBody": false
+        },
+        {
+          "id": "870626af-6e16-4cb5-91fb-94e283093061",
+          "category": "captured_post_body_unparsed_or_missing",
+          "intendedStatus": 200,
+          "actualStatus": 415,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:-",
+          "requestBodyParseError": true,
+          "hadBody": false
+        },
+        {
+          "id": "8b168ae9-ca56-41d5-84fe-ee3f3ecbca0f",
+          "category": "captured_post_body_unparsed_or_missing",
+          "intendedStatus": 200,
+          "actualStatus": 415,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:-",
+          "requestBodyParseError": true,
+          "hadBody": false
+        },
+        {
+          "id": "7990e491-7f61-4b08-be98-c1cda842e6c1",
+          "category": "captured_post_body_unparsed_or_missing",
+          "intendedStatus": 200,
+          "actualStatus": 415,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:-",
+          "requestBodyParseError": true,
+          "hadBody": false
+        },
+        {
+          "id": "979c5a4d-aefb-4e39-a54c-54e1f389178a",
+          "category": "captured_post_body_unparsed_or_missing",
+          "intendedStatus": 200,
+          "actualStatus": 415,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:-",
+          "requestBodyParseError": true,
+          "hadBody": false
+        },
+        {
+          "id": "440fe59f-cb21-4541-82bd-f49b677f8bad",
+          "category": "captured_post_body_unparsed_or_missing",
+          "intendedStatus": 200,
+          "actualStatus": 415,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:-",
+          "requestBodyParseError": true,
+          "hadBody": false
+        }
+      ]
+    },
+    {
+      "category": "external_cts_valueset_not_loaded",
+      "count": 5,
+      "examples": [
+        {
+          "id": "b5a94e2e-a779-485c-bda5-5a6bd73c9556",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1010.4&_format=json",
+          "signature": "GET ValueSet $expand q:_format,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "b4fe1960-11c6-4cb1-8c0c-e5375f24b1a9",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1010.4&_format=json",
+          "signature": "GET ValueSet $expand q:_format,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "98f89a5f-1330-43ca-97e6-8b1219366ba2",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1010.4&_format=json",
+          "signature": "GET ValueSet $expand q:_format,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "0d01b2a6-0a26-4c19-8884-5e9b240ad413",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1010.4&_format=json",
+          "signature": "GET ValueSet $expand q:_format,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "7b710a08-12a7-4f19-a988-2b1ebb3383f7",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1010.4&_format=json",
+          "signature": "GET ValueSet $expand q:_format,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        }
+      ]
+    },
+    {
+      "category": "too_costly_422_replaces_legacy_500",
+      "count": 3,
+      "examples": [
+        {
+          "id": "e108a92a-a962-45b4-ad35-e0aa4fe4cf32",
+          "category": "too_costly_422_replaces_legacy_500",
+          "intendedStatus": 500,
+          "actualStatus": 422,
+          "prodStatus": 500,
+          "devStatus": 500,
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,valueSet,_limit,_incomplete",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "6fc8bc0e-4fa7-4707-87f4-b016c52c5530",
+          "category": "too_costly_422_replaces_legacy_500",
+          "intendedStatus": 500,
+          "actualStatus": 422,
+          "prodStatus": 500,
+          "devStatus": 500,
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,valueSet,_limit,_incomplete",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "a0b0e6be-3ffb-4146-8441-74cf7242235a",
+          "category": "too_costly_422_replaces_legacy_500",
+          "intendedStatus": 500,
+          "actualStatus": 422,
+          "prodStatus": 500,
+          "devStatus": 500,
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,valueSet,_limit,_incomplete",
+          "requestBodyParseError": false,
+          "hadBody": true
+        }
+      ]
+    },
+    {
+      "category": "rxnorm_filter_tty_in_not_supported",
+      "count": 3,
+      "examples": [
+        {
+          "id": "56f58c7b-b1bc-4613-936e-ce8b7f1eb13b",
+          "category": "rxnorm_filter_tty_in_not_supported",
+          "intendedStatus": 200,
+          "actualStatus": 400,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "82723c1b-c57e-4d06-b047-e78c159c0267",
+          "category": "rxnorm_filter_tty_in_not_supported",
+          "intendedStatus": 200,
+          "actualStatus": 400,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "7baac2cd-8d21-4554-9885-4f543411371d",
+          "category": "rxnorm_filter_tty_in_not_supported",
+          "intendedStatus": 200,
+          "actualStatus": 400,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "requestBodyParseError": false,
+          "hadBody": true
+        }
+      ]
+    }
+  ]
+}

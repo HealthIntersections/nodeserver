@@ -1,0 +1,67 @@
+{
+  "generatedAt": "2026-02-13T14:03:33.168Z",
+  "sourceReport": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/captured/compare-main-vs-convergence-body-diff-analysis-20260213.v3.json",
+  "summary": {
+    "total": 2,
+    "byCategory": {
+      "expansion_concept_detail_diff": 1,
+      "status_diff": 1
+    },
+    "bySource": {
+      "loinc": 2
+    }
+  },
+  "rows": [
+    {
+      "id": "61446581-304d-4587-8dcc-269808b6efad",
+      "source": "loinc",
+      "method": "POST",
+      "url": "/r4/ValueSet/$expand",
+      "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,includeDefinition,excludeNested,cache-id,count,offset,valueSet",
+      "mainStatus": 200,
+      "convStatus": 200,
+      "both2xx": true,
+      "statusSame": true,
+      "strictSame": false,
+      "semanticSame": false,
+      "category": "expansion_concept_detail_diff",
+      "meaningful": true,
+      "detail": {
+        "codeCount": 40,
+        "displayDiff": 0,
+        "detailDiff": 1
+      },
+      "mainBytes": 4856,
+      "convBytes": 4872,
+      "mainResourceType": "ValueSet",
+      "convResourceType": "ValueSet",
+      "diffPaths": [
+        "$.expansion.contains[21].inactive (missing-main)"
+      ]
+    },
+    {
+      "id": "e5ceaa8d-ae90-42ed-a02d-1dc612d44d30",
+      "source": "loinc",
+      "method": "POST",
+      "url": "/r4/CodeSystem/$lookup",
+      "signature": "POST CodeSystem $lookup q:- b:system,code",
+      "mainStatus": 500,
+      "convStatus": 200,
+      "both2xx": false,
+      "statusSame": false,
+      "strictSame": false,
+      "semanticSame": false,
+      "category": "status_diff",
+      "meaningful": true,
+      "detail": {
+        "mainStatus": 500,
+        "convStatus": 200
+      },
+      "mainBytes": 149,
+      "convBytes": 4983,
+      "mainResourceType": "OperationOutcome",
+      "convResourceType": "Parameters",
+      "diffPaths": []
+    }
+  ]
+}

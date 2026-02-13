@@ -1,0 +1,158 @@
+{
+  "generatedAt": "2026-02-13T15:34:28.456Z",
+  "replayFile": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/captured/loinc-replay-allsqlite-v0-20260213-r4filtered.json",
+  "ndjsonFile": "/home/jmandel/hobby/FHIRsmith/captured/loinc.ndjson",
+  "intendedSource": "prod",
+  "total": 180,
+  "intendedFail": 10,
+  "categories": [
+    {
+      "category": "invalid_displayLanguage_english",
+      "count": 5,
+      "examples": [
+        {
+          "id": "e66d94ee-6220-45c7-be87-7d92d327f0d8",
+          "category": "invalid_displayLanguage_english",
+          "intendedStatus": 422,
+          "actualStatus": 400,
+          "prodStatus": 422,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "78cb5825-38ad-4423-b3e1-0777eb53d9c2",
+          "category": "invalid_displayLanguage_english",
+          "intendedStatus": 422,
+          "actualStatus": 400,
+          "prodStatus": 422,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "b9787752-5844-4937-ac88-fe7080402d5c",
+          "category": "invalid_displayLanguage_english",
+          "intendedStatus": 422,
+          "actualStatus": 400,
+          "prodStatus": 422,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "24378af8-fe53-4b5a-9240-a7f1660f4c9b",
+          "category": "invalid_displayLanguage_english",
+          "intendedStatus": 422,
+          "actualStatus": 400,
+          "prodStatus": 422,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,url,valueSetVersion,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "71105aa6-df07-439a-9e67-3f8bf8e04c3b",
+          "category": "invalid_displayLanguage_english",
+          "intendedStatus": 422,
+          "actualStatus": 400,
+          "prodStatus": 422,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        }
+      ]
+    },
+    {
+      "category": "upstream_prod_dev_disagree",
+      "count": 4,
+      "examples": [
+        {
+          "id": "f70d2d28-e7b7-4e6c-9c8e-b6e4a3d994e5",
+          "category": "upstream_prod_dev_disagree",
+          "intendedStatus": 422,
+          "actualStatus": 500,
+          "prodStatus": 422,
+          "devStatus": 500,
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,cache-id,tx-resource,tx-resource,valueSet",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "17405bd1-dcf2-4fc0-9bfb-85dd960b8c96",
+          "category": "upstream_prod_dev_disagree",
+          "intendedStatus": 422,
+          "actualStatus": 200,
+          "prodStatus": 422,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,includeDefinition,excludeNested,cache-id,count,offset,valueSet",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "21ae808d-190e-469e-931e-90862e330d2c",
+          "category": "upstream_prod_dev_disagree",
+          "intendedStatus": 422,
+          "actualStatus": 500,
+          "prodStatus": 422,
+          "devStatus": 500,
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,cache-id,tx-resource,tx-resource,valueSet",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "55ca5d57-370c-4e45-a4f3-01f52fdb1f62",
+          "category": "upstream_prod_dev_disagree",
+          "intendedStatus": 422,
+          "actualStatus": 400,
+          "prodStatus": 422,
+          "devStatus": 500,
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:system,display,displayLanguage,default-to-latest-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        }
+      ]
+    },
+    {
+      "category": "captured_post_body_unparsed_or_missing",
+      "count": 1,
+      "examples": [
+        {
+          "id": "41cfa541-634a-4950-85cd-984955eb013f",
+          "category": "captured_post_body_unparsed_or_missing",
+          "intendedStatus": 200,
+          "actualStatus": 415,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:-",
+          "requestBodyParseError": true,
+          "hadBody": false
+        }
+      ]
+    }
+  ]
+}

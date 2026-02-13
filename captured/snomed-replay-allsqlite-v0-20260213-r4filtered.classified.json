@@ -1,0 +1,274 @@
+{
+  "generatedAt": "2026-02-13T15:34:28.385Z",
+  "replayFile": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/captured/snomed-replay-allsqlite-v0-20260213-r4filtered.json",
+  "ndjsonFile": "/home/jmandel/hobby/FHIRsmith/captured/snomed.ndjson",
+  "intendedSource": "prod",
+  "total": 180,
+  "intendedFail": 18,
+  "categories": [
+    {
+      "category": "external_cts_valueset_not_loaded",
+      "count": 7,
+      "examples": [
+        {
+          "id": "f0d9b56c-4c73-4559-8ba8-aa3763e65258",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&code=103705002&_format=json&system=http:%2F%2Fsnomed.info%2Fsct",
+          "signature": "GET ValueSet $validate-code q:_format,code,system,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "11af56ca-7bcb-4a77-b07a-caf25966a861",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&code=8715000&_format=json&system=http:%2F%2Fsnomed.info%2Fsct",
+          "signature": "GET ValueSet $validate-code q:_format,code,system,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "43f1699e-fa94-4227-bd7f-86e2bf5478d7",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&_format=json",
+          "signature": "GET ValueSet $expand q:_format,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "eaa0e429-dfa0-4eb3-86e5-01557c6364ad",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&_format=json",
+          "signature": "GET ValueSet $expand q:_format,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "47604944-cd2f-4d5a-88c2-ec6e7fbf70af",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&code=183452005&_format=json&system=http:%2F%2Fsnomed.info%2Fsct",
+          "signature": "GET ValueSet $validate-code q:_format,code,system,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "dfa6f03d-87a5-44eb-8991-74bb05da5400",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 500,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "84782d1e-e95d-481d-8aa4-0a40c0e9d03b",
+          "category": "external_cts_valueset_not_loaded",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:url",
+          "requestBodyParseError": false,
+          "hadBody": true
+        }
+      ]
+    },
+    {
+      "category": "upstream_prod_dev_disagree",
+      "count": 4,
+      "examples": [
+        {
+          "id": "3ec46b46-5dd8-4948-994f-c7700707c568",
+          "category": "upstream_prod_dev_disagree",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,valueSetMode,default-to-latest-version,url,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "bac8708f-939f-4ed4-8e11-1fdc34156bcb",
+          "category": "upstream_prod_dev_disagree",
+          "intendedStatus": 200,
+          "actualStatus": 500,
+          "prodStatus": 200,
+          "devStatus": 404,
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fsnomed.info%2Fsct%3Ffhir_vs&filter=diabetes&count=5",
+          "signature": "GET ValueSet $expand q:count,filter,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "d1ccb6e6-57cc-4656-bc30-318f280a5ff8",
+          "category": "upstream_prod_dev_disagree",
+          "intendedStatus": 200,
+          "actualStatus": 500,
+          "prodStatus": 200,
+          "devStatus": 500,
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fmedication-codes&filter=zet&incomplete-ok=true",
+          "signature": "GET ValueSet $expand q:filter,incomplete-ok,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "7ed3d0a9-0038-48ed-bcec-9e444a3ad949",
+          "category": "upstream_prod_dev_disagree",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,url,valueSetVersion,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        }
+      ]
+    },
+    {
+      "category": "invalid_displayLanguage_english",
+      "count": 3,
+      "examples": [
+        {
+          "id": "ad2b985d-8ef9-4f7e-bf98-c169bf1d5dd0",
+          "category": "invalid_displayLanguage_english",
+          "intendedStatus": 422,
+          "actualStatus": 400,
+          "prodStatus": 422,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "1f201a48-a36b-4ccd-8097-4ef6d7913105",
+          "category": "invalid_displayLanguage_english",
+          "intendedStatus": 422,
+          "actualStatus": 400,
+          "prodStatus": 422,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        },
+        {
+          "id": "edcbaa04-2a67-4087-ae21-7fd7a154ada6",
+          "category": "invalid_displayLanguage_english",
+          "intendedStatus": 422,
+          "actualStatus": 400,
+          "prodStatus": 422,
+          "devStatus": 400,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,url,valueSetVersion,cache-id,profile-url,system-version",
+          "requestBodyParseError": false,
+          "hadBody": true
+        }
+      ]
+    },
+    {
+      "category": "other_needs_triage",
+      "count": 2,
+      "examples": [
+        {
+          "id": "3acc6307-c240-43ec-ab97-0f596b8153fc",
+          "category": "other_needs_triage",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fhl7.org%2Ffhir%2Fus%2Fcore%2FValueSet%2Fus-core-condition-code&code=169826009&_format=json&system=http:%2F%2Fsnomed.info%2Fsct",
+          "signature": "GET ValueSet $validate-code q:_format,code,system,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "45fc381b-5f67-4110-9365-6b469f5032c3",
+          "category": "other_needs_triage",
+          "intendedStatus": 200,
+          "actualStatus": 422,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fhl7.org%2Ffhir%2Fus%2Fcore%2FValueSet%2Fus-core-condition-code&code=169826009&_format=json&system=http:%2F%2Fsnomed.info%2Fsct",
+          "signature": "GET ValueSet $validate-code q:_format,code,system,url b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        }
+      ]
+    },
+    {
+      "category": "captured_post_body_unparsed_or_missing",
+      "count": 2,
+      "examples": [
+        {
+          "id": "7f2efb6a-0110-4a7a-84be-1e105016d679",
+          "category": "captured_post_body_unparsed_or_missing",
+          "intendedStatus": 200,
+          "actualStatus": 415,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/us-core-condition-code/$validate-code?code=247824007&system=http://snomed.info/sct",
+          "signature": "POST ValueSet $validate-code q:code,system b:-",
+          "requestBodyParseError": false,
+          "hadBody": false
+        },
+        {
+          "id": "96663723-ded9-4b17-bcc8-72ede52acf6a",
+          "category": "captured_post_body_unparsed_or_missing",
+          "intendedStatus": 200,
+          "actualStatus": 415,
+          "prodStatus": 200,
+          "devStatus": 200,
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:-",
+          "requestBodyParseError": true,
+          "hadBody": false
+        }
+      ]
+    }
+  ]
+}

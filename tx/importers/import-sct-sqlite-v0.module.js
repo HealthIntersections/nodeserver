@@ -398,7 +398,7 @@ function buildDefaultDest(edition, version) {
       : edition === '731000124108'
         ? 'us'
         : String(edition || 'edition');
-  return path.resolve(`./data/sct_${label}_${version}.v0i.db`);
+  return path.resolve(`./data/sct_${label}_${version}.v0.db`);
 }
 
 function shouldAutoAssignDest(dest) {

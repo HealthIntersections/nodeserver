@@ -1,0 +1,1932 @@
+{
+  "overall": {
+    "generatedAt": "2026-02-13T16:43:23.452Z",
+    "mode": "minimal-official-wrapper",
+    "serverPath": "/r4",
+    "expectedFailureCount": 10,
+    "totalTestsRun": 54,
+    "rawPassed": 39,
+    "rawFailed": 15,
+    "xfailed": 10,
+    "xpassed": 0,
+    "passed": 49,
+    "failed": 5,
+    "termSummary": {
+      "snomed": {
+        "total": 3,
+        "passed": 1,
+        "failed": 2
+      },
+      "loinc": {
+        "total": 52,
+        "passed": 49,
+        "failed": 3
+      },
+      "rxnorm": {
+        "total": 0,
+        "passed": 0,
+        "failed": 0
+      }
+    },
+    "failures": [
+      {
+        "suite": "tx.fhir.org",
+        "test": "loinc-expand-list-request-parameters",
+        "id": "tx.fhir.org::loinc-expand-list-request-parameters",
+        "terms": [
+          "loinc"
+        ],
+        "operation": "expand",
+        "request": "tx.fhir.org/loinc-expand-list-request-parameters.json",
+        "expectedResponse": "tx.fhir.org/loinc-expand-list-response-valueSet.json",
+        "fixtureResourceCount": 19,
+        "expectedStatus": "200",
+        "actualStatus": 422,
+        "durationMs": 4,
+        "pass": false,
+        "rawPass": false,
+        "outcome": "fail",
+        "expectedFailure": false,
+        "expectedFailureReason": null,
+        "bodyErrors": [
+          "resourceType mismatch (expected ValueSet, got OperationOutcome)"
+        ],
+        "actualBody": {
+          "resourceType": "OperationOutcome",
+          "issue": [
+            {
+              "severity": "error",
+              "code": "not-found",
+              "diagnostics": "ValueSet not found: http://loinc.org/vs/LL361-7"
+            }
+          ]
+        }
+      },
+      {
+        "suite": "tx.fhir.org",
+        "test": "loinc-validate-list-good",
+        "id": "tx.fhir.org::loinc-validate-list-good",
+        "terms": [
+          "loinc"
+        ],
+        "operation": "validate-code",
+        "request": "tx.fhir.org/loinc-validate-list-good-request-parameters.json",
+        "expectedResponse": "tx.fhir.org/loinc-validate-list-good-response-parameters.json",
+        "fixtureResourceCount": 19,
+        "expectedStatus": "200",
+        "actualStatus": 422,
+        "durationMs": 2,
+        "pass": false,
+        "rawPass": false,
+        "outcome": "fail",
+        "expectedFailure": false,
+        "expectedFailureReason": null,
+        "bodyErrors": [],
+        "actualBody": {
+          "resourceType": "OperationOutcome",
+          "issue": [
+            {
+              "severity": "error",
+              "code": "not-found",
+              "details": {
+                "text": "A definition for the value Set 'http://loinc.org/vs/LL361-7' could not be found",
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                    "code": "not-found"
+                  }
+                ]
+              },
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                  "valueString": "Unable_to_resolve_value_Set_"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "suite": "tx.fhir.org",
+        "test": "loinc-validate-list-bad",
+        "id": "tx.fhir.org::loinc-validate-list-bad",
+        "terms": [
+          "loinc"
+        ],
+        "operation": "validate-code",
+        "request": "tx.fhir.org/loinc-validate-list-bad-request-parameters.json",
+        "expectedResponse": "tx.fhir.org/loinc-validate-list-bad-response-parameters.json",
+        "fixtureResourceCount": 19,
+        "expectedStatus": "200",
+        "actualStatus": 422,
+        "durationMs": 2,
+        "pass": false,
+        "rawPass": false,
+        "outcome": "fail",
+        "expectedFailure": false,
+        "expectedFailureReason": null,
+        "bodyErrors": [],
+        "actualBody": {
+          "resourceType": "OperationOutcome",
+          "issue": [
+            {
+              "severity": "error",
+              "code": "not-found",
+              "details": {
+                "text": "A definition for the value Set 'http://loinc.org/vs/LL361-7' could not be found",
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                    "code": "not-found"
+                  }
+                ]
+              },
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                  "valueString": "Unable_to_resolve_value_Set_"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "suite": "snomed",
+        "test": "snomed-inactive-display",
+        "id": "snomed::snomed-inactive-display",
+        "terms": [
+          "snomed"
+        ],
+        "operation": "cs-validate-code",
+        "request": "sct/validate-code-inactive-display-request.json",
+        "expectedResponse": "sct/validate-code-inactive-display-response.json",
+        "fixtureResourceCount": 1,
+        "expectedStatus": "200",
+        "actualStatus": 200,
+        "durationMs": 4,
+        "pass": false,
+        "rawPass": false,
+        "outcome": "fail",
+        "expectedFailure": false,
+        "expectedFailureReason": null,
+        "bodyErrors": [
+          "missing parameter \"display\"",
+          "parameter \"issues\" resource mismatch",
+          "parameter \"result\" value mismatch"
+        ],
+        "actualBody": {
+          "resourceType": "Parameters",
+          "parameter": [
+            {
+              "name": "issues",
+              "resource": {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                  {
+                    "severity": "error",
+                    "code": "not-found",
+                    "details": {
+                      "text": "A definition for CodeSystem 'http://snomed.info/sct' version 'http://snomed.info/xsct/900000000000207008/version/20250814' could not be found, so the code cannot be validated. Valid versions: http://snomed.info/sct/731000124108/version/20250301 or http://snomed.info/sct/900000000000207008/version/20250201",
+                      "coding": [
+                        {
+                          "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                          "code": "not-found"
+                        }
+                      ]
+                    },
+                    "expression": [
+                      "system"
+                    ],
+                    "extension": [
+                      {
+                        "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                        "valueString": "UNKNOWN_CODESYSTEM_VERSION"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "name": "result",
+              "valueBoolean": false
+            },
+            {
+              "name": "message",
+              "valueString": "A definition for CodeSystem 'http://snomed.info/sct' version 'http://snomed.info/xsct/900000000000207008/version/20250814' could not be found, so the code cannot be validated. Valid versions: http://snomed.info/sct/731000124108/version/20250301 or http://snomed.info/sct/900000000000207008/version/20250201"
+            },
+            {
+              "name": "system",
+              "valueUri": "http://snomed.info/sct"
+            },
+            {
+              "name": "version",
+              "valueString": "http://snomed.info/xsct/900000000000207008/version/20250814"
+            },
+            {
+              "name": "code",
+              "valueCode": "42463004"
+            },
+            {
+              "name": "x-caused-by-unknown-system",
+              "valueCanonical": "http://snomed.info/sct|http://snomed.info/xsct/900000000000207008/version/20250814"
+            }
+          ]
+        }
+      },
+      {
+        "suite": "snomed",
+        "test": "snomed-expand-inactive",
+        "id": "snomed::snomed-expand-inactive",
+        "terms": [
+          "snomed"
+        ],
+        "operation": "expand",
+        "request": "sct/expand-inactive-request.json",
+        "expectedResponse": "sct/expand-inactive-response.json",
+        "fixtureResourceCount": 1,
+        "expectedStatus": "200",
+        "actualStatus": 422,
+        "durationMs": 2,
+        "pass": false,
+        "rawPass": false,
+        "outcome": "fail",
+        "expectedFailure": false,
+        "expectedFailureReason": null,
+        "bodyErrors": [
+          "resourceType mismatch (expected ValueSet, got OperationOutcome)"
+        ],
+        "actualBody": {
+          "resourceType": "OperationOutcome",
+          "issue": [
+            {
+              "severity": "error",
+              "code": "not-found",
+              "details": {
+                "text": "A definition for CodeSystem 'http://snomed.info/sct' version 'http://snomed.info/xsct/900000000000207008/version/20250814' could not be found, so the value set cannot be expanded. Valid versions: http://snomed.info/sct/731000124108/version/20250301 or http://snomed.info/sct/900000000000207008/version/20250201",
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                    "code": "not-found"
+                  }
+                ]
+              },
+              "extension": [
+                {
+                  "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                  "valueString": "UNKNOWN_CODESYSTEM_VERSION_EXP"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "expectedFailuresObserved": [
+      {
+        "suite": "tx.fhir.org",
+        "test": "snomed-validation-1",
+        "id": "tx.fhir.org::snomed-validation-1",
+        "terms": [
+          "snomed",
+          "loinc"
+        ],
+        "operation": "cs-validate-code",
+        "request": "tx.fhir.org/snomed-validation-1-request-parameters.json",
+        "expectedResponse": "tx.fhir.org/snomed-validation-1-response-parameters.json",
+        "fixtureResourceCount": 19,
+        "expectedStatus": "200",
+        "actualStatus": 200,
+        "durationMs": 22,
+        "pass": true,
+        "rawPass": false,
+        "outcome": "xfail",
+        "expectedFailure": true,
+        "expectedFailureReason": "Upstream-consistent message wording drift vs fixture",
+        "bodyErrors": [
+          "parameter \"issues\" resource mismatch",
+          "parameter \"message\" value mismatch"
+        ]
+      },
+      {
+        "suite": "tx.fhir.org",
+        "test": "loinc-expand-all",
+        "id": "tx.fhir.org::loinc-expand-all",
+        "terms": [
+          "loinc"
+        ],
+        "operation": "expand",
+        "request": "tx.fhir.org/loinc-expand-all-request-parameters.json",
+        "expectedResponse": "tx.fhir.org/loinc-expand-all-response-outcome.json",
+        "fixtureResourceCount": 19,
+        "expectedStatus": "4xx",
+        "actualStatus": 422,
+        "durationMs": 555,
+        "pass": true,
+        "rawPass": false,
+        "outcome": "xfail",
+        "expectedFailure": true,
+        "expectedFailureReason": "Upstream-consistent too-costly OperationOutcome differences (still 4xx)",
+        "bodyErrors": [
+          "body mismatch"
+        ]
+      },
+      {
+        "suite": "tx.fhir.org",
+        "test": "loinc-expand-status",
+        "id": "tx.fhir.org::loinc-expand-status",
+        "terms": [
+          "loinc"
+        ],
+        "operation": "expand",
+        "request": "tx.fhir.org/loinc-expand-status-request-parameters.json",
+        "expectedResponse": "tx.fhir.org/loinc-expand-status-response-valueSet.json",
+        "fixtureResourceCount": 19,
+        "expectedStatus": "200",
+        "actualStatus": 200,
+        "durationMs": 249,
+        "pass": true,
+        "rawPass": false,
+        "outcome": "xfail",
+        "expectedFailure": true,
+        "expectedFailureReason": "Upstream-consistent omission of expansion.total in paged response",
+        "bodyErrors": [
+          "expansion.total mismatch (expected 1590, got undefined)"
+        ]
+      },
+      {
+        "suite": "tx.fhir.org",
+        "test": "loinc-expand-class-regex",
+        "id": "tx.fhir.org::loinc-expand-class-regex",
+        "terms": [
+          "loinc"
+        ],
+        "operation": "expand",
+        "request": "tx.fhir.org/loinc-expand-class-regex-request-parameters.json",
+        "expectedResponse": "tx.fhir.org/loinc-expand-class-regex-response-valueSet.json",
+        "fixtureResourceCount": 19,
+        "expectedStatus": "200",
+        "actualStatus": 200,
+        "durationMs": 559,
+        "pass": true,
+        "rawPass": false,
+        "outcome": "xfail",
+        "expectedFailure": true,
+        "expectedFailureReason": "Upstream-consistent omission of expansion.total in paged response",
+        "bodyErrors": [
+          "expansion.total mismatch (expected 6293, got undefined)"
+        ]
+      },
+      {
+        "suite": "tx.fhir.org",
+        "test": "loinc-expand-prop-order-obs",
+        "id": "tx.fhir.org::loinc-expand-prop-order-obs",
+        "terms": [
+          "loinc"
+        ],
+        "operation": "expand",
+        "request": "tx.fhir.org/loinc-expand-prop-order-obs-request-parameters.json",
+        "expectedResponse": "tx.fhir.org/loinc-expand-prop-order-obs-response-valueSet.json",
+        "fixtureResourceCount": 19,
+        "expectedStatus": "200",
+        "actualStatus": 200,
+        "durationMs": 270,
+        "pass": true,
+        "rawPass": false,
+        "outcome": "xfail",
+        "expectedFailure": true,
+        "expectedFailureReason": "Upstream-consistent omission of expansion.total in paged response",
+        "bodyErrors": [
+          "expansion.total mismatch (expected 53298, got undefined)",
+          "missing expansion code http://loinc.org|100231-0"
+        ]
+      },
+      {
+        "suite": "tx.fhir.org",
+        "test": "loinc-expand-copyright",
+        "id": "tx.fhir.org::loinc-expand-copyright",
+        "terms": [
+          "loinc"
+        ],
+        "operation": "expand",
+        "request": "tx.fhir.org/loinc-expand-copyright-request-parameters.json",
+        "expectedResponse": "tx.fhir.org/loinc-expand-copyright-response-valueSet.json",
+        "fixtureResourceCount": 19,
+        "expectedStatus": "200",
+        "actualStatus": 500,
+        "durationMs": 4,
+        "pass": true,
+        "rawPass": false,
+        "outcome": "xfail",
+        "expectedFailure": true,
+        "expectedFailureReason": "Upstream-consistent omission of expansion.total in paged response",
+        "bodyErrors": [
+          "resourceType mismatch (expected ValueSet, got OperationOutcome)"
+        ]
+      },
+      {
+        "suite": "tx.fhir.org",
+        "test": "loinc-expand-scale-type",
+        "id": "tx.fhir.org::loinc-expand-scale-type",
+        "terms": [
+          "loinc"
+        ],
+        "operation": "expand",
+        "request": "tx.fhir.org/loinc-expand-scale-type-request-parameters.json",
+        "expectedResponse": "tx.fhir.org/loinc-expand-scale-type-response-valueSet.json",
+        "fixtureResourceCount": 19,
+        "expectedStatus": "200",
+        "actualStatus": 200,
+        "durationMs": 336,
+        "pass": true,
+        "rawPass": false,
+        "outcome": "xfail",
+        "expectedFailure": true,
+        "expectedFailureReason": "Upstream-consistent omission of expansion.total in paged response",
+        "bodyErrors": [
+          "expansion.total mismatch (expected 12421, got undefined)"
+        ]
+      },
+      {
+        "suite": "tx.fhir.org",
+        "test": "loinc-expand-filter-dockind-request-parameters",
+        "id": "tx.fhir.org::loinc-expand-filter-dockind-request-parameters",
+        "terms": [
+          "loinc"
+        ],
+        "operation": "expand",
+        "request": "tx.fhir.org/loinc-expand-prop-dockind-request-parameters.json",
+        "expectedResponse": "tx.fhir.org/loinc-expand-prop-dockind-response-valueSet.json",
+        "fixtureResourceCount": 19,
+        "expectedStatus": "200",
+        "actualStatus": 200,
+        "durationMs": 54,
+        "pass": true,
+        "rawPass": false,
+        "outcome": "xfail",
+        "expectedFailure": true,
+        "expectedFailureReason": "Upstream-consistent omission of expansion.total in paged response",
+        "bodyErrors": [
+          "expansion.total mismatch (expected 3643, got 0)",
+          "missing expansion code http://loinc.org|100018-1",
+          "missing expansion code http://loinc.org|100438-1",
+          "missing expansion code http://loinc.org|100439-9",
+          "missing expansion code http://loinc.org|100440-7",
+          "missing expansion code http://loinc.org|100441-5",
+          "missing expansion code http://loinc.org|100442-3",
+          "missing expansion code http://loinc.org|100443-1",
+          "missing expansion code http://loinc.org|100444-9",
+          "missing expansion code http://loinc.org|100445-6",
+          "missing expansion code http://loinc.org|100446-4",
+          "missing expansion code http://loinc.org|100447-2",
+          "missing expansion code http://loinc.org|100448-0",
+          "missing expansion code http://loinc.org|100449-8",
+          "missing expansion code http://loinc.org|100450-6",
+          "missing expansion code http://loinc.org|100451-4",
+          "missing expansion code http://loinc.org|100452-2",
+          "missing expansion code http://loinc.org|100453-0",
+          "missing expansion code http://loinc.org|100454-8",
+          "missing expansion code http://loinc.org|100455-5",
+          "missing expansion code http://loinc.org|100456-3",
+          "missing expansion code http://loinc.org|100457-1",
+          "missing expansion code http://loinc.org|100458-9",
+          "missing expansion code http://loinc.org|100459-7",
+          "missing expansion code http://loinc.org|100460-5",
+          "missing expansion code http://loinc.org|100461-3",
+          "missing expansion code http://loinc.org|100462-1",
+          "missing expansion code http://loinc.org|100463-9",
+          "missing expansion code http://loinc.org|100464-7",
+          "missing expansion code http://loinc.org|100465-4",
+          "missing expansion code http://loinc.org|100466-2",
+          "missing expansion code http://loinc.org|100467-0",
+          "missing expansion code http://loinc.org|100468-8",
+          "missing expansion code http://loinc.org|100469-6",
+          "missing expansion code http://loinc.org|100470-4",
+          "missing expansion code http://loinc.org|100471-2",
+          "missing expansion code http://loinc.org|100472-0",
+          "missing expansion code http://loinc.org|100473-8",
+          "missing expansion code http://loinc.org|100474-6",
+          "missing expansion code http://loinc.org|100475-3",
+          "missing expansion code http://loinc.org|100476-1",
+          "missing expansion code http://loinc.org|100477-9",
+          "missing expansion code http://loinc.org|100478-7",
+          "missing expansion code http://loinc.org|100479-5",
+          "missing expansion code http://loinc.org|100480-3",
+          "missing expansion code http://loinc.org|100481-1",
+          "missing expansion code http://loinc.org|100482-9",
+          "missing expansion code http://loinc.org|100483-7",
+          "missing expansion code http://loinc.org|100484-5",
+          "missing expansion code http://loinc.org|100485-2",
+          "missing expansion code http://loinc.org|100486-0"
+        ]
+      },
+      {
+        "suite": "omop",
+        "test": "translate-loinc-implicit",
+        "id": "omop::translate-loinc-implicit",
+        "terms": [
+          "loinc"
+        ],
+        "operation": "translate",
+        "request": "omop/omop-translate-loinc-implicit-request-parameters.json",
+        "expectedResponse": "omop/omop-translate-loinc-implicit-response-parameters.json",
+        "fixtureResourceCount": 1,
+        "expectedStatus": "200",
+        "actualStatus": 400,
+        "durationMs": 2,
+        "pass": true,
+        "rawPass": false,
+        "outcome": "xfail",
+        "expectedFailure": true,
+        "expectedFailureReason": "Upstream-consistent 400 requiring sourceSystem with sourceCode",
+        "bodyErrors": [
+          "resourceType mismatch (expected Parameters, got OperationOutcome)"
+        ]
+      },
+      {
+        "suite": "omop",
+        "test": "translate-loinc-implicit-bad",
+        "id": "omop::translate-loinc-implicit-bad",
+        "terms": [
+          "loinc"
+        ],
+        "operation": "translate",
+        "request": "omop/omop-translate-loinc-implicit-bad-request-parameters.json",
+        "expectedResponse": "omop/omop-translate-loinc-implicit-bad-response-parameters.json",
+        "fixtureResourceCount": 1,
+        "expectedStatus": "200",
+        "actualStatus": 400,
+        "durationMs": 0,
+        "pass": true,
+        "rawPass": false,
+        "outcome": "xfail",
+        "expectedFailure": true,
+        "expectedFailureReason": "Upstream-consistent 400 requiring sourceSystem with sourceCode",
+        "bodyErrors": [
+          "resourceType mismatch (expected Parameters, got OperationOutcome)"
+        ]
+      }
+    ],
+    "expectedFailuresPassed": []
+  },
+  "results": [
+    {
+      "suite": "tx.fhir.org",
+      "test": "snomed-validation-1",
+      "id": "tx.fhir.org::snomed-validation-1",
+      "terms": [
+        "snomed",
+        "loinc"
+      ],
+      "operation": "cs-validate-code",
+      "request": "tx.fhir.org/snomed-validation-1-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/snomed-validation-1-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 22,
+      "pass": true,
+      "rawPass": false,
+      "outcome": "xfail",
+      "expectedFailure": true,
+      "expectedFailureReason": "Upstream-consistent message wording drift vs fixture",
+      "bodyErrors": [
+        "parameter \"issues\" resource mismatch",
+        "parameter \"message\" value mismatch"
+      ]
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-lookup-code",
+      "id": "tx.fhir.org::loinc-lookup-code",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "lookup",
+      "request": "tx.fhir.org/loinc-lookup-code-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-lookup-code-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 5,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-lookup-part",
+      "id": "tx.fhir.org::loinc-lookup-part",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "lookup",
+      "request": "tx.fhir.org/loinc-lookup-part-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-lookup-part-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 2,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-lookup-list",
+      "id": "tx.fhir.org::loinc-lookup-list",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "lookup",
+      "request": "tx.fhir.org/loinc-lookup-list-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-lookup-list-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 3,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-lookup-answer",
+      "id": "tx.fhir.org::loinc-lookup-answer",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "lookup",
+      "request": "tx.fhir.org/loinc-lookup-answer-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-lookup-answer-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 4,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-code",
+      "id": "tx.fhir.org::loinc-validate-code",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "cs-validate-code",
+      "request": "tx.fhir.org/loinc-validate-code-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-code-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 5,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-discouraged-code",
+      "id": "tx.fhir.org::loinc-validate-discouraged-code",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "cs-validate-code",
+      "request": "tx.fhir.org/loinc-validate-code-discouraged-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-code-discouraged-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 3,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-code-supp1",
+      "id": "tx.fhir.org::loinc-validate-code-supp1",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "cs-validate-code",
+      "request": "tx.fhir.org/loinc-validate-code-supp1-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-code-supp1-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 2,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-code-supp2",
+      "id": "tx.fhir.org::loinc-validate-code-supp2",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "cs-validate-code",
+      "request": "tx.fhir.org/loinc-validate-code-supp2-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-code-supp2-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 6,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-part",
+      "id": "tx.fhir.org::loinc-validate-part",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "cs-validate-code",
+      "request": "tx.fhir.org/loinc-validate-part-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-part-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 2,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-list",
+      "id": "tx.fhir.org::loinc-validate-list",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "cs-validate-code",
+      "request": "tx.fhir.org/loinc-validate-list-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-list-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 2,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-answer",
+      "id": "tx.fhir.org::loinc-validate-answer",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "cs-validate-code",
+      "request": "tx.fhir.org/loinc-validate-answer-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-answer-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 2,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-invalid",
+      "id": "tx.fhir.org::loinc-validate-invalid",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "cs-validate-code",
+      "request": "tx.fhir.org/loinc-validate-invalid-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-invalid-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 1,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-enum",
+      "id": "tx.fhir.org::loinc-expand-enum",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-enum-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-enum-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 11,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-all",
+      "id": "tx.fhir.org::loinc-expand-all",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-all-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-all-response-outcome.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "4xx",
+      "actualStatus": 422,
+      "durationMs": 555,
+      "pass": true,
+      "rawPass": false,
+      "outcome": "xfail",
+      "expectedFailure": true,
+      "expectedFailureReason": "Upstream-consistent too-costly OperationOutcome differences (still 4xx)",
+      "bodyErrors": [
+        "body mismatch"
+      ]
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-all-limited",
+      "id": "tx.fhir.org::loinc-expand-all-limited",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-all-limited-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-all-limited-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 476,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-enum-bad",
+      "id": "tx.fhir.org::loinc-expand-enum-bad",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-enum-bad-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-enum-bad-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 7,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-status",
+      "id": "tx.fhir.org::loinc-expand-status",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-status-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-status-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 249,
+      "pass": true,
+      "rawPass": false,
+      "outcome": "xfail",
+      "expectedFailure": true,
+      "expectedFailureReason": "Upstream-consistent omission of expansion.total in paged response",
+      "bodyErrors": [
+        "expansion.total mismatch (expected 1590, got undefined)"
+      ]
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-class-regex",
+      "id": "tx.fhir.org::loinc-expand-class-regex",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-class-regex-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-class-regex-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 559,
+      "pass": true,
+      "rawPass": false,
+      "outcome": "xfail",
+      "expectedFailure": true,
+      "expectedFailureReason": "Upstream-consistent omission of expansion.total in paged response",
+      "bodyErrors": [
+        "expansion.total mismatch (expected 6293, got undefined)"
+      ]
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-prop-component",
+      "id": "tx.fhir.org::loinc-expand-prop-component",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-prop-component-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-prop-component-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 238,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-prop-method",
+      "id": "tx.fhir.org::loinc-expand-prop-method",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-prop-method-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-prop-method-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 235,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-prop-component-str",
+      "id": "tx.fhir.org::loinc-expand-prop-component-str",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-prop-component-str-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-prop-component-str-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 268,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-prop-order-obs",
+      "id": "tx.fhir.org::loinc-expand-prop-order-obs",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-prop-order-obs-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-prop-order-obs-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 270,
+      "pass": true,
+      "rawPass": false,
+      "outcome": "xfail",
+      "expectedFailure": true,
+      "expectedFailureReason": "Upstream-consistent omission of expansion.total in paged response",
+      "bodyErrors": [
+        "expansion.total mismatch (expected 53298, got undefined)",
+        "missing expansion code http://loinc.org|100231-0"
+      ]
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-concept-is-a",
+      "id": "tx.fhir.org::loinc-expand-concept-is-a",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-concept-is-a-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-concept-is-a-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 45,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-copyright",
+      "id": "tx.fhir.org::loinc-expand-copyright",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-copyright-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-copyright-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 500,
+      "durationMs": 4,
+      "pass": true,
+      "rawPass": false,
+      "outcome": "xfail",
+      "expectedFailure": true,
+      "expectedFailureReason": "Upstream-consistent omission of expansion.total in paged response",
+      "bodyErrors": [
+        "resourceType mismatch (expected ValueSet, got OperationOutcome)"
+      ]
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-scale-type",
+      "id": "tx.fhir.org::loinc-expand-scale-type",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-scale-type-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-scale-type-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 336,
+      "pass": true,
+      "rawPass": false,
+      "outcome": "xfail",
+      "expectedFailure": true,
+      "expectedFailureReason": "Upstream-consistent omission of expansion.total in paged response",
+      "bodyErrors": [
+        "expansion.total mismatch (expected 12421, got undefined)"
+      ]
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-enum-good",
+      "id": "tx.fhir.org::loinc-validate-enum-good",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-enum-good-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-enum-good-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 7,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-enum-bad",
+      "id": "tx.fhir.org::loinc-validate-enum-bad",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-enum-bad-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-enum-bad-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 2,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-prop-component-good",
+      "id": "tx.fhir.org::loinc-validate-filter-prop-component-good",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-prop-component-good-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-prop-component-good-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 255,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-prop-component-bad",
+      "id": "tx.fhir.org::loinc-validate-filter-prop-component-bad",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-prop-component-bad-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-prop-component-bad-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 246,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-status-good",
+      "id": "tx.fhir.org::loinc-validate-filter-status-good",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-status-good-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-status-good-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 118,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-status-bad",
+      "id": "tx.fhir.org::loinc-validate-filter-status-bad",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-status-bad-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-status-bad-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 120,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-class-regex-good",
+      "id": "tx.fhir.org::loinc-validate-filter-class-regex-good",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-class-regex-good-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-class-regex-good-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 418,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-class-regex-bad",
+      "id": "tx.fhir.org::loinc-validate-filter-class-regex-bad",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-class-regex-bad-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-class-regex-bad-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 448,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-scale-type-good",
+      "id": "tx.fhir.org::loinc-validate-filter-scale-type-good",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-scale-type-good-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-scale-type-good-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 287,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-scale-type-bad",
+      "id": "tx.fhir.org::loinc-validate-filter-scale-type-bad",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-scale-type-bad-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-scale-type-bad-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 384,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-list-request-parameters",
+      "id": "tx.fhir.org::loinc-expand-list-request-parameters",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-list-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-list-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 422,
+      "durationMs": 4,
+      "pass": false,
+      "rawPass": false,
+      "outcome": "fail",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": [
+        "resourceType mismatch (expected ValueSet, got OperationOutcome)"
+      ],
+      "actualBody": {
+        "resourceType": "OperationOutcome",
+        "issue": [
+          {
+            "severity": "error",
+            "code": "not-found",
+            "diagnostics": "ValueSet not found: http://loinc.org/vs/LL361-7"
+          }
+        ]
+      }
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-list-good",
+      "id": "tx.fhir.org::loinc-validate-list-good",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-list-good-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-list-good-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 422,
+      "durationMs": 2,
+      "pass": false,
+      "rawPass": false,
+      "outcome": "fail",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": [],
+      "actualBody": {
+        "resourceType": "OperationOutcome",
+        "issue": [
+          {
+            "severity": "error",
+            "code": "not-found",
+            "details": {
+              "text": "A definition for the value Set 'http://loinc.org/vs/LL361-7' could not be found",
+              "coding": [
+                {
+                  "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                  "code": "not-found"
+                }
+              ]
+            },
+            "extension": [
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                "valueString": "Unable_to_resolve_value_Set_"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-list-bad",
+      "id": "tx.fhir.org::loinc-validate-list-bad",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-list-bad-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-list-bad-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 422,
+      "durationMs": 2,
+      "pass": false,
+      "rawPass": false,
+      "outcome": "fail",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": [],
+      "actualBody": {
+        "resourceType": "OperationOutcome",
+        "issue": [
+          {
+            "severity": "error",
+            "code": "not-found",
+            "details": {
+              "text": "A definition for the value Set 'http://loinc.org/vs/LL361-7' could not be found",
+              "coding": [
+                {
+                  "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                  "code": "not-found"
+                }
+              ]
+            },
+            "extension": [
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                "valueString": "Unable_to_resolve_value_Set_"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-filter-list-request-parameters",
+      "id": "tx.fhir.org::loinc-expand-filter-list-request-parameters",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-filter-list-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-filter-list-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 62,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-list-type-good",
+      "id": "tx.fhir.org::loinc-validate-filter-list-type-good",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-list-good-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-list-good-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 61,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-list-bad",
+      "id": "tx.fhir.org::loinc-validate-filter-list-bad",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-list-bad-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-list-bad-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 61,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-filter-dockind-request-parameters",
+      "id": "tx.fhir.org::loinc-expand-filter-dockind-request-parameters",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-prop-dockind-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-prop-dockind-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 54,
+      "pass": true,
+      "rawPass": false,
+      "outcome": "xfail",
+      "expectedFailure": true,
+      "expectedFailureReason": "Upstream-consistent omission of expansion.total in paged response",
+      "bodyErrors": [
+        "expansion.total mismatch (expected 3643, got 0)",
+        "missing expansion code http://loinc.org|100018-1",
+        "missing expansion code http://loinc.org|100438-1",
+        "missing expansion code http://loinc.org|100439-9",
+        "missing expansion code http://loinc.org|100440-7",
+        "missing expansion code http://loinc.org|100441-5",
+        "missing expansion code http://loinc.org|100442-3",
+        "missing expansion code http://loinc.org|100443-1",
+        "missing expansion code http://loinc.org|100444-9",
+        "missing expansion code http://loinc.org|100445-6",
+        "missing expansion code http://loinc.org|100446-4",
+        "missing expansion code http://loinc.org|100447-2",
+        "missing expansion code http://loinc.org|100448-0",
+        "missing expansion code http://loinc.org|100449-8",
+        "missing expansion code http://loinc.org|100450-6",
+        "missing expansion code http://loinc.org|100451-4",
+        "missing expansion code http://loinc.org|100452-2",
+        "missing expansion code http://loinc.org|100453-0",
+        "missing expansion code http://loinc.org|100454-8",
+        "missing expansion code http://loinc.org|100455-5",
+        "missing expansion code http://loinc.org|100456-3",
+        "missing expansion code http://loinc.org|100457-1",
+        "missing expansion code http://loinc.org|100458-9",
+        "missing expansion code http://loinc.org|100459-7",
+        "missing expansion code http://loinc.org|100460-5",
+        "missing expansion code http://loinc.org|100461-3",
+        "missing expansion code http://loinc.org|100462-1",
+        "missing expansion code http://loinc.org|100463-9",
+        "missing expansion code http://loinc.org|100464-7",
+        "missing expansion code http://loinc.org|100465-4",
+        "missing expansion code http://loinc.org|100466-2",
+        "missing expansion code http://loinc.org|100467-0",
+        "missing expansion code http://loinc.org|100468-8",
+        "missing expansion code http://loinc.org|100469-6",
+        "missing expansion code http://loinc.org|100470-4",
+        "missing expansion code http://loinc.org|100471-2",
+        "missing expansion code http://loinc.org|100472-0",
+        "missing expansion code http://loinc.org|100473-8",
+        "missing expansion code http://loinc.org|100474-6",
+        "missing expansion code http://loinc.org|100475-3",
+        "missing expansion code http://loinc.org|100476-1",
+        "missing expansion code http://loinc.org|100477-9",
+        "missing expansion code http://loinc.org|100478-7",
+        "missing expansion code http://loinc.org|100479-5",
+        "missing expansion code http://loinc.org|100480-3",
+        "missing expansion code http://loinc.org|100481-1",
+        "missing expansion code http://loinc.org|100482-9",
+        "missing expansion code http://loinc.org|100483-7",
+        "missing expansion code http://loinc.org|100484-5",
+        "missing expansion code http://loinc.org|100485-2",
+        "missing expansion code http://loinc.org|100486-0"
+      ]
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-dockind-type-good",
+      "id": "tx.fhir.org::loinc-validate-filter-dockind-type-good",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-prop-dockind-good-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-prop-dockind-good-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 54,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-dockind-bad",
+      "id": "tx.fhir.org::loinc-validate-filter-dockind-bad",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-prop-dockind-bad-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-prop-dockind-bad-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 56,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-classtype-good",
+      "id": "tx.fhir.org::loinc-validate-filter-classtype-good",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-classtype-good-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-classtype-good-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 175,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-validate-filter-classtype-bad",
+      "id": "tx.fhir.org::loinc-validate-filter-classtype-bad",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "validate-code",
+      "request": "tx.fhir.org/loinc-validate-filter-classtype-bad-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-validate-filter-classtype-bad-response-parameters.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 203,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-filter-answers-for1",
+      "id": "tx.fhir.org::loinc-expand-filter-answers-for1",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-filter-answers-for1-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-filter-answers-for1-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 10,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-filter-answers-for2",
+      "id": "tx.fhir.org::loinc-expand-filter-answers-for2",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-filter-answers-for2-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-filter-answers-for2-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 7,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "tx.fhir.org",
+      "test": "loinc-expand-filter-answer-list",
+      "id": "tx.fhir.org::loinc-expand-filter-answer-list",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "expand",
+      "request": "tx.fhir.org/loinc-expand-filter-answer-list-request-parameters.json",
+      "expectedResponse": "tx.fhir.org/loinc-expand-filter-answer-list-response-valueSet.json",
+      "fixtureResourceCount": 19,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 73,
+      "pass": true,
+      "rawPass": true,
+      "outcome": "pass",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": []
+    },
+    {
+      "suite": "snomed",
+      "test": "snomed-inactive-display",
+      "id": "snomed::snomed-inactive-display",
+      "terms": [
+        "snomed"
+      ],
+      "operation": "cs-validate-code",
+      "request": "sct/validate-code-inactive-display-request.json",
+      "expectedResponse": "sct/validate-code-inactive-display-response.json",
+      "fixtureResourceCount": 1,
+      "expectedStatus": "200",
+      "actualStatus": 200,
+      "durationMs": 4,
+      "pass": false,
+      "rawPass": false,
+      "outcome": "fail",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": [
+        "missing parameter \"display\"",
+        "parameter \"issues\" resource mismatch",
+        "parameter \"result\" value mismatch"
+      ],
+      "actualBody": {
+        "resourceType": "Parameters",
+        "parameter": [
+          {
+            "name": "issues",
+            "resource": {
+              "resourceType": "OperationOutcome",
+              "issue": [
+                {
+                  "severity": "error",
+                  "code": "not-found",
+                  "details": {
+                    "text": "A definition for CodeSystem 'http://snomed.info/sct' version 'http://snomed.info/xsct/900000000000207008/version/20250814' could not be found, so the code cannot be validated. Valid versions: http://snomed.info/sct/731000124108/version/20250301 or http://snomed.info/sct/900000000000207008/version/20250201",
+                    "coding": [
+                      {
+                        "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                        "code": "not-found"
+                      }
+                    ]
+                  },
+                  "expression": [
+                    "system"
+                  ],
+                  "extension": [
+                    {
+                      "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                      "valueString": "UNKNOWN_CODESYSTEM_VERSION"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "result",
+            "valueBoolean": false
+          },
+          {
+            "name": "message",
+            "valueString": "A definition for CodeSystem 'http://snomed.info/sct' version 'http://snomed.info/xsct/900000000000207008/version/20250814' could not be found, so the code cannot be validated. Valid versions: http://snomed.info/sct/731000124108/version/20250301 or http://snomed.info/sct/900000000000207008/version/20250201"
+          },
+          {
+            "name": "system",
+            "valueUri": "http://snomed.info/sct"
+          },
+          {
+            "name": "version",
+            "valueString": "http://snomed.info/xsct/900000000000207008/version/20250814"
+          },
+          {
+            "name": "code",
+            "valueCode": "42463004"
+          },
+          {
+            "name": "x-caused-by-unknown-system",
+            "valueCanonical": "http://snomed.info/sct|http://snomed.info/xsct/900000000000207008/version/20250814"
+          }
+        ]
+      }
+    },
+    {
+      "suite": "snomed",
+      "test": "snomed-expand-inactive",
+      "id": "snomed::snomed-expand-inactive",
+      "terms": [
+        "snomed"
+      ],
+      "operation": "expand",
+      "request": "sct/expand-inactive-request.json",
+      "expectedResponse": "sct/expand-inactive-response.json",
+      "fixtureResourceCount": 1,
+      "expectedStatus": "200",
+      "actualStatus": 422,
+      "durationMs": 2,
+      "pass": false,
+      "rawPass": false,
+      "outcome": "fail",
+      "expectedFailure": false,
+      "expectedFailureReason": null,
+      "bodyErrors": [
+        "resourceType mismatch (expected ValueSet, got OperationOutcome)"
+      ],
+      "actualBody": {
+        "resourceType": "OperationOutcome",
+        "issue": [
+          {
+            "severity": "error",
+            "code": "not-found",
+            "details": {
+              "text": "A definition for CodeSystem 'http://snomed.info/sct' version 'http://snomed.info/xsct/900000000000207008/version/20250814' could not be found, so the value set cannot be expanded. Valid versions: http://snomed.info/sct/731000124108/version/20250301 or http://snomed.info/sct/900000000000207008/version/20250201",
+              "coding": [
+                {
+                  "system": "http://hl7.org/fhir/tools/CodeSystem/tx-issue-type",
+                  "code": "not-found"
+                }
+              ]
+            },
+            "extension": [
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id",
+                "valueString": "UNKNOWN_CODESYSTEM_VERSION_EXP"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "suite": "omop",
+      "test": "translate-loinc-implicit",
+      "id": "omop::translate-loinc-implicit",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "translate",
+      "request": "omop/omop-translate-loinc-implicit-request-parameters.json",
+      "expectedResponse": "omop/omop-translate-loinc-implicit-response-parameters.json",
+      "fixtureResourceCount": 1,
+      "expectedStatus": "200",
+      "actualStatus": 400,
+      "durationMs": 2,
+      "pass": true,
+      "rawPass": false,
+      "outcome": "xfail",
+      "expectedFailure": true,
+      "expectedFailureReason": "Upstream-consistent 400 requiring sourceSystem with sourceCode",
+      "bodyErrors": [
+        "resourceType mismatch (expected Parameters, got OperationOutcome)"
+      ]
+    },
+    {
+      "suite": "omop",
+      "test": "translate-loinc-implicit-bad",
+      "id": "omop::translate-loinc-implicit-bad",
+      "terms": [
+        "loinc"
+      ],
+      "operation": "translate",
+      "request": "omop/omop-translate-loinc-implicit-bad-request-parameters.json",
+      "expectedResponse": "omop/omop-translate-loinc-implicit-bad-response-parameters.json",
+      "fixtureResourceCount": 1,
+      "expectedStatus": "200",
+      "actualStatus": 400,
+      "durationMs": 0,
+      "pass": true,
+      "rawPass": false,
+      "outcome": "xfail",
+      "expectedFailure": true,
+      "expectedFailureReason": "Upstream-consistent 400 requiring sourceSystem with sourceCode",
+      "bodyErrors": [
+        "resourceType mismatch (expected Parameters, got OperationOutcome)"
+      ]
+    }
+  ]
+}
