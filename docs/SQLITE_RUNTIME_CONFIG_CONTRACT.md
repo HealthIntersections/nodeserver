@@ -32,6 +32,12 @@ Use `runtime.*` namespaced keys.
   "useMapping": {
     "fsn": { "system": "http://snomed.info/sct", "code": "900000000000003001", "display": "Fully specified name" },
     "synonym": { "system": "http://snomed.info/sct", "code": "900000000000013009", "display": "Synonym (core metadata concept)" }
+  },
+  "primaryDisplay": {
+    "source": "designation",
+    "strategy": "first-active",
+    "activeOnly": true,
+    "order": "designation_id_asc"
   }
 }
 ```

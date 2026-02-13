@@ -288,6 +288,7 @@ class ValueSetExpander {
       displays.addDesignationFromConcept(cd);
     }
   }
+
   canonical(system, version) {
     if (!version) {
       return system;
@@ -353,6 +354,113 @@ class ValueSetExpander {
     }
 
     return null;
+  }
+
+  async createConceptLookupResolver(cs, conceptRefs) {
+    const directLocate = async (code) => cs.locate(code, this.allAltCodes);
+    if (!cs || !Array.isArray(conceptRefs) || conceptRefs.length === 0) {
+      return { locate: directLocate };
+    }
+
+    const orderedCodes = [];
+    const seen = new Set();
+    for (const ref of conceptRefs) {
+      const code = String(ref?.code || '');
+      if (!code || seen.has(code)) continue;
+      seen.add(code);
+      orderedCodes.push(code);
+    }
+    if (orderedCodes.length === 0) {
+      return { locate: directLocate };
+    }
+
+    const bulkFn = typeof cs.locateMany === 'function'
+      ? cs.locateMany.bind(cs)
+      : (typeof cs.locateBatch === 'function' ? cs.locateBatch.bind(cs) : null);
+
+    if (!bulkFn || orderedCodes.length < 50) {
+      const directCache = new Map();
+      return {
+        locate: async (code) => {
+          const key = String(code || '');
+          if (!key) return null;
+          if (!directCache.has(key)) {
+            directCache.set(key, await directLocate(key));
+          }
+          return directCache.get(key) || null;
+        }
+      };
+    }
+
+    const batchSize = 500;
+    const locatedCache = new Map();
+    const missingCache = new Set();
+    let cursor = 0;
+
+    const ingestBulkResult = (bulkResult, requestedCodes) => {
+      const loaded = new Set();
+
+      if (bulkResult instanceof Map) {
+        for (const [code, value] of bulkResult.entries()) {
+          const key = String(code || '');
+          if (!key) continue;
+          locatedCache.set(key, value);
+          loaded.add(key);
+        }
+      } else if (bulkResult && typeof bulkResult === 'object' && !Array.isArray(bulkResult)) {
+        for (const [code, value] of Object.entries(bulkResult)) {
+          const key = String(code || '');
+          if (!key) continue;
+          locatedCache.set(key, value);
+          loaded.add(key);
+        }
+      } else if (Array.isArray(bulkResult)) {
+        for (const row of bulkResult) {
+          if (!row || !row.code) continue;
+          const key = String(row.code);
+          locatedCache.set(key, row.result ?? row.value ?? row.located ?? row);
+          loaded.add(key);
+        }
+      }
+
+      for (const code of requestedCodes) {
+        if (!loaded.has(code) && !locatedCache.has(code)) {
+          missingCache.add(code);
+        }
+      }
+    };
+
+    const ensureLoaded = async (code) => {
+      const key = String(code || '');
+      if (!key || locatedCache.has(key) || missingCache.has(key)) {
+        return;
+      }
+
+      while (cursor < orderedCodes.length && !locatedCache.has(key) && !missingCache.has(key)) {
+        const batchCodes = orderedCodes.slice(cursor, cursor + batchSize);
+        cursor += batchSize;
+        const bulkResult = await bulkFn(batchCodes, this.allAltCodes);
+        ingestBulkResult(bulkResult, batchCodes);
+      }
+
+      if (!locatedCache.has(key) && !missingCache.has(key)) {
+        const fallback = await directLocate(key);
+        if (fallback && fallback.context) {
+          locatedCache.set(key, fallback);
+        } else {
+          missingCache.add(key);
+        }
+      }
+    };
+
+    return {
+      locate: async (code) => {
+        const key = String(code || '');
+        if (!key) return null;
+        await ensureLoaded(key);
+        return locatedCache.get(key) || null;
+      }
+    };
   }
 
   useDesignation(cd) {
@@ -838,20 +946,18 @@ class ValueSetExpander {
               notClosed.value = true;
             }
             const prep = await cs.getPrepContext(true);
-            const ctxt = await cs.searchFilter(prep, filter, false);
-            let set = await cs.executeFilters(prep);
+            await cs.searchFilter(prep, filter, false);
+            const filterSets = await cs.executeFilters(prep);
             this.worker.opContext.log('iterate filters');
-            while (await cs.filterMore(ctxt, set)) {
-              this.worker.deadCheck('processCodes#4');
-              const c = await cs.filterConcept(ctxt, set);
+            await this.iteratePrimaryFilterSet(cs, prep, filterSets, async (c) => {
               if (await this.passesFilters(cs, c, prep, filters, 0)) {
                 const cds = new Designations(this.worker.i18n.languageDefinitions);
                 await this.listDisplaysFromProvider(cds, cs, c);
                 const csProperties = await this.loadProviderProperties(cs, c);
-                await this.includeCode(cs, null, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c), await cs.deprecated(c), await cs.getCodeStatus(c),
-                  cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.getExtensions(c), null, csProperties, null, excludeInactive, vsSrc.url);
+                await this.includeCode(cs, null, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c), await cs.isDeprecated(c), await cs.getStatus(c),
+                  cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.extensions(c), null, csProperties, null, excludeInactive, vsSrc.url);
               }
-            }
+            }, 'processCodes#4');
             this.worker.opContext.log('iterate filters done');
           }
         }
@@ -859,13 +965,13 @@ class ValueSetExpander {
         if (cset.concept) {
           this.worker.opContext.log('iterate concepts');
           const cds = new Designations(this.worker.i18n.languageDefinitions);
-          const conceptBatch = await this.resolveConceptLookupMap(cs, cset.concept);
+          const conceptLookup = await this.createConceptLookupResolver(cs, cset.concept);
 
           for (const cc of cset.concept) {
             this.worker.deadCheck('processCodes#3');
             cds.clear();
             Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference');
-            const cctxt = conceptBatch ? conceptBatch.get(cc.code) : await cs.locate(cc.code, this.allAltCodes);
+            const cctxt = await conceptLookup.locate(cc.code);
             if (cctxt && cctxt.context && (!this.params.activeOnly || !await cs.isInactive(cctxt.context)) && await this.passesFilters(cs, cctxt.context, prep, filters, 0)) {
               await this.listDisplaysFromProvider(cds, cs, cctxt.context);
               this.listDisplaysFromIncludeConcept(cds, cc, vsSrc);
@@ -1094,12 +1200,12 @@ class ValueSetExpander {
       if (cset.concept) {
         this.worker.opContext.log('iterate concepts');
         const cds = new Designations(this.worker.i18n.languageDefinitions);
-        const conceptBatch = await this.resolveConceptLookupMap(cs, cset.concept);
+        const conceptLookup = await this.createConceptLookupResolver(cs, cset.concept);
         for (const cc of cset.concept) {
           this.worker.deadCheck('processCodes#3');
           cds.clear();
           Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference');
-          const cctxt = conceptBatch ? conceptBatch.get(cc.code) : await cs.locate(cc.code, this.allAltCodes);
+          const cctxt = await conceptLookup.locate(cc.code);
           if (cctxt && cctxt.context && (!this.params.activeOnly || !await cs.isInactive(cctxt)) && await this.passesFilters(cs, cctxt, prep, filters, 0)) {
             if (filter.passesDesignations(cds) || filter.passes(cc.code)) {
               let ov = Extensions.readString(cc, 'http://hl7.org/fhir/StructureDefinition/itemWeight');

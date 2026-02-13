@@ -62,6 +62,15 @@ The branch uses a single schema + importer/runtime pattern and keeps terminology
 - no longer collapses to a single TTY per concept
 - preserves all distinct `RXCUI + TTY` pairs with active flags
 
+8. Shared `ValueSet/$validate-code` crash fix:
+- fixed missing `messages` propagation in exclude-branch `checkConceptSet(...)` call in `tx/workers/validate.js`
+- removes `undefined.push` crash path observed in sampled replay
+
+9. SNOMED display text alignment with main behavior:
+- SNOMED importer now derives `concept.display` as first active designation in source order (`designation_id ASC`)
+- metadata now documents this in `runtime.designations.primaryDisplay`
+- reduces FSN-heavy display drift in sampled validation responses
+
 ## 4. Results
 
 ## 4.1 Correctness
@@ -75,6 +84,11 @@ Mini official terminology subset (R4) with all-sqlite config:
 
 The 2 non-xfail failures are SNOMED `xsct` version-fixture scope issues (`20250814`) not loaded in this focused all-sqlite config.
 
+Post-fix verification rerun (after crash/display changes):
+- artifact: `captured/official-term-mini-results-r4.all-sqlitev0-20260213-postdisplayfix.json`
+- effective result unchanged: `52 pass / 2 fail`
+- interpretation unchanged: both failures remain fixture-version scope (`xsct`) rather than runtime crash/behavior regressions
+
 Sampled replay (180 requests each):
 
 - SNOMED: 143 intended-pass / 37 intended-fail
@@ -82,6 +96,14 @@ Sampled replay (180 requests each):
 - RxNorm: 161 intended-pass / 19 intended-fail
 
 Most intended-fail rows are attributable to harness scope/input constraints (R5 endpoints excluded, missing request bodies in capture, external ValueSets not loaded, etc.), not core runtime defects.
+
+Additional SNOMED replay verification after latest fixes:
+- artifact: `captured/snomed-replay-allsqlite-v0-20260213-postdisplayfix.json`
+- no server `500` responses observed
+- remaining intended-status mismatches were primarily:
+  - external CTS ValueSet URLs not locally resolvable in focused config (`200 -> 422`)
+  - replay-input quality defects (`requestBodyMissing` / `requestBodyParseError` -> `415`)
+  - small `400` vs `422` error-class differences
 
 ## 4.2 Concrete RxNorm behavior improvement
 

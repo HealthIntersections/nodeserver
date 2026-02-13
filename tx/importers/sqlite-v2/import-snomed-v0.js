@@ -401,25 +401,7 @@ class SnomedSqliteV0Importer {
            FROM designation d
            WHERE d.concept_id = concept.concept_id
              AND d.active = 1
-             AND d.use_code = 'fsn'
-           ORDER BY d.preferred DESC
-           LIMIT 1
-         ),
-         (
-           SELECT d.term
-           FROM designation d
-           WHERE d.concept_id = concept.concept_id
-             AND d.active = 1
-             AND d.use_code = 'synonym'
-           ORDER BY d.preferred DESC
-           LIMIT 1
-         ),
-         (
-           SELECT d.term
-           FROM designation d
-           WHERE d.concept_id = concept.concept_id
-             AND d.active = 1
-           ORDER BY d.preferred DESC
+           ORDER BY d.designation_id ASC
            LIMIT 1
          ),
          concept.code
@@ -791,6 +773,12 @@ class SnomedSqliteV0Importer {
         useMapping: {
           fsn: { system: BASE_URI, code: FSN_TYPE_ID, display: 'Fully specified name' },
           synonym: { system: BASE_URI, code: SYNONYM_TYPE_ID, display: 'Synonym (core metadata concept)' }
+        },
+        primaryDisplay: {
+          source: 'designation',
+          strategy: 'first-active',
+          activeOnly: true,
+          order: 'designation_id_asc'
         }
       })],
       ['runtime.hierarchy', JSON.stringify({

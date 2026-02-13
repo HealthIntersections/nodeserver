@@ -59,6 +59,14 @@ Typical SNOMED metadata (conceptually):
 
 ```json
 {
+  "runtime.designations": {
+    "primaryDisplay": {
+      "source": "designation",
+      "strategy": "first-active",
+      "activeOnly": true,
+      "order": "designation_id_asc"
+    }
+  },
   "runtime.hierarchy": {
     "propertyCode": "116680003",
     "edgeSetId": 1,
@@ -71,6 +79,8 @@ Typical SNOMED metadata (conceptually):
 ```
 
 What this does:
+- `primaryDisplay` documents how importer derived `concept.display` for SNOMED:
+  first active designation row in source order (`designation_id ASC`), matching main.
 - `propertyCode` selects the "is-a" edge property from `property_def`.
 - `closure` enables fast subsumption and descendant checks.
 - concept filters (`is-a`, `descendent-of`) run generically from these settings.

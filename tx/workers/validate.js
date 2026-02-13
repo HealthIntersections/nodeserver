@@ -776,7 +776,7 @@ class ValueSetChecker {
               ver.value = cs.version();
               contentMode.value = cs.contentMode();
               let msg = '';
-              excluded = (system === '%%null%%' || cs.system() === system) && await this.checkConceptSet(path, 'not in', cs, cc, code, displays, this.valueSet, msg, inactive, normalForm, vstatus, op, vcc);
+              excluded = (system === '%%null%%' || cs.system() === system) && await this.checkConceptSet(path, 'not in', cs, cc, code, displays, this.valueSet, msg, inactive, normalForm, vstatus, op, vcc, messages);
               if (msg) {
                 messages.push(msg);
               }
