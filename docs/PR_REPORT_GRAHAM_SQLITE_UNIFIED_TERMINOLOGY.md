@@ -115,18 +115,67 @@ Parity check after RxNorm importer fix (source zip vs DB):
 
 ## 4.3 Performance
 
-Performance was measured with sampled traffic harnesses comparing `main` vs this branch.
+Performance was re-run with the sampled harness comparing `main` vs this branch (`generic-sqlite-provider`) using current code after the iterator/bulk-lookup optimization passes.
 
-High-level summary:
-
-1. SNOMED sampled performance remains behind `main` on most requests in this run.
-2. LOINC shows better median but heavier tail on some requests.
-3. RxNorm shows better aggregate timing in sampled runs, with some status-shape differences that must be interpreted alongside correctness notes.
+Run shape:
+- sampled NDJSON per terminology (180 requests each)
+- repeats: `6`
+- warmup: `1`
+- both expansion-cache modes (`on` and `off`)
+- target endpoint: `/r4`
 
 Artifacts:
-- `captured/perf-snomed-main-vs-allsqlitev0-20260213.json`
-- `captured/perf-loinc-main-vs-allsqlitev0-20260213.json`
-- `captured/perf-rxnorm-main-vs-allsqlitev0-20260213.json`
+- SNOMED:
+  - `captured/perf-snomed-main-vs-generic-20260213h.json` (cache on/off)
+- LOINC:
+  - `captured/perf-loinc-main-vs-generic-20260213h.json` (cache on/off)
+- RxNorm:
+  - `captured/perf-rxnorm-main-vs-generic-20260213h.json` (cache on/off)
+
+### Overall timing table (current)
+
+| Vocabulary | Cache | Main p50 ms | Main p95 ms | Main mean ms | Main max ms | Branch p50 ms | Branch p95 ms | Branch mean ms | Branch max ms | Branch faster queries |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| SNOMED | on | 1.504 | 5.424 | 6.687 | 770.464 | 2.079 | 8.383 | 3.294 | 47.523 | 41 / 180 |
+| SNOMED | off | 1.289 | 4.810 | 7.853 | 1071.855 | 1.777 | 7.381 | 2.882 | 48.263 | 38 / 180 |
+| LOINC | on | 3.139 | 45.741 | 7.733 | 143.219 | 1.292 | 4.415 | 2.885 | 64.279 | 177 / 180 |
+| LOINC | off | 1.960 | 28.817 | 5.087 | 125.875 | 1.451 | 7.029 | 3.322 | 103.865 | 135 / 180 |
+| RxNorm | on | 0.985 | 2.265 | 1.174 | 7.061 | 1.189 | 6.597 | 2.101 | 53.907 | 40 / 180 |
+| RxNorm | off | 0.733 | 1.403 | 0.847 | 5.656 | 0.860 | 3.592 | 1.383 | 13.948 | 32 / 180 |
+
+### Operation-level p50 delta summary (branch minus main, uncached)
+
+| Vocabulary | Operation | Requests | Median p50 delta ms | Interpretation |
+|---|---|---:|---:|---|
+| SNOMED | `ValueSet/$validate-code` | 83 | +0.343 | slightly slower |
+| SNOMED | `CodeSystem/$validate-code` | 73 | +0.348 | slightly slower |
+| SNOMED | `ValueSet/$expand` | 18 | +0.180 | near parity |
+| SNOMED | `ValueSet/$batch-validate-code` | 4 | +2.943 | slower |
+| LOINC | `ValueSet/$validate-code` | 100 | -0.440 | faster |
+| LOINC | `CodeSystem/$validate-code` | 66 | -0.481 | faster |
+| LOINC | `ValueSet/$expand` | 12 | +0.581 | slightly slower |
+| RxNorm | `CodeSystem/$validate-code` | 154 | +0.134 | near parity |
+| RxNorm | `ValueSet/$validate-code` | 14 | -0.035 | parity |
+| RxNorm | `ValueSet/$expand` | 12 | +9.121 | slower (`_incomplete` pattern) |
+
+### Largest remaining main wins (uncached)
+
+1. SNOMED:
+- `d1ccb6e6...` (`ValueSet/$expand` medication-codes with text filter): `+17.254ms`
+- batch-validate paths: ~`+6.46ms` to `+4.25ms`
+
+2. LOINC:
+- `6d4753d3...` (`$expand?_limit=1000&_incomplete=true`): `+31.455ms`
+- `2bda54c4...` (`$expand?_limit=1000&_incomplete=true`): `+24.084ms`
+- `227d1960...` (`POST $expand`): `+21.460ms`
+
+3. RxNorm:
+- `_limit=1000&_incomplete=true` expand group: ~`+9.1ms` to `+10.8ms`
+
+Interpretation:
+- LOINC remains strongly improved in the sampled set. Branch p50/p95 are better than `main` in both cache modes; largest residual gaps are a small number of `_incomplete`/large-expand patterns.
+- SNOMED remains close but slower on p50 in this sampled set, while avoiding the very large max outliers seen in `main` during uncached runs.
+- RxNorm remains close on validate paths; remaining gap is concentrated in `_incomplete` expand patterns.
 
 ## 4.4 Database size and import time
 
