@@ -1,0 +1,122 @@
+{
+  "generatedAt": "2026-02-13T03:12:15.676Z",
+  "input": "/home/jmandel/hobby/FHIRsmith/captured/snomed.ndjson",
+  "queryCount": 1,
+  "repeats": 1,
+  "warmup": 0,
+  "pathPrefix": "/r4/",
+  "endpointPath": "/r4",
+  "fhirVersion": "4.0",
+  "targets": [
+    {
+      "name": "main",
+      "repoRoot": "/home/jmandel/hobby/FHIRsmith",
+      "librarySource": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/captured/perf-main-two-snomed.yml"
+    },
+    {
+      "name": "convergence",
+      "repoRoot": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence",
+      "librarySource": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/tx/tx.snomed-v0.yml"
+    }
+  ],
+  "cacheModes": [
+    "on"
+  ],
+  "runs": {
+    "main:on": {
+      "startupMs": 1704.764,
+      "requestCount": 1,
+      "statusCounts": {
+        "200": 1
+      },
+      "overallTimings": {
+        "count": 1,
+        "minMs": 10.982,
+        "p50Ms": 10.982,
+        "p95Ms": 10.982,
+        "meanMs": 10.982,
+        "maxMs": 10.982
+      },
+      "perQuery": [
+        {
+          "id": "2432c3dd-746b-48bf-8b6e-d2d96fec6e3d",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,includeDefinition,excludeNested,cache-id,count,offset,valueSet",
+          "timings": {
+            "count": 1,
+            "minMs": 10.982,
+            "p50Ms": 10.982,
+            "p95Ms": 10.982,
+            "meanMs": 10.982,
+            "maxMs": 10.982
+          },
+          "statuses": {
+            "200": 1
+          }
+        }
+      ]
+    },
+    "convergence:on": {
+      "startupMs": 2785.209,
+      "requestCount": 1,
+      "statusCounts": {
+        "200": 1
+      },
+      "overallTimings": {
+        "count": 1,
+        "minMs": 9.382,
+        "p50Ms": 9.382,
+        "p95Ms": 9.382,
+        "meanMs": 9.382,
+        "maxMs": 9.382
+      },
+      "perQuery": [
+        {
+          "id": "2432c3dd-746b-48bf-8b6e-d2d96fec6e3d",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,includeDefinition,excludeNested,cache-id,count,offset,valueSet",
+          "timings": {
+            "count": 1,
+            "minMs": 9.382,
+            "p50Ms": 9.382,
+            "p95Ms": 9.382,
+            "meanMs": 9.382,
+            "maxMs": 9.382
+          },
+          "statuses": {
+            "200": 1
+          }
+        }
+      ]
+    }
+  },
+  "comparisons": {
+    "on": {
+      "comparedQueries": 1,
+      "fasterConv": 1,
+      "fasterMain": 0,
+      "tie": 0,
+      "absoluteDeltaMs": {
+        "count": 1,
+        "minMs": 1.6,
+        "p50Ms": 1.6,
+        "p95Ms": 1.6,
+        "meanMs": 1.6,
+        "maxMs": 1.6
+      },
+      "largestConvWins": [
+        {
+          "id": "2432c3dd-746b-48bf-8b6e-d2d96fec6e3d",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "mainP50Ms": 10.982,
+          "convP50Ms": 9.382,
+          "deltaMs": -1.6
+        }
+      ],
+      "largestMainWins": []
+    }
+  }
+}

@@ -15,10 +15,13 @@ const {readFileSync} = require("fs");
 const https = require('https');
 const http = require('http');
 const {LoincServicesFactory} = require("./cs/cs-loinc");
+const {LoincSqliteV0FactoryProvider} = require("./cs/cs-loinc-sqlite-v0");
 const {RxNormServicesFactory} = require("./cs/cs-rxnorm");
 const {NdcServicesFactory} = require("./cs/cs-ndc");
 const {UniiServicesFactory} = require("./cs/cs-unii");
 const {SnomedServicesFactory} = require("./cs/cs-snomed");
+const {SnomedSqliteV0FactoryProvider} = require("./cs/cs-snomed-sqlite-v0");
+const {SqliteRuntimeV0FactoryProvider} = require("./cs/cs-sqlite-runtime-v0");
 const {CPTServicesFactory} = require("./cs/cs-cpt");
 const {OMOPServicesFactory} = require("./cs/cs-omop");
 const {PackageValueSetProvider} = require("./vs/vs-package");
@@ -220,6 +223,9 @@ class Library {
       case 'loinc':
         await this.loadLoinc(details, isDefault, mode);
         break;
+      case 'loinc-sqlite-v0':
+        await this.loadLoincSqliteV0(details, isDefault, mode);
+        break;
 
       case 'rxnorm':
         await this.loadRxnorm(details, isDefault, mode);
@@ -235,6 +241,12 @@ class Library {
 
       case 'snomed':
         await this.loadSnomed(details, isDefault, mode);
+        break;
+      case 'snomed-sqlite-v0':
+        await this.loadSnomedSqliteV0(details, isDefault, mode);
+        break;
+      case 'rxnorm-sqlite-v0':
+        await this.loadRxnormSqliteV0(details, isDefault, mode);
         break;
 
       case 'cpt':
@@ -354,6 +366,17 @@ class Library {
     this.registerProvider(loincFN, loinc, isDefault);
   }
 
+  async loadLoincSqliteV0(details, isDefault, mode) {
+    const loincFN = await this.getOrDownloadFile(details);
+    if (mode === "fetch" || mode === "npm") {
+      return;
+    }
+
+    const loinc = new LoincSqliteV0FactoryProvider(this.i18n, loincFN);
+    await loinc.load();
+    this.registerProvider(loincFN, loinc, isDefault);
+  }
+
   async loadRxnorm(details, isDefault, mode) {
     const rxNormFN = await this.getOrDownloadFile(details);
     if (mode === "fetch" || mode === "npm") {
@@ -392,6 +415,26 @@ class Library {
     const sct = new SnomedServicesFactory(this.i18n, sctFN);
     await sct.load();
     this.registerProvider(sctFN, sct, isDefault);
+  }
+
+  async loadSnomedSqliteV0(details, isDefault, mode) {
+    const sctFN = await this.getOrDownloadFile(details);
+    if (mode === "fetch" || mode === "npm") {
+      return;
+    }
+    const sct = new SnomedSqliteV0FactoryProvider(this.i18n, sctFN);
+    await sct.load();
+    this.registerProvider(sctFN, sct, isDefault);
+  }
+
+  async loadRxnormSqliteV0(details, isDefault, mode) {
+    const rxnFN = await this.getOrDownloadFile(details);
+    if (mode === "fetch" || mode === "npm") {
+      return;
+    }
+    const rxn = new SqliteRuntimeV0FactoryProvider(this.i18n, rxnFN, { idPrefix: 'rxnorm-sqlite-v0' });
+    await rxn.load();
+    this.registerProvider(rxnFN, rxn, isDefault);
   }
 
   async loadCpt(details, isDefault, mode) {

@@ -43,6 +43,10 @@ class TerminologyWorker {
     this.noCacheThisOne = false;
     this.params = null; // Will be set by subclasses
     this.renderer = new Renderer(i18n, languages, provider);
+    this._findCodeSystemCache = this.opContext?.codeSystemProviderCache || new Map();
+    if (this.opContext && !this.opContext.codeSystemProviderCache) {
+      this.opContext.codeSystemProviderCache = this._findCodeSystemCache;
+    }
   }
 
   /**
@@ -147,6 +151,14 @@ class TerminologyWorker {
     let codeSystemResource = null;
     let provider = null;
     const supplements = this.loadSupplements(url, version, statedSupplements);
+    const cacheKey = this.#makeCodeSystemCacheKey(url, version, supplements);
+    const cached = this._findCodeSystemCache.get(cacheKey);
+    if (cached) {
+      if (checkVer) {
+        this.checkVersion(url, cached.version(), params, cached.versionAlgorithm(), op);
+      }
+      return cached;
+    }
 
     // First check additional resources
     codeSystemResource = this.findInAdditionalResources(url, version, 'CodeSystem', !nullOk);
@@ -181,12 +193,24 @@ class TerminologyWorker {
       }
     }
     if (provider) {
+      this._findCodeSystemCache.set(cacheKey, provider);
       if (checkVer) {
         this.checkVersion(url, provider.version(), params, provider.versionAlgorithm(), op);
       }
     }
 
     return provider;
+  }
+
+  #makeCodeSystemCacheKey(url, version, supplements) {
+    const sup = Array.isArray(supplements)
+      ? supplements
+        .map((s) => s?.vurl || s?.url || '')
+        .filter(Boolean)
+        .sort()
+        .join(',')
+      : '';
+    return `${url || ''}|${version || ''}|${sup}`;
   }
 
   /**

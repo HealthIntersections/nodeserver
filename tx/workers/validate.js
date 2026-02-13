@@ -44,14 +44,16 @@ class ValueSetChecker {
   valueSet;
   params;
   others = new Map();
+  fixedCodeSystem;
 
-  constructor(worker, valueSet, params) {
+  constructor(worker, valueSet, params, fixedCodeSystem = null) {
     validateParameter(worker, "worker", TerminologyWorker);
     validateOptionalParameter(valueSet, "valueSet", ValueSet);
     validateParameter(params, "params", TxParameters);
     this.worker = worker;
     this.valueSet = valueSet;
     this.params = params;
+    this.fixedCodeSystem = fixedCodeSystem;
   }
 
   checkCanonicalStatus(path, op, resource, source) {
@@ -680,8 +682,15 @@ class ValueSetChecker {
           if (!cc.system) {
             result = true;
           } else if (cc.system === system || system === '%%null%%') {
-            let v = await this.determineVersion(path, cc.system, cc.version, version, op, unknownSystems, messages);
-            let cs = await this.worker.findCodeSystem(system, v, this.params, ["complete", "fragment"], op,true, true, false, this.worker.requiredSupplements);
+            let v;
+            let cs;
+            if (this.fixedCodeSystem && this.fixedCodeSystem.system() === cc.system) {
+              v = cc.version || this.fixedCodeSystem.version();
+              cs = this.fixedCodeSystem;
+            } else {
+              v = await this.determineVersion(path, cc.system, cc.version, version, op, unknownSystems, messages);
+              cs = await this.worker.findCodeSystem(system, v, this.params, ["complete", "fragment"], op,true, true, false, this.worker.requiredSupplements);
+            }
             if (cs === null) {
               this.worker.opContext.addNote(this.valueSet, 'CodeSystem not found: ' + this.worker.renderer.displayCoded(cc.system, v), this.indentCount);
               if (!this.params.membershipOnly) {
@@ -2318,7 +2327,7 @@ class ValidateWorker extends TerminologyWorker {
     let vs = this.makeVsForCS(codeSystem);
 
     // Create and prepare checker
-    const checker = new ValueSetChecker(this, vs, params);
+    const checker = new ValueSetChecker(this, vs, params, codeSystem);
 
     // Perform validation
     const result = await checker.checkCodeableConcept(mode.issuePath, coded, mode.mode);

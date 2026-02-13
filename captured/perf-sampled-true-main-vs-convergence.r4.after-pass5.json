@@ -1,0 +1,5721 @@
+{
+  "generatedAt": "2026-02-13T04:22:56.440Z",
+  "input": "/home/jmandel/hobby/FHIRsmith/captured/snomed.ndjson",
+  "queryCount": 160,
+  "repeats": 4,
+  "warmup": 1,
+  "pathPrefix": "/r4/",
+  "endpointPath": "/r4",
+  "fhirVersion": "4.0",
+  "targets": [
+    {
+      "name": "main",
+      "repoRoot": "/home/jmandel/hobby/FHIRsmith-main",
+      "librarySource": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/captured/perf-main-two-snomed-mainbranch.yml"
+    },
+    {
+      "name": "convergence",
+      "repoRoot": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence",
+      "librarySource": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/tx/tx.snomed-v0.yml"
+    }
+  ],
+  "cacheModes": [
+    "off"
+  ],
+  "runs": {
+    "main:off": {
+      "startupMs": 22204.193,
+      "requestCount": 640,
+      "statusCounts": {
+        "200": 504,
+        "400": 12,
+        "415": 8,
+        "422": 108,
+        "500": 8
+      },
+      "overallTimings": {
+        "count": 640,
+        "minMs": 0.529,
+        "p50Ms": 1.022,
+        "p95Ms": 5.711,
+        "meanMs": 2.35,
+        "maxMs": 66.796
+      },
+      "perQuery": [
+        {
+          "id": "2432c3dd-746b-48bf-8b6e-d2d96fec6e3d",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,includeDefinition,excludeNested,cache-id,count,offset,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 2.231,
+            "p50Ms": 2.473,
+            "p95Ms": 2.889,
+            "meanMs": 2.595,
+            "maxMs": 2.889
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a272aa8c-96d7-4905-a75a-ea21d67b83fc",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 2.03,
+            "p50Ms": 2.039,
+            "p95Ms": 2.783,
+            "meanMs": 2.374,
+            "maxMs": 2.783
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "4557c7e1-f308-472b-9dd7-6fc55a48c263",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 5.379,
+            "p50Ms": 5.74,
+            "p95Ms": 6.764,
+            "meanMs": 5.929,
+            "maxMs": 6.764
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "569cc34e-5a80-4b25-ad7f-3f0b0b1167a3",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.105,
+            "p50Ms": 1.134,
+            "p95Ms": 1.318,
+            "meanMs": 1.18,
+            "maxMs": 1.318
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1d80f4f3-a8f9-4dd2-90ba-a9f56e70f417",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 1.584,
+            "p50Ms": 1.621,
+            "p95Ms": 1.778,
+            "meanMs": 1.679,
+            "maxMs": 1.778
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a90b1bdf-1fa0-499f-815e-f9d1e59ffc74",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,valueSet,cache-id,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.171,
+            "p50Ms": 1.178,
+            "p95Ms": 1.464,
+            "meanMs": 1.252,
+            "maxMs": 1.464
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "ebd89917-1a63-4109-b62c-14709058666c",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 1.156,
+            "p50Ms": 1.221,
+            "p95Ms": 1.347,
+            "meanMs": 1.246,
+            "maxMs": 1.347
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "d2983287-5876-4b2f-b4ca-308b84baf9cb",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,includeDefinition,excludeNested,cache-id,count,offset,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 1.552,
+            "p50Ms": 1.577,
+            "p95Ms": 1.778,
+            "meanMs": 1.64,
+            "maxMs": 1.778
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "28244ca0-43be-467b-a1d8-0e43b0abe4ac",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,lenient-display-validation,default-to-latest-version,cache-id,system-version,mode,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.424,
+            "p50Ms": 1.44,
+            "p95Ms": 1.921,
+            "meanMs": 1.575,
+            "maxMs": 1.921
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a2d3f5c0-2654-4daf-af94-e84e71fcedbb",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 21.282,
+            "p50Ms": 23.257,
+            "p95Ms": 30.281,
+            "meanMs": 25.236,
+            "maxMs": 30.281
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "908cc8ac-b346-412a-8959-d80b5d9620ff",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.075,
+            "p50Ms": 1.117,
+            "p95Ms": 1.225,
+            "meanMs": 1.152,
+            "maxMs": 1.225
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "6dff69e0-0519-4bfa-b1a7-e69931d5bb36",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 1.086,
+            "p50Ms": 1.127,
+            "p95Ms": 1.173,
+            "meanMs": 1.138,
+            "maxMs": 1.173
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "641cc5cd-ba0b-42d7-87be-56e7970cad5b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,valueSetMode,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 1.224,
+            "p50Ms": 1.244,
+            "p95Ms": 1.48,
+            "meanMs": 1.304,
+            "maxMs": 1.48
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1512be14-d697-4779-a16a-3d6765d4da8b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 64.76,
+            "p50Ms": 65.299,
+            "p95Ms": 66.796,
+            "meanMs": 65.854,
+            "maxMs": 66.796
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "37a0a647-c809-43bf-8f6c-faa6afed9e26",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,incomplete-ok,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 1.179,
+            "p50Ms": 1.182,
+            "p95Ms": 1.416,
+            "meanMs": 1.272,
+            "maxMs": 1.416
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "769b0e5c-d643-4812-825f-e2231abb40a0",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 1.438,
+            "p50Ms": 1.461,
+            "p95Ms": 1.531,
+            "meanMs": 1.481,
+            "maxMs": 1.531
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "56232774-bde7-4e2f-8009-97815d440857",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.995,
+            "p50Ms": 0.996,
+            "p95Ms": 1.015,
+            "meanMs": 1.005,
+            "maxMs": 1.015
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7ba2dcee-a5d7-4fe0-9021-63149dc36909",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.022,
+            "p50Ms": 1.104,
+            "p95Ms": 4.622,
+            "meanMs": 1.964,
+            "maxMs": 4.622
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7d702e44-110b-4b14-9af8-4fb35740f903",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.301,
+            "p50Ms": 1.4,
+            "p95Ms": 1.575,
+            "meanMs": 1.45,
+            "maxMs": 1.575
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "b7e11f9a-23d0-4522-9c12-854c226de284",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.988,
+            "p50Ms": 1.005,
+            "p95Ms": 1.176,
+            "meanMs": 1.053,
+            "maxMs": 1.176
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "32fb4557-31f4-4824-adc7-8cee8b54e806",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.931,
+            "p50Ms": 0.945,
+            "p95Ms": 1.115,
+            "meanMs": 0.985,
+            "maxMs": 1.115
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "57947e86-5976-45f9-bff6-8cd975c2d9e0",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.936,
+            "p50Ms": 1.005,
+            "p95Ms": 1.08,
+            "meanMs": 1.007,
+            "maxMs": 1.08
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "072a4686-f74a-4ea4-886c-bf8446822d0c",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,lenient-display-validation,default-to-latest-version,cache-id,x-system-cache-id,mode,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.091,
+            "p50Ms": 1.114,
+            "p95Ms": 1.589,
+            "meanMs": 1.309,
+            "maxMs": 1.589
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a678f18b-6244-4dd8-9ad5-42ad457dc90a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 3.832,
+            "p50Ms": 3.892,
+            "p95Ms": 5.136,
+            "meanMs": 4.397,
+            "maxMs": 5.136
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "c67dc2d7-9d79-43f2-b7ef-e4d24a2b782f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 2.214,
+            "p50Ms": 2.24,
+            "p95Ms": 2.623,
+            "meanMs": 2.356,
+            "maxMs": 2.623
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "c4cdccbe-8f23-4066-a044-08a1fcd4e2cc",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,valueSet,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.239,
+            "p50Ms": 1.258,
+            "p95Ms": 1.388,
+            "meanMs": 1.315,
+            "maxMs": 1.388
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "2dc19484-bf86-4a6b-b2e0-381e67a2401a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,cache-id,x-system-cache-id,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.271,
+            "p50Ms": 1.588,
+            "p95Ms": 2.161,
+            "meanMs": 1.678,
+            "maxMs": 2.161
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "40914d99-9148-48ea-b5ab-1a40ca050bbc",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,x-system-cache-id,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.016,
+            "p50Ms": 1.065,
+            "p95Ms": 3.122,
+            "meanMs": 1.605,
+            "maxMs": 3.122
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "d60d6bec-7302-4180-9f70-5da00ce38f2b",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.891,
+            "p50Ms": 0.894,
+            "p95Ms": 1.105,
+            "meanMs": 0.955,
+            "maxMs": 1.105
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "db527eec-5247-4939-94b8-173705d4c690",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.942,
+            "p50Ms": 0.967,
+            "p95Ms": 0.985,
+            "meanMs": 0.966,
+            "maxMs": 0.985
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1a90b642-298b-4d8f-b77d-91d4e7872f69",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.915,
+            "p50Ms": 0.937,
+            "p95Ms": 1.042,
+            "meanMs": 0.964,
+            "maxMs": 1.042
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "da905c31-3ac3-429e-b8dc-9814b4837956",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:inferSystem,code,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 2.274,
+            "p50Ms": 2.354,
+            "p95Ms": 2.542,
+            "meanMs": 2.404,
+            "maxMs": 2.542
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "64098f41-65c1-414c-83cf-d6b5e09ccbbb",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.941,
+            "p50Ms": 0.977,
+            "p95Ms": 1.157,
+            "meanMs": 1.024,
+            "maxMs": 1.157
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "9248d785-e176-4d1c-a594-fe399f4bdf25",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.162,
+            "p50Ms": 1.204,
+            "p95Ms": 1.566,
+            "meanMs": 1.287,
+            "maxMs": 1.566
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7284ff90-1dcb-4cfd-a5b0-2c08b9d44492",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.147,
+            "p50Ms": 1.23,
+            "p95Ms": 1.494,
+            "meanMs": 1.298,
+            "maxMs": 1.494
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "fa2b18a7-f982-47e3-9652-b3d89b3758bd",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.923,
+            "p50Ms": 0.935,
+            "p95Ms": 1.008,
+            "meanMs": 0.961,
+            "maxMs": 1.008
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "fe4b4846-7517-430f-b8af-39bf7e7dbad5",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.101,
+            "p50Ms": 1.173,
+            "p95Ms": 1.406,
+            "meanMs": 1.244,
+            "maxMs": 1.406
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "2c19704e-318a-4151-af98-dbcff0c0c00c",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,valueSet,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.125,
+            "p50Ms": 1.127,
+            "p95Ms": 1.249,
+            "meanMs": 1.174,
+            "maxMs": 1.249
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "01b4ab2f-9432-4ea4-9b31-232414079ed3",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 2.223,
+            "p50Ms": 2.284,
+            "p95Ms": 4.078,
+            "meanMs": 2.789,
+            "maxMs": 4.078
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "fb9dceaa-1be1-4460-a960-a4186f6a0528",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.115,
+            "p50Ms": 1.31,
+            "p95Ms": 1.651,
+            "meanMs": 1.42,
+            "maxMs": 1.651
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "8f0b2e10-ba86-48dd-bd34-3ddc5825ffd1",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.143,
+            "p50Ms": 1.167,
+            "p95Ms": 1.239,
+            "meanMs": 1.19,
+            "maxMs": 1.239
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7b374c5c-10ff-4b89-9804-a9216dba27ce",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 1.248,
+            "p50Ms": 1.251,
+            "p95Ms": 1.281,
+            "meanMs": 1.263,
+            "maxMs": 1.281
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "8b5f78ec-6a60-43bc-b70d-8499b07edf08",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.862,
+            "p50Ms": 0.876,
+            "p95Ms": 0.98,
+            "meanMs": 0.908,
+            "maxMs": 0.98
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "d0c0fa99-57bc-4e8a-a1c9-a6330ec16c1a",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.914,
+            "p50Ms": 0.921,
+            "p95Ms": 1.061,
+            "meanMs": 0.985,
+            "maxMs": 1.061
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "882430c8-c20d-4bc6-bb2a-4cc1a2c167a6",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.899,
+            "p50Ms": 0.916,
+            "p95Ms": 0.928,
+            "meanMs": 0.915,
+            "maxMs": 0.928
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "59c891fd-19a8-4c5a-8234-e81e6c3d8937",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.91,
+            "p50Ms": 0.948,
+            "p95Ms": 2.76,
+            "meanMs": 1.396,
+            "maxMs": 2.76
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "9cca4c21-2a71-4a07-b361-4230d3932b2a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,valueset-membership-only,default-to-latest-version,valueSet,cache-id,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.875,
+            "p50Ms": 0.909,
+            "p95Ms": 1.061,
+            "meanMs": 0.955,
+            "maxMs": 1.061
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1956b038-39e1-4a6c-a223-0c76311f2f01",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.918,
+            "p50Ms": 0.92,
+            "p95Ms": 1.356,
+            "meanMs": 1.06,
+            "maxMs": 1.356
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "de9b0941-4de6-487e-90fe-98f37b853b1d",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,inferSystem,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 2.24,
+            "p50Ms": 2.29,
+            "p95Ms": 2.367,
+            "meanMs": 2.303,
+            "maxMs": 2.367
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a74520f2-677a-41d4-a489-57b323c8dfb9",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,valueSetMode,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 1.019,
+            "p50Ms": 1.107,
+            "p95Ms": 1.584,
+            "meanMs": 1.267,
+            "maxMs": 1.584
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "3ec46b46-5dd8-4948-994f-c7700707c568",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,valueSetMode,default-to-latest-version,url,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.861,
+            "p50Ms": 0.898,
+            "p95Ms": 1.222,
+            "meanMs": 0.987,
+            "maxMs": 1.222
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "59f2bc70-b6c7-4a1b-9819-6a11f270b696",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.926,
+            "p50Ms": 1.048,
+            "p95Ms": 1.477,
+            "meanMs": 1.129,
+            "maxMs": 1.477
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1f68aad4-1bba-4471-a309-28038b8bba7e",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,inferSystem,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.902,
+            "p50Ms": 0.912,
+            "p95Ms": 1.015,
+            "meanMs": 0.956,
+            "maxMs": 1.015
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "222d9547-b7cd-4bd1-a6bd-8ec494e301fd",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,inferSystem,default-to-latest-version,url,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.815,
+            "p50Ms": 0.881,
+            "p95Ms": 1.082,
+            "meanMs": 0.925,
+            "maxMs": 1.082
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "c68d212e-79b6-4f41-bcc8-a541ff6d5b2b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.375,
+            "p50Ms": 1.401,
+            "p95Ms": 1.732,
+            "meanMs": 1.506,
+            "maxMs": 1.732
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "561e2035-9d0f-4da1-8bda-926bc7e96738",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.332,
+            "p50Ms": 1.334,
+            "p95Ms": 1.911,
+            "meanMs": 1.592,
+            "maxMs": 1.911
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "784ec3b2-70ef-4fbe-aad5-8b4767ab9063",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.774,
+            "p50Ms": 1.782,
+            "p95Ms": 1.953,
+            "meanMs": 1.833,
+            "maxMs": 1.953
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "77894d57-6aaf-4541-9a83-e672be54ca65",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.92,
+            "p50Ms": 1.04,
+            "p95Ms": 3.139,
+            "meanMs": 1.56,
+            "maxMs": 3.139
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "b037f357-bf61-443c-9d7c-184f130acdb4",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.888,
+            "p50Ms": 0.957,
+            "p95Ms": 1.004,
+            "meanMs": 0.963,
+            "maxMs": 1.004
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a74678fc-4865-49f4-8baf-b34971232783",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.443,
+            "p50Ms": 1.628,
+            "p95Ms": 1.711,
+            "meanMs": 1.621,
+            "maxMs": 1.711
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "6b632f52-d619-48f6-924a-f2bb01653f16",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 0.975,
+            "p50Ms": 1.067,
+            "p95Ms": 1.238,
+            "meanMs": 1.103,
+            "maxMs": 1.238
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "38704c9f-7106-42ea-9300-1d08ae9f5c54",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,valueset-membership-only,default-to-latest-version,valueSet,cache-id,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.855,
+            "p50Ms": 0.87,
+            "p95Ms": 0.959,
+            "meanMs": 0.901,
+            "maxMs": 0.959
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "61379bfa-55fb-4e74-b380-2f1b9d469d3f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 0.922,
+            "p50Ms": 0.99,
+            "p95Ms": 1.024,
+            "meanMs": 0.982,
+            "maxMs": 1.024
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "d2adefcc-73ce-4e5b-958b-dca323923568",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:url,count,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.737,
+            "p50Ms": 0.756,
+            "p95Ms": 0.803,
+            "meanMs": 0.768,
+            "maxMs": 0.803
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "7daa995f-c8dc-4956-96a5-55a772222344",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation",
+          "timings": {
+            "count": 4,
+            "minMs": 0.918,
+            "p50Ms": 0.92,
+            "p95Ms": 0.958,
+            "meanMs": 0.935,
+            "maxMs": 0.958
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "3866f612-ca84-4079-8aab-4eedd89676f9",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 1.904,
+            "p50Ms": 2.292,
+            "p95Ms": 2.957,
+            "meanMs": 2.522,
+            "maxMs": 2.957
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7ee3ef37-96a2-4564-87b7-0009d696b755",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:inferSystem,code,displayLanguage,default-to-latest-version,valueSet,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.92,
+            "p50Ms": 0.974,
+            "p95Ms": 3.823,
+            "meanMs": 1.772,
+            "maxMs": 3.823
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "3ad9012d-2105-40bc-a046-3e2aa88710e4",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.894,
+            "p50Ms": 0.905,
+            "p95Ms": 0.95,
+            "meanMs": 0.923,
+            "maxMs": 0.95
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "5e3d227c-ec61-4af2-b16b-8d8041475328",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.006,
+            "p50Ms": 1.008,
+            "p95Ms": 1.092,
+            "meanMs": 1.039,
+            "maxMs": 1.092
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7f6cfacf-e6a3-4a66-b4aa-68805077fae8",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,tx-resource,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.006,
+            "p50Ms": 1.026,
+            "p95Ms": 1.202,
+            "meanMs": 1.089,
+            "maxMs": 1.202
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "42b32ce1-fa6b-4353-890f-2378d8534165",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,tx-resource,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.095,
+            "p50Ms": 1.155,
+            "p95Ms": 1.258,
+            "meanMs": 1.183,
+            "maxMs": 1.258
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "e5ddb5ef-cab8-4f6a-9397-78e3511322e4",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.87,
+            "p50Ms": 0.871,
+            "p95Ms": 0.907,
+            "meanMs": 0.884,
+            "maxMs": 0.907
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "8d78dad0-ae1d-4c05-b5f7-0e186e7013a8",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,incomplete-ok,cache-id,tx-resource,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 3.303,
+            "p50Ms": 3.521,
+            "p95Ms": 5.847,
+            "meanMs": 4.26,
+            "maxMs": 5.847
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "88216e6b-8be7-44c1-aa9f-ad539232b250",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.866,
+            "p50Ms": 0.872,
+            "p95Ms": 0.953,
+            "meanMs": 0.893,
+            "maxMs": 0.953
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "53d0e436-ce3c-4d8c-b82c-0f9908e9de09",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,valueSet,_limit,_incomplete",
+          "timings": {
+            "count": 4,
+            "minMs": 1.995,
+            "p50Ms": 2.28,
+            "p95Ms": 5.711,
+            "meanMs": 3.125,
+            "maxMs": 5.711
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "22be7337-2a5c-4004-aeec-4f7b39b8b1a4",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,incomplete-ok,valueSet,_limit,_incomplete",
+          "timings": {
+            "count": 4,
+            "minMs": 15.695,
+            "p50Ms": 16.443,
+            "p95Ms": 18.81,
+            "meanMs": 17.353,
+            "maxMs": 18.81
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "974e3602-b760-48e3-9b21-1d6b19f45cd8",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,profile",
+          "timings": {
+            "count": 4,
+            "minMs": 0.889,
+            "p50Ms": 0.935,
+            "p95Ms": 1.705,
+            "meanMs": 1.12,
+            "maxMs": 1.705
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "e9020d9d-7719-4cb1-a537-871c4fc2aed0",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,tx-resource,cache-id,valueSet,_limit,_incomplete",
+          "timings": {
+            "count": 4,
+            "minMs": 0.969,
+            "p50Ms": 1.02,
+            "p95Ms": 1.052,
+            "meanMs": 1.019,
+            "maxMs": 1.052
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "f0d9b56c-4c73-4559-8ba8-aa3763e65258",
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&code=103705002&_format=json&system=http:%2F%2Fsnomed.info%2Fsct",
+          "signature": "GET ValueSet $validate-code q:_format,code,system,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.756,
+            "p50Ms": 0.757,
+            "p95Ms": 0.839,
+            "meanMs": 0.79,
+            "maxMs": 0.839
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "7b367a60-ba32-4322-bd48-37addb62e3e4",
+          "method": "GET",
+          "url": "/r4/CodeSystem/$validate-code?url=http:%2F%2Fsnomed.info%2Fsct&code=20093000&_format=json",
+          "signature": "GET CodeSystem $validate-code q:_format,code,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.775,
+            "p50Ms": 0.783,
+            "p95Ms": 0.977,
+            "meanMs": 0.858,
+            "maxMs": 0.977
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "d88ec15d-02eb-4420-ac61-5939cb3ff36d",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.866,
+            "p50Ms": 0.91,
+            "p95Ms": 0.963,
+            "meanMs": 0.92,
+            "maxMs": 0.963
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "c92c9ee4-3e98-4272-a1e6-ab3f5ceccfa0",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,tx-resource,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.959,
+            "p50Ms": 0.967,
+            "p95Ms": 1.002,
+            "meanMs": 0.974,
+            "maxMs": 1.002
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "522f8d72-0cc2-4861-9203-a69fff2a85f6",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.784,
+            "p50Ms": 1.839,
+            "p95Ms": 1.864,
+            "meanMs": 1.834,
+            "maxMs": 1.864
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "4aeccaea-f29a-4ebc-b7dd-e54458726e3a",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.963,
+            "p50Ms": 1.037,
+            "p95Ms": 1.105,
+            "meanMs": 1.036,
+            "maxMs": 1.105
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "08ee3e82-501b-46e4-8c0d-8a8f531f807b",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.976,
+            "p50Ms": 0.98,
+            "p95Ms": 1.046,
+            "meanMs": 0.999,
+            "maxMs": 1.046
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "43f1699e-fa94-4227-bd7f-86e2bf5478d7",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&_format=json",
+          "signature": "GET ValueSet $expand q:_format,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.628,
+            "p50Ms": 0.656,
+            "p95Ms": 0.781,
+            "meanMs": 0.699,
+            "maxMs": 0.781
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "0632e959-39fa-47a1-a5ea-74ff47d55cee",
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1240.3&code=248153007&_format=json",
+          "signature": "GET ValueSet $validate-code q:_format,code,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.764,
+            "p50Ms": 0.783,
+            "p95Ms": 1.142,
+            "meanMs": 0.88,
+            "maxMs": 1.142
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "7f2efb6a-0110-4a7a-84be-1e105016d679",
+          "method": "POST",
+          "url": "/r4/ValueSet/us-core-condition-code/$validate-code?code=247824007&system=http://snomed.info/sct",
+          "signature": "POST ValueSet $validate-code q:code,system b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.529,
+            "p50Ms": 0.612,
+            "p95Ms": 0.648,
+            "meanMs": 0.609,
+            "maxMs": 0.648
+          },
+          "statuses": {
+            "415": 4
+          }
+        },
+        {
+          "id": "e7f00960-9f91-47bf-afd8-2ce44edecef6",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 28.923,
+            "p50Ms": 29.539,
+            "p95Ms": 31.274,
+            "meanMs": 30.245,
+            "maxMs": 31.274
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "f698f787-7aeb-4c8c-bae0-d9785a4a5026",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,x-system-cache-id,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.003,
+            "p50Ms": 1.013,
+            "p95Ms": 1.168,
+            "meanMs": 1.07,
+            "maxMs": 1.168
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7d7358e0-4942-482e-b99e-3d452b904a3b",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,x-system-cache-id,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.849,
+            "p50Ms": 0.898,
+            "p95Ms": 0.922,
+            "meanMs": 0.898,
+            "maxMs": 0.922
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "e24279fc-60ed-495b-bc02-70040f3af8fa",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,incomplete-ok,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 0.94,
+            "p50Ms": 0.988,
+            "p95Ms": 0.998,
+            "meanMs": 0.98,
+            "maxMs": 0.998
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "ed47c634-37ee-4dc4-a798-fa18e5010fb9",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:inferSystem,code,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 2.065,
+            "p50Ms": 2.212,
+            "p95Ms": 2.334,
+            "meanMs": 2.227,
+            "maxMs": 2.334
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "cb87ff37-2c0c-4026-855c-cf014def50c2",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.828,
+            "p50Ms": 0.853,
+            "p95Ms": 0.883,
+            "meanMs": 0.859,
+            "maxMs": 0.883
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "3073e146-86f0-4bf6-9280-61684a9c6084",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:inferSystem,code,displayLanguage,default-to-latest-version,valueSet,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 2.132,
+            "p50Ms": 2.194,
+            "p95Ms": 2.64,
+            "meanMs": 2.319,
+            "maxMs": 2.64
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "5dcfca88-00dd-4e0d-a1a3-d8b53d872082",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,displayLanguage,includeDefinition,excludeNested,cache-id,count,offset,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 0.874,
+            "p50Ms": 0.926,
+            "p95Ms": 1.053,
+            "meanMs": 0.956,
+            "maxMs": 1.053
+          },
+          "statuses": {
+            "500": 4
+          }
+        },
+        {
+          "id": "228c1c3c-7b07-4ee4-8b7b-8bf779d1fa1a",
+          "method": "GET",
+          "url": "/r4/CodeSystem/$lookup?system=http://snomed.info/sct&code=309343006",
+          "signature": "GET CodeSystem $lookup q:code,system b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.7,
+            "p50Ms": 0.708,
+            "p95Ms": 0.817,
+            "meanMs": 0.734,
+            "maxMs": 0.817
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "eaa0e429-dfa0-4eb3-86e5-01557c6364ad",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&_format=json",
+          "signature": "GET ValueSet $expand q:_format,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.614,
+            "p50Ms": 0.639,
+            "p95Ms": 0.722,
+            "meanMs": 0.654,
+            "maxMs": 0.722
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "47604944-cd2f-4d5a-88c2-ec6e7fbf70af",
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&code=183452005&_format=json&system=http:%2F%2Fsnomed.info%2Fsct",
+          "signature": "GET ValueSet $validate-code q:_format,code,system,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.687,
+            "p50Ms": 0.71,
+            "p95Ms": 0.734,
+            "meanMs": 0.712,
+            "maxMs": 0.734
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "3be2acd5-88e6-4417-a278-205b785021da",
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fcondition-category&code=55607006&_format=json&system=http:%2F%2Fsnomed.info%2Fsct",
+          "signature": "GET ValueSet $validate-code q:_format,code,system,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.71,
+            "p50Ms": 0.746,
+            "p95Ms": 0.796,
+            "meanMs": 0.754,
+            "maxMs": 0.796
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "bd4f9d31-1105-47cd-bc3b-c7c76dd75770",
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fencounter-reason&system=http%3A%2F%2Fsnomed.info%2Fsct&code=11429006",
+          "signature": "GET ValueSet $validate-code q:code,system,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 3.94,
+            "p50Ms": 3.942,
+            "p95Ms": 6.421,
+            "meanMs": 4.628,
+            "maxMs": 6.421
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "65e684e3-d2b1-48bc-bbea-73045f277b13",
+          "method": "GET",
+          "url": "/r4/CodeSystem/$validate-code?url=http:%2F%2Fsnomed.info%2Fsct&code=K29&_format=json",
+          "signature": "GET CodeSystem $validate-code q:_format,code,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.826,
+            "p50Ms": 0.876,
+            "p95Ms": 0.945,
+            "meanMs": 0.89,
+            "maxMs": 0.945
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a128f769-a741-442e-a49d-d9c05f06539f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:inferSystem,code,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.94,
+            "p50Ms": 0.94,
+            "p95Ms": 0.965,
+            "meanMs": 0.947,
+            "maxMs": 0.965
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "b1c6354b-ca75-4975-b41b-def8323514d1",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.117,
+            "p50Ms": 1.173,
+            "p95Ms": 1.388,
+            "meanMs": 1.236,
+            "maxMs": 1.388
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "cc37fc52-1886-45e5-83dd-23f8e97130c8",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 3.468,
+            "p50Ms": 3.859,
+            "p95Ms": 6.389,
+            "meanMs": 4.414,
+            "maxMs": 6.389
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "8540c2c9-ef14-4055-a6b7-a5411ba8727c",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Freason-medication-status-codes&incomplete-ok=true",
+          "signature": "GET ValueSet $expand q:incomplete-ok,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 1.141,
+            "p50Ms": 1.225,
+            "p95Ms": 1.393,
+            "meanMs": 1.252,
+            "maxMs": 1.393
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "d1ccb6e6-57cc-4656-bc30-318f280a5ff8",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fmedication-codes&filter=zet&incomplete-ok=true",
+          "signature": "GET ValueSet $expand q:filter,incomplete-ok,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.823,
+            "p50Ms": 0.846,
+            "p95Ms": 1.118,
+            "meanMs": 0.973,
+            "maxMs": 1.118
+          },
+          "statuses": {
+            "500": 4
+          }
+        },
+        {
+          "id": "28653205-2026-44af-8a47-182455a3acda",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:inferSystem,code,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.959,
+            "p50Ms": 0.985,
+            "p95Ms": 1.296,
+            "meanMs": 1.089,
+            "maxMs": 1.296
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "84782d1e-e95d-481d-8aa4-0a40c0e9d03b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:url",
+          "timings": {
+            "count": 4,
+            "minMs": 0.707,
+            "p50Ms": 0.711,
+            "p95Ms": 0.74,
+            "meanMs": 0.719,
+            "maxMs": 0.74
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "c591e1eb-539e-490a-992f-5853cc70752b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 5.22,
+            "p50Ms": 5.256,
+            "p95Ms": 6.673,
+            "meanMs": 5.732,
+            "maxMs": 6.673
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "ac2209ec-2e0d-43c6-9ca2-2d35eea7837c",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.284,
+            "p50Ms": 1.357,
+            "p95Ms": 1.528,
+            "meanMs": 1.421,
+            "maxMs": 1.528
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "96663723-ded9-4b17-bcc8-72ede52acf6a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.545,
+            "p50Ms": 0.56,
+            "p95Ms": 0.645,
+            "meanMs": 0.59,
+            "maxMs": 0.645
+          },
+          "statuses": {
+            "415": 4
+          }
+        },
+        {
+          "id": "03208fc1-9ce5-46c6-a554-09e1cc079c9f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 2.09,
+            "p50Ms": 2.54,
+            "p95Ms": 5.709,
+            "meanMs": 3.36,
+            "maxMs": 5.709
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "d3f699b5-5881-4d44-9c8f-c58c1a1ff473",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 7.105,
+            "p50Ms": 7.638,
+            "p95Ms": 9.069,
+            "meanMs": 8.136,
+            "maxMs": 9.069
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "8cf3a1d8-f05f-44d4-8800-3c1c70e35a58",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 3.633,
+            "p50Ms": 3.729,
+            "p95Ms": 3.963,
+            "meanMs": 3.782,
+            "maxMs": 3.963
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "2813246f-5b33-4e7f-bd00-e222521d7529",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.329,
+            "p50Ms": 1.337,
+            "p95Ms": 2.957,
+            "meanMs": 1.803,
+            "maxMs": 2.957
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "497d4aa7-a1e3-4977-a0b5-8fa7530bc546",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.902,
+            "p50Ms": 0.996,
+            "p95Ms": 1.005,
+            "meanMs": 0.977,
+            "maxMs": 1.005
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "5688207e-c6c4-4e15-bc00-09941e2375d8",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.42,
+            "p50Ms": 1.427,
+            "p95Ms": 1.527,
+            "meanMs": 1.453,
+            "maxMs": 1.527
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "f0a31854-1183-420f-8bca-f4d74f8c9560",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.945,
+            "p50Ms": 0.994,
+            "p95Ms": 1.087,
+            "meanMs": 1.009,
+            "maxMs": 1.087
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "8a39c4c8-567b-4cfa-8778-b35061720969",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,url,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.899,
+            "p50Ms": 0.917,
+            "p95Ms": 0.979,
+            "meanMs": 0.934,
+            "maxMs": 0.979
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "710fb4b3-631d-4d56-8cae-530c65a6f604",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,displayLanguage,_limit,_incomplete,count,offset,excludeNested,incomplete-ok,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 0.948,
+            "p50Ms": 1.038,
+            "p95Ms": 1.21,
+            "meanMs": 1.06,
+            "maxMs": 1.21
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "84bb9265-8a65-40a1-b13b-18b54fc83316",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.789,
+            "p50Ms": 0.799,
+            "p95Ms": 0.935,
+            "meanMs": 0.849,
+            "maxMs": 0.935
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "46216092-c6a6-4313-b462-c67ae1437179",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.87,
+            "p50Ms": 0.92,
+            "p95Ms": 0.976,
+            "meanMs": 0.934,
+            "maxMs": 0.976
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1f201a48-a36b-4ccd-8097-4ef6d7913105",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.829,
+            "p50Ms": 0.948,
+            "p95Ms": 1.369,
+            "meanMs": 1.066,
+            "maxMs": 1.369
+          },
+          "statuses": {
+            "400": 4
+          }
+        },
+        {
+          "id": "edcbaa04-2a67-4087-ae21-7fd7a154ada6",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,url,valueSetVersion,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.804,
+            "p50Ms": 0.831,
+            "p95Ms": 0.852,
+            "meanMs": 0.834,
+            "maxMs": 0.852
+          },
+          "statuses": {
+            "400": 4
+          }
+        },
+        {
+          "id": "728a0682-3d1c-4dbd-8005-f8e567ca57fb",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.936,
+            "p50Ms": 0.945,
+            "p95Ms": 0.979,
+            "meanMs": 0.959,
+            "maxMs": 0.979
+          },
+          "statuses": {
+            "400": 4
+          }
+        },
+        {
+          "id": "7ed3d0a9-0038-48ed-bcec-9e444a3ad949",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,url,valueSetVersion,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.768,
+            "p50Ms": 0.773,
+            "p95Ms": 0.864,
+            "meanMs": 0.799,
+            "maxMs": 0.864
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "621f97ef-7c1d-4843-8ff6-9505509f439f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.972,
+            "p50Ms": 1.055,
+            "p95Ms": 1.171,
+            "meanMs": 1.072,
+            "maxMs": 1.171
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "29bafbca-8759-4d97-bfc0-a0af4b8eac24",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.926,
+            "p50Ms": 0.952,
+            "p95Ms": 1.147,
+            "meanMs": 1.002,
+            "maxMs": 1.147
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "2cc87b23-a58a-47f3-bfd6-474244006f28",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.969,
+            "p50Ms": 1.078,
+            "p95Ms": 1.103,
+            "meanMs": 1.058,
+            "maxMs": 1.103
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "12af2a21-df61-444b-b4cb-02e5fc9eea6f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 18.265,
+            "p50Ms": 19.841,
+            "p95Ms": 23.841,
+            "meanMs": 20.48,
+            "maxMs": 23.841
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "22ce7bc9-aac3-4212-b7e7-ef9bf1ba0c5f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:valueSet,count",
+          "timings": {
+            "count": 4,
+            "minMs": 0.773,
+            "p50Ms": 0.786,
+            "p95Ms": 0.913,
+            "meanMs": 0.822,
+            "maxMs": 0.913
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "61ca606b-2fb9-4b65-9682-aa8356c002d4",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:valueSet,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.995,
+            "p50Ms": 1.059,
+            "p95Ms": 1.102,
+            "meanMs": 1.055,
+            "maxMs": 1.102
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "8056d05b-e9aa-419c-aa7b-8327a1c4ff23",
+          "method": "GET",
+          "url": "/r4/CodeSystem/$validate-code?url=http://snomed.info/sct&code=408463005&system-version=http%3A%2F%2Fsnomed.info%2Fsct%7Chttp%3A%2F%2Fsnomed.info%2Fsct%2F731000124108",
+          "signature": "GET CodeSystem $validate-code q:code,system-version,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.764,
+            "p50Ms": 0.808,
+            "p95Ms": 0.885,
+            "meanMs": 0.834,
+            "maxMs": 0.885
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "38919c34-0409-47ea-a437-b233eb7d8780",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.888,
+            "p50Ms": 0.892,
+            "p95Ms": 0.972,
+            "meanMs": 0.912,
+            "maxMs": 0.972
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "57cf3084-6939-4a4a-9f6f-6f36ccaea6a0",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.902,
+            "p50Ms": 0.919,
+            "p95Ms": 0.947,
+            "meanMs": 0.926,
+            "maxMs": 0.947
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "5d0626c9-6562-44f4-81e0-9002e4bbebf7",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:coding",
+          "timings": {
+            "count": 4,
+            "minMs": 0.777,
+            "p50Ms": 0.819,
+            "p95Ms": 2.145,
+            "meanMs": 1.165,
+            "maxMs": 2.145
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "4afbc744-a3ed-4888-b5f1-1e6dd669b195",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,systemVersion",
+          "timings": {
+            "count": 4,
+            "minMs": 0.876,
+            "p50Ms": 0.903,
+            "p95Ms": 0.926,
+            "meanMs": 0.906,
+            "maxMs": 0.926
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "ace6a564-7270-48e9-b1f0-0b1e8d62ea62",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:url,code,systemVersion",
+          "timings": {
+            "count": 4,
+            "minMs": 0.782,
+            "p50Ms": 0.864,
+            "p95Ms": 0.921,
+            "meanMs": 0.869,
+            "maxMs": 0.921
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "b24e1bb7-abf4-4c6b-8bb8-9612252c0cc5",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:url,code,version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.87,
+            "p50Ms": 0.981,
+            "p95Ms": 0.995,
+            "meanMs": 0.957,
+            "maxMs": 0.995
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "f2acdd73-8815-4aa7-9424-eb8975479e53",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.988,
+            "p50Ms": 1.005,
+            "p95Ms": 1.056,
+            "meanMs": 1.024,
+            "maxMs": 1.056
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "cfd22371-061a-4587-9fd4-12ee8b82a141",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 0.756,
+            "p50Ms": 0.768,
+            "p95Ms": 0.824,
+            "meanMs": 0.786,
+            "maxMs": 0.824
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "70701e71-47d9-4671-903c-b05ff25f0ad6",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,valueSetVersion,coding,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.78,
+            "p50Ms": 0.816,
+            "p95Ms": 0.916,
+            "meanMs": 0.845,
+            "maxMs": 0.916
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "93cc5936-3060-4343-827c-0b5685f70d49",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.699,
+            "p50Ms": 0.737,
+            "p95Ms": 0.776,
+            "meanMs": 0.74,
+            "maxMs": 0.776
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1b37322f-9319-40e4-8803-b8d4e52c7a87",
+          "method": "GET",
+          "url": "/r4/CodeSystem/$validate-code?url=http://snomed.info/sct&code=48546005",
+          "signature": "GET CodeSystem $validate-code q:code,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.72,
+            "p50Ms": 0.762,
+            "p95Ms": 0.8,
+            "meanMs": 0.762,
+            "maxMs": 0.8
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "053f0181-1259-4dcc-9fc7-5d55cceb368b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,valueSetVersion,coding",
+          "timings": {
+            "count": 4,
+            "minMs": 0.827,
+            "p50Ms": 0.829,
+            "p95Ms": 0.857,
+            "meanMs": 0.836,
+            "maxMs": 0.857
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "3fa50699-16f6-463a-9b4a-4d06a58bc7e7",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,coding",
+          "timings": {
+            "count": 4,
+            "minMs": 0.763,
+            "p50Ms": 0.788,
+            "p95Ms": 0.831,
+            "meanMs": 0.799,
+            "maxMs": 0.831
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "980c4f6d-8ab1-4824-a607-1b71e6e8bb98",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.798,
+            "p50Ms": 1.825,
+            "p95Ms": 3.561,
+            "meanMs": 2.398,
+            "maxMs": 3.561
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "43ee9551-e3b3-4bf2-be15-4d32d314fcef",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,displayLanguage,_limit,_incomplete,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 1.03,
+            "p50Ms": 1.032,
+            "p95Ms": 1.14,
+            "meanMs": 1.077,
+            "maxMs": 1.14
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "a9ae6548-59d7-4da5-a77d-1f4878ceebbc",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.1,
+            "p50Ms": 1.188,
+            "p95Ms": 1.285,
+            "meanMs": 1.192,
+            "maxMs": 1.285
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "2bd00077-e724-4545-b477-5791dce6642a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,system,code,display,displayLanguage",
+          "timings": {
+            "count": 4,
+            "minMs": 0.77,
+            "p50Ms": 0.866,
+            "p95Ms": 0.955,
+            "meanMs": 0.886,
+            "maxMs": 0.955
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "cf5111bc-7625-44c0-be3b-be96e5b1a575",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,system,code,display",
+          "timings": {
+            "count": 4,
+            "minMs": 0.867,
+            "p50Ms": 0.872,
+            "p95Ms": 1.032,
+            "meanMs": 0.921,
+            "maxMs": 1.032
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "4b3b4178-7e41-4802-931b-1086b95ff697",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,codeableConcept,displayLanguage,default-to-latest-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.746,
+            "p50Ms": 0.794,
+            "p95Ms": 0.829,
+            "meanMs": 0.793,
+            "maxMs": 0.829
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "5e8b04cc-0c1c-4c7a-b8aa-9ffe0a711d75",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,codeableConcept",
+          "timings": {
+            "count": 4,
+            "minMs": 0.853,
+            "p50Ms": 0.854,
+            "p95Ms": 1.001,
+            "meanMs": 0.909,
+            "maxMs": 1.001
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "58c727e4-05ee-4f7e-a3d3-2b17b8ffe292",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,valueSetVersion,codeableConcept,displayLanguage,default-to-latest-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.751,
+            "p50Ms": 0.758,
+            "p95Ms": 0.872,
+            "meanMs": 0.788,
+            "maxMs": 0.872
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "8c8aebcc-139b-45cf-9f0a-e66702a9448c",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,displayLanguage,codeableConcept",
+          "timings": {
+            "count": 4,
+            "minMs": 0.803,
+            "p50Ms": 0.814,
+            "p95Ms": 0.885,
+            "meanMs": 0.832,
+            "maxMs": 0.885
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "298a9140-2c6a-413e-a35e-29982de10d24",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,valueSetVersion,displayLanguage,codeableConcept",
+          "timings": {
+            "count": 4,
+            "minMs": 0.866,
+            "p50Ms": 0.872,
+            "p95Ms": 1.244,
+            "meanMs": 1.016,
+            "maxMs": 1.244
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "f5fcec17-986f-4f27-994d-d49aeca30d13",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:system,code,display,displayLanguage,default-to-latest-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.839,
+            "p50Ms": 0.866,
+            "p95Ms": 1.039,
+            "meanMs": 0.926,
+            "maxMs": 1.039
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7d2ff334-b3dd-4eea-9f04-ab24838dd9ff",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:url,code",
+          "timings": {
+            "count": 4,
+            "minMs": 0.92,
+            "p50Ms": 0.96,
+            "p95Ms": 1.01,
+            "meanMs": 0.968,
+            "maxMs": 1.01
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "fabe29f1-40a8-4900-b5af-42385163e96c",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept",
+          "timings": {
+            "count": 4,
+            "minMs": 0.812,
+            "p50Ms": 0.824,
+            "p95Ms": 0.868,
+            "meanMs": 0.838,
+            "maxMs": 0.868
+          },
+          "statuses": {
+            "200": 4
+          }
+        }
+      ]
+    },
+    "convergence:off": {
+      "startupMs": 3950.465,
+      "requestCount": 640,
+      "statusCounts": {
+        "200": 508,
+        "400": 12,
+        "415": 8,
+        "422": 104,
+        "500": 8
+      },
+      "overallTimings": {
+        "count": 640,
+        "minMs": 0.526,
+        "p50Ms": 1.314,
+        "p95Ms": 7.415,
+        "meanMs": 2.565,
+        "maxMs": 65.789
+      },
+      "perQuery": [
+        {
+          "id": "2432c3dd-746b-48bf-8b6e-d2d96fec6e3d",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,includeDefinition,excludeNested,cache-id,count,offset,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 1.789,
+            "p50Ms": 1.884,
+            "p95Ms": 2.106,
+            "meanMs": 1.926,
+            "maxMs": 2.106
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a272aa8c-96d7-4905-a75a-ea21d67b83fc",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 1.238,
+            "p50Ms": 1.271,
+            "p95Ms": 1.489,
+            "meanMs": 1.343,
+            "maxMs": 1.489
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "4557c7e1-f308-472b-9dd7-6fc55a48c263",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 4.941,
+            "p50Ms": 5.307,
+            "p95Ms": 7.497,
+            "meanMs": 5.847,
+            "maxMs": 7.497
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "569cc34e-5a80-4b25-ad7f-3f0b0b1167a3",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.945,
+            "p50Ms": 0.983,
+            "p95Ms": 1.147,
+            "meanMs": 1.035,
+            "maxMs": 1.147
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1d80f4f3-a8f9-4dd2-90ba-a9f56e70f417",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 1.517,
+            "p50Ms": 1.549,
+            "p95Ms": 1.736,
+            "meanMs": 1.591,
+            "maxMs": 1.736
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a90b1bdf-1fa0-499f-815e-f9d1e59ffc74",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,valueSet,cache-id,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.105,
+            "p50Ms": 1.199,
+            "p95Ms": 1.622,
+            "meanMs": 1.288,
+            "maxMs": 1.622
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "ebd89917-1a63-4109-b62c-14709058666c",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 1.125,
+            "p50Ms": 1.15,
+            "p95Ms": 1.266,
+            "meanMs": 1.184,
+            "maxMs": 1.266
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "d2983287-5876-4b2f-b4ca-308b84baf9cb",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,includeDefinition,excludeNested,cache-id,count,offset,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 1.045,
+            "p50Ms": 1.063,
+            "p95Ms": 1.076,
+            "meanMs": 1.063,
+            "maxMs": 1.076
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "28244ca0-43be-467b-a1d8-0e43b0abe4ac",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,lenient-display-validation,default-to-latest-version,cache-id,system-version,mode,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.07,
+            "p50Ms": 1.153,
+            "p95Ms": 1.326,
+            "meanMs": 1.183,
+            "maxMs": 1.326
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a2d3f5c0-2654-4daf-af94-e84e71fcedbb",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 20.056,
+            "p50Ms": 21.22,
+            "p95Ms": 24.041,
+            "meanMs": 21.737,
+            "maxMs": 24.041
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "908cc8ac-b346-412a-8959-d80b5d9620ff",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.068,
+            "p50Ms": 1.143,
+            "p95Ms": 1.656,
+            "meanMs": 1.268,
+            "maxMs": 1.656
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "6dff69e0-0519-4bfa-b1a7-e69931d5bb36",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 1.361,
+            "p50Ms": 1.421,
+            "p95Ms": 1.521,
+            "meanMs": 1.444,
+            "maxMs": 1.521
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "641cc5cd-ba0b-42d7-87be-56e7970cad5b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,valueSetMode,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 1.553,
+            "p50Ms": 1.592,
+            "p95Ms": 1.856,
+            "meanMs": 1.649,
+            "maxMs": 1.856
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1512be14-d697-4779-a16a-3d6765d4da8b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 64.285,
+            "p50Ms": 64.602,
+            "p95Ms": 65.789,
+            "meanMs": 64.858,
+            "maxMs": 65.789
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "37a0a647-c809-43bf-8f6c-faa6afed9e26",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,incomplete-ok,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 1.015,
+            "p50Ms": 1.084,
+            "p95Ms": 1.443,
+            "meanMs": 1.176,
+            "maxMs": 1.443
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "769b0e5c-d643-4812-825f-e2231abb40a0",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 1.467,
+            "p50Ms": 1.722,
+            "p95Ms": 2.031,
+            "meanMs": 1.755,
+            "maxMs": 2.031
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "56232774-bde7-4e2f-8009-97815d440857",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.874,
+            "p50Ms": 0.906,
+            "p95Ms": 1.001,
+            "meanMs": 0.924,
+            "maxMs": 1.001
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7ba2dcee-a5d7-4fe0-9021-63149dc36909",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.912,
+            "p50Ms": 0.936,
+            "p95Ms": 3.176,
+            "meanMs": 1.498,
+            "maxMs": 3.176
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7d702e44-110b-4b14-9af8-4fb35740f903",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.686,
+            "p50Ms": 1.714,
+            "p95Ms": 2.031,
+            "meanMs": 1.791,
+            "maxMs": 2.031
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "b7e11f9a-23d0-4522-9c12-854c226de284",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.689,
+            "p50Ms": 1.882,
+            "p95Ms": 2.239,
+            "meanMs": 1.931,
+            "maxMs": 2.239
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "32fb4557-31f4-4824-adc7-8cee8b54e806",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.203,
+            "p50Ms": 1.266,
+            "p95Ms": 1.536,
+            "meanMs": 1.333,
+            "maxMs": 1.536
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "57947e86-5976-45f9-bff6-8cd975c2d9e0",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.237,
+            "p50Ms": 1.254,
+            "p95Ms": 1.577,
+            "meanMs": 1.407,
+            "maxMs": 1.577
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "072a4686-f74a-4ea4-886c-bf8446822d0c",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,lenient-display-validation,default-to-latest-version,cache-id,x-system-cache-id,mode,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.268,
+            "p50Ms": 1.297,
+            "p95Ms": 1.652,
+            "meanMs": 1.387,
+            "maxMs": 1.652
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a678f18b-6244-4dd8-9ad5-42ad457dc90a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 7.943,
+            "p50Ms": 9.005,
+            "p95Ms": 11.495,
+            "meanMs": 9.55,
+            "maxMs": 11.495
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "c67dc2d7-9d79-43f2-b7ef-e4d24a2b782f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 4.418,
+            "p50Ms": 4.868,
+            "p95Ms": 7.415,
+            "meanMs": 5.393,
+            "maxMs": 7.415
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "c4cdccbe-8f23-4066-a044-08a1fcd4e2cc",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,valueSet,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.699,
+            "p50Ms": 1.935,
+            "p95Ms": 2.187,
+            "meanMs": 1.966,
+            "maxMs": 2.187
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "2dc19484-bf86-4a6b-b2e0-381e67a2401a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,cache-id,x-system-cache-id,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.823,
+            "p50Ms": 1.84,
+            "p95Ms": 2.239,
+            "meanMs": 1.952,
+            "maxMs": 2.239
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "40914d99-9148-48ea-b5ab-1a40ca050bbc",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,x-system-cache-id,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.384,
+            "p50Ms": 1.441,
+            "p95Ms": 1.587,
+            "meanMs": 1.49,
+            "maxMs": 1.587
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "d60d6bec-7302-4180-9f70-5da00ce38f2b",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.356,
+            "p50Ms": 1.411,
+            "p95Ms": 1.789,
+            "meanMs": 1.514,
+            "maxMs": 1.789
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "db527eec-5247-4939-94b8-173705d4c690",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.406,
+            "p50Ms": 1.497,
+            "p95Ms": 1.689,
+            "meanMs": 1.536,
+            "maxMs": 1.689
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1a90b642-298b-4d8f-b77d-91d4e7872f69",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.307,
+            "p50Ms": 1.448,
+            "p95Ms": 1.707,
+            "meanMs": 1.491,
+            "maxMs": 1.707
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "da905c31-3ac3-429e-b8dc-9814b4837956",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:inferSystem,code,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 2.434,
+            "p50Ms": 3.523,
+            "p95Ms": 7.349,
+            "meanMs": 4.229,
+            "maxMs": 7.349
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "64098f41-65c1-414c-83cf-d6b5e09ccbbb",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.337,
+            "p50Ms": 1.359,
+            "p95Ms": 1.505,
+            "meanMs": 1.404,
+            "maxMs": 1.505
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "9248d785-e176-4d1c-a594-fe399f4bdf25",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.696,
+            "p50Ms": 1.728,
+            "p95Ms": 2.157,
+            "meanMs": 1.836,
+            "maxMs": 2.157
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7284ff90-1dcb-4cfd-a5b0-2c08b9d44492",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.554,
+            "p50Ms": 1.571,
+            "p95Ms": 1.63,
+            "meanMs": 1.589,
+            "maxMs": 1.63
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "fa2b18a7-f982-47e3-9652-b3d89b3758bd",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.311,
+            "p50Ms": 1.374,
+            "p95Ms": 1.649,
+            "meanMs": 1.495,
+            "maxMs": 1.649
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "fe4b4846-7517-430f-b8af-39bf7e7dbad5",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.616,
+            "p50Ms": 1.652,
+            "p95Ms": 1.824,
+            "meanMs": 1.727,
+            "maxMs": 1.824
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "2c19704e-318a-4151-af98-dbcff0c0c00c",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,valueSet,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.55,
+            "p50Ms": 1.558,
+            "p95Ms": 2.092,
+            "meanMs": 1.753,
+            "maxMs": 2.092
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "01b4ab2f-9432-4ea4-9b31-232414079ed3",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.999,
+            "p50Ms": 2.089,
+            "p95Ms": 2.286,
+            "meanMs": 2.143,
+            "maxMs": 2.286
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "fb9dceaa-1be1-4460-a960-a4186f6a0528",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.474,
+            "p50Ms": 1.533,
+            "p95Ms": 1.814,
+            "meanMs": 1.644,
+            "maxMs": 1.814
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "8f0b2e10-ba86-48dd-bd34-3ddc5825ffd1",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.592,
+            "p50Ms": 1.72,
+            "p95Ms": 1.789,
+            "meanMs": 1.706,
+            "maxMs": 1.789
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7b374c5c-10ff-4b89-9804-a9216dba27ce",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 1.284,
+            "p50Ms": 1.379,
+            "p95Ms": 4.129,
+            "meanMs": 2.064,
+            "maxMs": 4.129
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "8b5f78ec-6a60-43bc-b70d-8499b07edf08",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.8,
+            "p50Ms": 0.818,
+            "p95Ms": 0.925,
+            "meanMs": 0.866,
+            "maxMs": 0.925
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "d0c0fa99-57bc-4e8a-a1c9-a6330ec16c1a",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.301,
+            "p50Ms": 1.455,
+            "p95Ms": 1.56,
+            "meanMs": 1.465,
+            "maxMs": 1.56
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "882430c8-c20d-4bc6-bb2a-4cc1a2c167a6",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.296,
+            "p50Ms": 1.322,
+            "p95Ms": 1.384,
+            "meanMs": 1.335,
+            "maxMs": 1.384
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "59c891fd-19a8-4c5a-8234-e81e6c3d8937",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.897,
+            "p50Ms": 0.913,
+            "p95Ms": 1.097,
+            "meanMs": 0.969,
+            "maxMs": 1.097
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "9cca4c21-2a71-4a07-b361-4230d3932b2a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,valueset-membership-only,default-to-latest-version,valueSet,cache-id,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.776,
+            "p50Ms": 0.807,
+            "p95Ms": 0.862,
+            "meanMs": 0.816,
+            "maxMs": 0.862
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1956b038-39e1-4a6c-a223-0c76311f2f01",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.229,
+            "p50Ms": 1.257,
+            "p95Ms": 1.333,
+            "meanMs": 1.282,
+            "maxMs": 1.333
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "de9b0941-4de6-487e-90fe-98f37b853b1d",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,inferSystem,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 2.538,
+            "p50Ms": 2.562,
+            "p95Ms": 5.041,
+            "meanMs": 3.194,
+            "maxMs": 5.041
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a74520f2-677a-41d4-a489-57b323c8dfb9",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,valueSetMode,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 1.47,
+            "p50Ms": 1.664,
+            "p95Ms": 2.038,
+            "meanMs": 1.71,
+            "maxMs": 2.038
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "3ec46b46-5dd8-4948-994f-c7700707c568",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,valueSetMode,default-to-latest-version,url,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.807,
+            "p50Ms": 0.827,
+            "p95Ms": 0.943,
+            "meanMs": 0.86,
+            "maxMs": 0.943
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "59f2bc70-b6c7-4a1b-9819-6a11f270b696",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 1.34,
+            "p50Ms": 1.341,
+            "p95Ms": 1.403,
+            "meanMs": 1.37,
+            "maxMs": 1.403
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1f68aad4-1bba-4471-a309-28038b8bba7e",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,inferSystem,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.965,
+            "p50Ms": 0.97,
+            "p95Ms": 1.237,
+            "meanMs": 1.063,
+            "maxMs": 1.237
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "222d9547-b7cd-4bd1-a6bd-8ec494e301fd",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,inferSystem,default-to-latest-version,url,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.767,
+            "p50Ms": 0.802,
+            "p95Ms": 0.832,
+            "meanMs": 0.803,
+            "maxMs": 0.832
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "c68d212e-79b6-4f41-bcc8-a541ff6d5b2b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.186,
+            "p50Ms": 1.193,
+            "p95Ms": 1.34,
+            "meanMs": 1.239,
+            "maxMs": 1.34
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "561e2035-9d0f-4da1-8bda-926bc7e96738",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.187,
+            "p50Ms": 1.338,
+            "p95Ms": 3.787,
+            "meanMs": 2.057,
+            "maxMs": 3.787
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "784ec3b2-70ef-4fbe-aad5-8b4767ab9063",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.698,
+            "p50Ms": 1.758,
+            "p95Ms": 2.092,
+            "meanMs": 1.834,
+            "maxMs": 2.092
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "77894d57-6aaf-4541-9a83-e672be54ca65",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.953,
+            "p50Ms": 1.034,
+            "p95Ms": 1.09,
+            "meanMs": 1.029,
+            "maxMs": 1.09
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "b037f357-bf61-443c-9d7c-184f130acdb4",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.274,
+            "p50Ms": 1.31,
+            "p95Ms": 1.438,
+            "meanMs": 1.345,
+            "maxMs": 1.438
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a74678fc-4865-49f4-8baf-b34971232783",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.974,
+            "p50Ms": 1.055,
+            "p95Ms": 1.194,
+            "meanMs": 1.075,
+            "maxMs": 1.194
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "6b632f52-d619-48f6-924a-f2bb01653f16",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 0.928,
+            "p50Ms": 0.965,
+            "p95Ms": 1.06,
+            "meanMs": 0.986,
+            "maxMs": 1.06
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "38704c9f-7106-42ea-9300-1d08ae9f5c54",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,valueset-membership-only,default-to-latest-version,valueSet,cache-id,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.787,
+            "p50Ms": 0.85,
+            "p95Ms": 0.953,
+            "meanMs": 0.87,
+            "maxMs": 0.953
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "61379bfa-55fb-4e74-b380-2f1b9d469d3f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 0.937,
+            "p50Ms": 0.96,
+            "p95Ms": 0.991,
+            "meanMs": 0.964,
+            "maxMs": 0.991
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "d2adefcc-73ce-4e5b-958b-dca323923568",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:url,count,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.743,
+            "p50Ms": 0.845,
+            "p95Ms": 3.725,
+            "meanMs": 1.614,
+            "maxMs": 3.725
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "7daa995f-c8dc-4956-96a5-55a772222344",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation",
+          "timings": {
+            "count": 4,
+            "minMs": 0.881,
+            "p50Ms": 0.89,
+            "p95Ms": 0.92,
+            "meanMs": 0.902,
+            "maxMs": 0.92
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "3866f612-ca84-4079-8aab-4eedd89676f9",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 4,
+            "minMs": 1.694,
+            "p50Ms": 1.773,
+            "p95Ms": 2.026,
+            "meanMs": 1.822,
+            "maxMs": 2.026
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7ee3ef37-96a2-4564-87b7-0009d696b755",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:inferSystem,code,displayLanguage,default-to-latest-version,valueSet,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.824,
+            "p50Ms": 0.864,
+            "p95Ms": 0.927,
+            "meanMs": 0.878,
+            "maxMs": 0.927
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "3ad9012d-2105-40bc-a046-3e2aa88710e4",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.82,
+            "p50Ms": 0.822,
+            "p95Ms": 0.862,
+            "meanMs": 0.835,
+            "maxMs": 0.862
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "5e3d227c-ec61-4af2-b16b-8d8041475328",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.917,
+            "p50Ms": 0.997,
+            "p95Ms": 1.095,
+            "meanMs": 1.004,
+            "maxMs": 1.095
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7f6cfacf-e6a3-4a66-b4aa-68805077fae8",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,tx-resource,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.008,
+            "p50Ms": 1.135,
+            "p95Ms": 1.423,
+            "meanMs": 1.188,
+            "maxMs": 1.423
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "42b32ce1-fa6b-4353-890f-2378d8534165",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,tx-resource,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.011,
+            "p50Ms": 1.045,
+            "p95Ms": 1.156,
+            "meanMs": 1.084,
+            "maxMs": 1.156
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "e5ddb5ef-cab8-4f6a-9397-78e3511322e4",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.793,
+            "p50Ms": 0.826,
+            "p95Ms": 0.864,
+            "meanMs": 0.829,
+            "maxMs": 0.864
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "8d78dad0-ae1d-4c05-b5f7-0e186e7013a8",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,incomplete-ok,cache-id,tx-resource,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 3.372,
+            "p50Ms": 3.825,
+            "p95Ms": 4.06,
+            "meanMs": 3.777,
+            "maxMs": 4.06
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "88216e6b-8be7-44c1-aa9f-ad539232b250",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.952,
+            "p50Ms": 0.957,
+            "p95Ms": 2.985,
+            "meanMs": 1.465,
+            "maxMs": 2.985
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "53d0e436-ce3c-4d8c-b82c-0f9908e9de09",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,valueSet,_limit,_incomplete",
+          "timings": {
+            "count": 4,
+            "minMs": 2.081,
+            "p50Ms": 2.177,
+            "p95Ms": 2.355,
+            "meanMs": 2.231,
+            "maxMs": 2.355
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "22be7337-2a5c-4004-aeec-4f7b39b8b1a4",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,incomplete-ok,valueSet,_limit,_incomplete",
+          "timings": {
+            "count": 4,
+            "minMs": 18.121,
+            "p50Ms": 19.583,
+            "p95Ms": 20.546,
+            "meanMs": 19.558,
+            "maxMs": 20.546
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "974e3602-b760-48e3-9b21-1d6b19f45cd8",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,profile",
+          "timings": {
+            "count": 4,
+            "minMs": 1.223,
+            "p50Ms": 1.225,
+            "p95Ms": 1.47,
+            "meanMs": 1.34,
+            "maxMs": 1.47
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "e9020d9d-7719-4cb1-a537-871c4fc2aed0",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,tx-resource,cache-id,valueSet,_limit,_incomplete",
+          "timings": {
+            "count": 4,
+            "minMs": 0.989,
+            "p50Ms": 1.002,
+            "p95Ms": 1.041,
+            "meanMs": 1.015,
+            "maxMs": 1.041
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "f0d9b56c-4c73-4559-8ba8-aa3763e65258",
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&code=103705002&_format=json&system=http:%2F%2Fsnomed.info%2Fsct",
+          "signature": "GET ValueSet $validate-code q:_format,code,system,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.663,
+            "p50Ms": 0.693,
+            "p95Ms": 0.746,
+            "meanMs": 0.704,
+            "maxMs": 0.746
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "7b367a60-ba32-4322-bd48-37addb62e3e4",
+          "method": "GET",
+          "url": "/r4/CodeSystem/$validate-code?url=http:%2F%2Fsnomed.info%2Fsct&code=20093000&_format=json",
+          "signature": "GET CodeSystem $validate-code q:_format,code,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 1.012,
+            "p50Ms": 1.017,
+            "p95Ms": 1.093,
+            "meanMs": 1.038,
+            "maxMs": 1.093
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "d88ec15d-02eb-4420-ac61-5939cb3ff36d",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.853,
+            "p50Ms": 0.877,
+            "p95Ms": 0.89,
+            "meanMs": 0.877,
+            "maxMs": 0.89
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "c92c9ee4-3e98-4272-a1e6-ab3f5ceccfa0",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,tx-resource,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.853,
+            "p50Ms": 0.887,
+            "p95Ms": 0.945,
+            "meanMs": 0.897,
+            "maxMs": 0.945
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "522f8d72-0cc2-4861-9203-a69fff2a85f6",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 4.846,
+            "p50Ms": 5.023,
+            "p95Ms": 7.923,
+            "meanMs": 5.821,
+            "maxMs": 7.923
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "4aeccaea-f29a-4ebc-b7dd-e54458726e3a",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.972,
+            "p50Ms": 0.976,
+            "p95Ms": 1.067,
+            "meanMs": 1.01,
+            "maxMs": 1.067
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "08ee3e82-501b-46e4-8c0d-8a8f531f807b",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.946,
+            "p50Ms": 0.952,
+            "p95Ms": 1.078,
+            "meanMs": 0.996,
+            "maxMs": 1.078
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "43f1699e-fa94-4227-bd7f-86e2bf5478d7",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&_format=json",
+          "signature": "GET ValueSet $expand q:_format,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.609,
+            "p50Ms": 0.625,
+            "p95Ms": 0.646,
+            "meanMs": 0.626,
+            "maxMs": 0.646
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "0632e959-39fa-47a1-a5ea-74ff47d55cee",
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1240.3&code=248153007&_format=json",
+          "signature": "GET ValueSet $validate-code q:_format,code,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.666,
+            "p50Ms": 0.683,
+            "p95Ms": 0.744,
+            "meanMs": 0.705,
+            "maxMs": 0.744
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "7f2efb6a-0110-4a7a-84be-1e105016d679",
+          "method": "POST",
+          "url": "/r4/ValueSet/us-core-condition-code/$validate-code?code=247824007&system=http://snomed.info/sct",
+          "signature": "POST ValueSet $validate-code q:code,system b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.526,
+            "p50Ms": 0.538,
+            "p95Ms": 0.657,
+            "meanMs": 0.568,
+            "maxMs": 0.657
+          },
+          "statuses": {
+            "415": 4
+          }
+        },
+        {
+          "id": "e7f00960-9f91-47bf-afd8-2ce44edecef6",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 29.128,
+            "p50Ms": 29.97,
+            "p95Ms": 35.497,
+            "meanMs": 31.243,
+            "maxMs": 35.497
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "f698f787-7aeb-4c8c-bae0-d9785a4a5026",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,x-system-cache-id,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.278,
+            "p50Ms": 1.495,
+            "p95Ms": 1.786,
+            "meanMs": 1.527,
+            "maxMs": 1.786
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7d7358e0-4942-482e-b99e-3d452b904a3b",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,x-system-cache-id,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.119,
+            "p50Ms": 1.153,
+            "p95Ms": 1.188,
+            "meanMs": 1.155,
+            "maxMs": 1.188
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "e24279fc-60ed-495b-bc02-70040f3af8fa",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,incomplete-ok,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 1.335,
+            "p50Ms": 1.471,
+            "p95Ms": 1.506,
+            "meanMs": 1.454,
+            "maxMs": 1.506
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "ed47c634-37ee-4dc4-a798-fa18e5010fb9",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:inferSystem,code,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 2.03,
+            "p50Ms": 2.043,
+            "p95Ms": 2.251,
+            "meanMs": 2.13,
+            "maxMs": 2.251
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "cb87ff37-2c0c-4026-855c-cf014def50c2",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,default-to-latest-version,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.348,
+            "p50Ms": 1.579,
+            "p95Ms": 3.906,
+            "meanMs": 2.201,
+            "maxMs": 3.906
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "3073e146-86f0-4bf6-9280-61684a9c6084",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:inferSystem,code,displayLanguage,default-to-latest-version,valueSet,cache-id,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 2.342,
+            "p50Ms": 2.362,
+            "p95Ms": 2.496,
+            "meanMs": 2.402,
+            "maxMs": 2.496
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "5dcfca88-00dd-4e0d-a1a3-d8b53d872082",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,displayLanguage,includeDefinition,excludeNested,cache-id,count,offset,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 0.902,
+            "p50Ms": 0.934,
+            "p95Ms": 0.978,
+            "meanMs": 0.944,
+            "maxMs": 0.978
+          },
+          "statuses": {
+            "500": 4
+          }
+        },
+        {
+          "id": "228c1c3c-7b07-4ee4-8b7b-8bf779d1fa1a",
+          "method": "GET",
+          "url": "/r4/CodeSystem/$lookup?system=http://snomed.info/sct&code=309343006",
+          "signature": "GET CodeSystem $lookup q:code,system b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.913,
+            "p50Ms": 0.949,
+            "p95Ms": 1.008,
+            "meanMs": 0.956,
+            "maxMs": 1.008
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "eaa0e429-dfa0-4eb3-86e5-01557c6364ad",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&_format=json",
+          "signature": "GET ValueSet $expand q:_format,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.602,
+            "p50Ms": 0.675,
+            "p95Ms": 0.744,
+            "meanMs": 0.681,
+            "maxMs": 0.744
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "47604944-cd2f-4d5a-88c2-ec6e7fbf70af",
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fcts.nlm.nih.gov%2Ffhir%2FValueSet%2F2.16.840.1.113762.1.4.1267.23&code=183452005&_format=json&system=http:%2F%2Fsnomed.info%2Fsct",
+          "signature": "GET ValueSet $validate-code q:_format,code,system,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.666,
+            "p50Ms": 0.678,
+            "p95Ms": 0.716,
+            "meanMs": 0.693,
+            "maxMs": 0.716
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "3be2acd5-88e6-4417-a278-205b785021da",
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http:%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fcondition-category&code=55607006&_format=json&system=http:%2F%2Fsnomed.info%2Fsct",
+          "signature": "GET ValueSet $validate-code q:_format,code,system,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.949,
+            "p50Ms": 0.996,
+            "p95Ms": 3.387,
+            "meanMs": 1.748,
+            "maxMs": 3.387
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "bd4f9d31-1105-47cd-bc3b-c7c76dd75770",
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fencounter-reason&system=http%3A%2F%2Fsnomed.info%2Fsct&code=11429006",
+          "signature": "GET ValueSet $validate-code q:code,system,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 1.412,
+            "p50Ms": 1.443,
+            "p95Ms": 1.491,
+            "meanMs": 1.457,
+            "maxMs": 1.491
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "65e684e3-d2b1-48bc-bbea-73045f277b13",
+          "method": "GET",
+          "url": "/r4/CodeSystem/$validate-code?url=http:%2F%2Fsnomed.info%2Fsct&code=K29&_format=json",
+          "signature": "GET CodeSystem $validate-code q:_format,code,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 1.005,
+            "p50Ms": 1.013,
+            "p95Ms": 1.168,
+            "meanMs": 1.056,
+            "maxMs": 1.168
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "a128f769-a741-442e-a49d-d9c05f06539f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:inferSystem,code,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.948,
+            "p50Ms": 0.962,
+            "p95Ms": 1.001,
+            "meanMs": 0.969,
+            "maxMs": 1.001
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "b1c6354b-ca75-4975-b41b-def8323514d1",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.35,
+            "p50Ms": 1.394,
+            "p95Ms": 1.747,
+            "meanMs": 1.512,
+            "maxMs": 1.747
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "cc37fc52-1886-45e5-83dd-23f8e97130c8",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 3.945,
+            "p50Ms": 4.519,
+            "p95Ms": 7.586,
+            "meanMs": 5.148,
+            "maxMs": 7.586
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "8540c2c9-ef14-4055-a6b7-a5411ba8727c",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Freason-medication-status-codes&incomplete-ok=true",
+          "signature": "GET ValueSet $expand q:incomplete-ok,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 1.812,
+            "p50Ms": 1.912,
+            "p95Ms": 2.686,
+            "meanMs": 2.094,
+            "maxMs": 2.686
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "d1ccb6e6-57cc-4656-bc30-318f280a5ff8",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fmedication-codes&filter=zet&incomplete-ok=true",
+          "signature": "GET ValueSet $expand q:filter,incomplete-ok,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.8,
+            "p50Ms": 0.816,
+            "p95Ms": 0.86,
+            "meanMs": 0.824,
+            "maxMs": 0.86
+          },
+          "statuses": {
+            "500": 4
+          }
+        },
+        {
+          "id": "28653205-2026-44af-8a47-182455a3acda",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:inferSystem,code,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.926,
+            "p50Ms": 0.989,
+            "p95Ms": 1.156,
+            "meanMs": 1.026,
+            "maxMs": 1.156
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "84782d1e-e95d-481d-8aa4-0a40c0e9d03b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:url",
+          "timings": {
+            "count": 4,
+            "minMs": 0.617,
+            "p50Ms": 0.65,
+            "p95Ms": 0.701,
+            "meanMs": 0.663,
+            "maxMs": 0.701
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "c591e1eb-539e-490a-992f-5853cc70752b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 5.847,
+            "p50Ms": 6.152,
+            "p95Ms": 8.332,
+            "meanMs": 6.623,
+            "maxMs": 8.332
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "ac2209ec-2e0d-43c6-9ca2-2d35eea7837c",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.338,
+            "p50Ms": 1.38,
+            "p95Ms": 1.638,
+            "meanMs": 1.451,
+            "maxMs": 1.638
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "96663723-ded9-4b17-bcc8-72ede52acf6a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.564,
+            "p50Ms": 0.653,
+            "p95Ms": 0.899,
+            "meanMs": 0.704,
+            "maxMs": 0.899
+          },
+          "statuses": {
+            "415": 4
+          }
+        },
+        {
+          "id": "03208fc1-9ce5-46c6-a554-09e1cc079c9f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.725,
+            "p50Ms": 1.74,
+            "p95Ms": 2.72,
+            "meanMs": 2.177,
+            "maxMs": 2.72
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "d3f699b5-5881-4d44-9c8f-c58c1a1ff473",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 7.61,
+            "p50Ms": 7.808,
+            "p95Ms": 10.079,
+            "meanMs": 8.745,
+            "maxMs": 10.079
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "8cf3a1d8-f05f-44d4-8800-3c1c70e35a58",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 4.028,
+            "p50Ms": 4.227,
+            "p95Ms": 6.155,
+            "meanMs": 4.763,
+            "maxMs": 6.155
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "2813246f-5b33-4e7f-bd00-e222521d7529",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.91,
+            "p50Ms": 2.254,
+            "p95Ms": 2.341,
+            "meanMs": 2.193,
+            "maxMs": 2.341
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "497d4aa7-a1e3-4977-a0b5-8fa7530bc546",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.392,
+            "p50Ms": 1.408,
+            "p95Ms": 1.49,
+            "meanMs": 1.425,
+            "maxMs": 1.49
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "5688207e-c6c4-4e15-bc00-09941e2375d8",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.79,
+            "p50Ms": 1.989,
+            "p95Ms": 2.032,
+            "meanMs": 1.96,
+            "maxMs": 2.032
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "f0a31854-1183-420f-8bca-f4d74f8c9560",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.323,
+            "p50Ms": 1.375,
+            "p95Ms": 1.562,
+            "meanMs": 1.417,
+            "maxMs": 1.562
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "8a39c4c8-567b-4cfa-8778-b35061720969",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,url,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.829,
+            "p50Ms": 0.85,
+            "p95Ms": 0.901,
+            "meanMs": 0.868,
+            "maxMs": 0.901
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "710fb4b3-631d-4d56-8cae-530c65a6f604",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,displayLanguage,_limit,_incomplete,count,offset,excludeNested,incomplete-ok,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 0.875,
+            "p50Ms": 0.93,
+            "p95Ms": 3.179,
+            "meanMs": 1.502,
+            "maxMs": 3.179
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "84bb9265-8a65-40a1-b13b-18b54fc83316",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,displayLanguage,default-to-latest-version,cache-id,profile-url,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.384,
+            "p50Ms": 1.471,
+            "p95Ms": 1.804,
+            "meanMs": 1.563,
+            "maxMs": 1.804
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "46216092-c6a6-4313-b462-c67ae1437179",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 0.815,
+            "p50Ms": 0.85,
+            "p95Ms": 0.949,
+            "meanMs": 0.874,
+            "maxMs": 0.949
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1f201a48-a36b-4ccd-8097-4ef6d7913105",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.786,
+            "p50Ms": 0.846,
+            "p95Ms": 0.96,
+            "meanMs": 0.866,
+            "maxMs": 0.96
+          },
+          "statuses": {
+            "400": 4
+          }
+        },
+        {
+          "id": "edcbaa04-2a67-4087-ae21-7fd7a154ada6",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,url,valueSetVersion,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.821,
+            "p50Ms": 0.822,
+            "p95Ms": 1.077,
+            "meanMs": 0.886,
+            "maxMs": 1.077
+          },
+          "statuses": {
+            "400": 4
+          }
+        },
+        {
+          "id": "728a0682-3d1c-4dbd-8005-f8e567ca57fb",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.881,
+            "p50Ms": 0.885,
+            "p95Ms": 0.938,
+            "meanMs": 0.905,
+            "maxMs": 0.938
+          },
+          "statuses": {
+            "400": 4
+          }
+        },
+        {
+          "id": "7ed3d0a9-0038-48ed-bcec-9e444a3ad949",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,url,valueSetVersion,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.779,
+            "p50Ms": 0.818,
+            "p95Ms": 0.861,
+            "meanMs": 0.823,
+            "maxMs": 0.861
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "621f97ef-7c1d-4843-8ff6-9505509f439f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 1.357,
+            "p50Ms": 1.505,
+            "p95Ms": 1.868,
+            "meanMs": 1.567,
+            "maxMs": 1.868
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "29bafbca-8759-4d97-bfc0-a0af4b8eac24",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,valueSet,cache-id,profile-url,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 1.31,
+            "p50Ms": 1.407,
+            "p95Ms": 1.539,
+            "meanMs": 1.442,
+            "maxMs": 1.539
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "2cc87b23-a58a-47f3-bfd6-474244006f28",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.454,
+            "p50Ms": 1.489,
+            "p95Ms": 1.811,
+            "meanMs": 1.603,
+            "maxMs": 1.811
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "12af2a21-df61-444b-b4cb-02e5fc9eea6f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 17.581,
+            "p50Ms": 18.112,
+            "p95Ms": 20.566,
+            "meanMs": 19.173,
+            "maxMs": 20.566
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "22ce7bc9-aac3-4212-b7e7-ef9bf1ba0c5f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:valueSet,count",
+          "timings": {
+            "count": 4,
+            "minMs": 1.342,
+            "p50Ms": 1.392,
+            "p95Ms": 1.502,
+            "meanMs": 1.433,
+            "maxMs": 1.502
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "61ca606b-2fb9-4b65-9682-aa8356c002d4",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:valueSet,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.981,
+            "p50Ms": 1.017,
+            "p95Ms": 1.057,
+            "meanMs": 1.019,
+            "maxMs": 1.057
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "8056d05b-e9aa-419c-aa7b-8327a1c4ff23",
+          "method": "GET",
+          "url": "/r4/CodeSystem/$validate-code?url=http://snomed.info/sct&code=408463005&system-version=http%3A%2F%2Fsnomed.info%2Fsct%7Chttp%3A%2F%2Fsnomed.info%2Fsct%2F731000124108",
+          "signature": "GET CodeSystem $validate-code q:code,system-version,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 1.086,
+            "p50Ms": 1.242,
+            "p95Ms": 1.424,
+            "meanMs": 1.293,
+            "maxMs": 1.424
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "38919c34-0409-47ea-a437-b233eb7d8780",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.396,
+            "p50Ms": 1.499,
+            "p95Ms": 1.554,
+            "meanMs": 1.49,
+            "maxMs": 1.554
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "57cf3084-6939-4a4a-9f6f-6f36ccaea6a0",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.177,
+            "p50Ms": 1.246,
+            "p95Ms": 1.343,
+            "meanMs": 1.263,
+            "maxMs": 1.343
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "5d0626c9-6562-44f4-81e0-9002e4bbebf7",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:coding",
+          "timings": {
+            "count": 4,
+            "minMs": 1.268,
+            "p50Ms": 1.268,
+            "p95Ms": 1.339,
+            "meanMs": 1.297,
+            "maxMs": 1.339
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "4afbc744-a3ed-4888-b5f1-1e6dd669b195",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:coding,systemVersion",
+          "timings": {
+            "count": 4,
+            "minMs": 1.293,
+            "p50Ms": 1.394,
+            "p95Ms": 1.52,
+            "meanMs": 1.418,
+            "maxMs": 1.52
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "ace6a564-7270-48e9-b1f0-0b1e8d62ea62",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:url,code,systemVersion",
+          "timings": {
+            "count": 4,
+            "minMs": 1.209,
+            "p50Ms": 1.23,
+            "p95Ms": 1.398,
+            "meanMs": 1.269,
+            "maxMs": 1.398
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "b24e1bb7-abf4-4c6b-8bb8-9612252c0cc5",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:url,code,version",
+          "timings": {
+            "count": 4,
+            "minMs": 1.194,
+            "p50Ms": 1.248,
+            "p95Ms": 1.478,
+            "meanMs": 1.308,
+            "maxMs": 1.478
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "f2acdd73-8815-4aa7-9424-eb8975479e53",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,system-version,displayLanguage,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.575,
+            "p50Ms": 1.79,
+            "p95Ms": 1.907,
+            "meanMs": 1.789,
+            "maxMs": 1.907
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "cfd22371-061a-4587-9fd4-12ee8b82a141",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 1.116,
+            "p50Ms": 1.226,
+            "p95Ms": 1.27,
+            "meanMs": 1.216,
+            "maxMs": 1.27
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "70701e71-47d9-4671-903c-b05ff25f0ad6",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,valueSetVersion,coding,system-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.843,
+            "p50Ms": 0.931,
+            "p95Ms": 4.028,
+            "meanMs": 1.734,
+            "maxMs": 4.028
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "93cc5936-3060-4343-827c-0b5685f70d49",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 0.696,
+            "p50Ms": 0.716,
+            "p95Ms": 0.934,
+            "meanMs": 0.768,
+            "maxMs": 0.934
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "1b37322f-9319-40e4-8803-b8d4e52c7a87",
+          "method": "GET",
+          "url": "/r4/CodeSystem/$validate-code?url=http://snomed.info/sct&code=48546005",
+          "signature": "GET CodeSystem $validate-code q:code,url b:-",
+          "timings": {
+            "count": 4,
+            "minMs": 1.312,
+            "p50Ms": 1.38,
+            "p95Ms": 1.517,
+            "meanMs": 1.41,
+            "maxMs": 1.517
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "053f0181-1259-4dcc-9fc7-5d55cceb368b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,valueSetVersion,coding",
+          "timings": {
+            "count": 4,
+            "minMs": 1.138,
+            "p50Ms": 1.202,
+            "p95Ms": 1.238,
+            "meanMs": 1.196,
+            "maxMs": 1.238
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "3fa50699-16f6-463a-9b4a-4d06a58bc7e7",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,coding",
+          "timings": {
+            "count": 4,
+            "minMs": 1.034,
+            "p50Ms": 1.13,
+            "p95Ms": 1.256,
+            "meanMs": 1.149,
+            "maxMs": 1.256
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "980c4f6d-8ab1-4824-a607-1b71e6e8bb98",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 3,
+            "p50Ms": 3.136,
+            "p95Ms": 3.598,
+            "meanMs": 3.295,
+            "maxMs": 3.598
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "43ee9551-e3b3-4bf2-be15-4d32d314fcef",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:system-version,displayLanguage,_limit,_incomplete,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 4,
+            "minMs": 1.041,
+            "p50Ms": 1.182,
+            "p95Ms": 1.513,
+            "meanMs": 1.266,
+            "maxMs": 1.513
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "a9ae6548-59d7-4da5-a77d-1f4878ceebbc",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:codeableConcept,displayLanguage,default-to-latest-version,valueSet,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 4,
+            "minMs": 1.235,
+            "p50Ms": 1.238,
+            "p95Ms": 3.842,
+            "meanMs": 1.977,
+            "maxMs": 3.842
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "2bd00077-e724-4545-b477-5791dce6642a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,system,code,display,displayLanguage",
+          "timings": {
+            "count": 4,
+            "minMs": 0.768,
+            "p50Ms": 0.791,
+            "p95Ms": 0.817,
+            "meanMs": 0.797,
+            "maxMs": 0.817
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "cf5111bc-7625-44c0-be3b-be96e5b1a575",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,system,code,display",
+          "timings": {
+            "count": 4,
+            "minMs": 1.291,
+            "p50Ms": 1.419,
+            "p95Ms": 1.819,
+            "meanMs": 1.511,
+            "maxMs": 1.819
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "4b3b4178-7e41-4802-931b-1086b95ff697",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,codeableConcept,displayLanguage,default-to-latest-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.713,
+            "p50Ms": 0.754,
+            "p95Ms": 0.814,
+            "meanMs": 0.77,
+            "maxMs": 0.814
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "5e8b04cc-0c1c-4c7a-b8aa-9ffe0a711d75",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,codeableConcept",
+          "timings": {
+            "count": 4,
+            "minMs": 1.347,
+            "p50Ms": 1.364,
+            "p95Ms": 1.506,
+            "meanMs": 1.412,
+            "maxMs": 1.506
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "58c727e4-05ee-4f7e-a3d3-2b17b8ffe292",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,valueSetVersion,codeableConcept,displayLanguage,default-to-latest-version",
+          "timings": {
+            "count": 4,
+            "minMs": 0.794,
+            "p50Ms": 0.835,
+            "p95Ms": 0.944,
+            "meanMs": 0.863,
+            "maxMs": 0.944
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "8c8aebcc-139b-45cf-9f0a-e66702a9448c",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,displayLanguage,codeableConcept",
+          "timings": {
+            "count": 4,
+            "minMs": 0.752,
+            "p50Ms": 0.762,
+            "p95Ms": 0.777,
+            "meanMs": 0.764,
+            "maxMs": 0.777
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "298a9140-2c6a-413e-a35e-29982de10d24",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code",
+          "signature": "POST ValueSet $validate-code q:- b:url,valueSetVersion,displayLanguage,codeableConcept",
+          "timings": {
+            "count": 4,
+            "minMs": 0.784,
+            "p50Ms": 0.832,
+            "p95Ms": 0.997,
+            "meanMs": 0.884,
+            "maxMs": 0.997
+          },
+          "statuses": {
+            "422": 4
+          }
+        },
+        {
+          "id": "f5fcec17-986f-4f27-994d-d49aeca30d13",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:system,code,display,displayLanguage,default-to-latest-version",
+          "timings": {
+            "count": 4,
+            "minMs": 1.263,
+            "p50Ms": 1.37,
+            "p95Ms": 1.681,
+            "meanMs": 1.493,
+            "maxMs": 1.681
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "7d2ff334-b3dd-4eea-9f04-ab24838dd9ff",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:url,code",
+          "timings": {
+            "count": 4,
+            "minMs": 1.019,
+            "p50Ms": 1.098,
+            "p95Ms": 1.269,
+            "meanMs": 1.123,
+            "maxMs": 1.269
+          },
+          "statuses": {
+            "200": 4
+          }
+        },
+        {
+          "id": "fabe29f1-40a8-4900-b5af-42385163e96c",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code",
+          "signature": "POST CodeSystem $validate-code q:- b:codeableConcept",
+          "timings": {
+            "count": 4,
+            "minMs": 0.737,
+            "p50Ms": 0.772,
+            "p95Ms": 0.857,
+            "meanMs": 0.799,
+            "maxMs": 0.857
+          },
+          "statuses": {
+            "200": 4
+          }
+        }
+      ]
+    }
+  },
+  "comparisons": {
+    "off": {
+      "comparedQueries": 160,
+      "fasterConv": 63,
+      "fasterMain": 97,
+      "tie": 0,
+      "absoluteDeltaMs": {
+        "count": 160,
+        "minMs": 0.004,
+        "p50Ms": 0.249,
+        "p95Ms": 1.169,
+        "meanMs": 0.399,
+        "maxMs": 5.113
+      },
+      "largestConvWins": [
+        {
+          "id": "bd4f9d31-1105-47cd-bc3b-c7c76dd75770",
+          "method": "GET",
+          "url": "/r4/ValueSet/$validate-code?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fencounter-reason&system=http%3A%2F%2Fsnomed.info%2Fsct&code=11429006",
+          "mainP50Ms": 3.942,
+          "convP50Ms": 1.443,
+          "deltaMs": -2.499
+        },
+        {
+          "id": "a2d3f5c0-2654-4daf-af94-e84e71fcedbb",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "mainP50Ms": 23.257,
+          "convP50Ms": 21.22,
+          "deltaMs": -2.037
+        },
+        {
+          "id": "12af2a21-df61-444b-b4cb-02e5fc9eea6f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "mainP50Ms": 19.841,
+          "convP50Ms": 18.112,
+          "deltaMs": -1.729
+        },
+        {
+          "id": "03208fc1-9ce5-46c6-a554-09e1cc079c9f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "mainP50Ms": 2.54,
+          "convP50Ms": 1.74,
+          "deltaMs": -0.8
+        },
+        {
+          "id": "a272aa8c-96d7-4905-a75a-ea21d67b83fc",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "mainP50Ms": 2.039,
+          "convP50Ms": 1.271,
+          "deltaMs": -0.768
+        },
+        {
+          "id": "1512be14-d697-4779-a16a-3d6765d4da8b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "mainP50Ms": 65.299,
+          "convP50Ms": 64.602,
+          "deltaMs": -0.697
+        },
+        {
+          "id": "2432c3dd-746b-48bf-8b6e-d2d96fec6e3d",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "mainP50Ms": 2.473,
+          "convP50Ms": 1.884,
+          "deltaMs": -0.589
+        },
+        {
+          "id": "a74678fc-4865-49f4-8baf-b34971232783",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "mainP50Ms": 1.628,
+          "convP50Ms": 1.055,
+          "deltaMs": -0.573
+        },
+        {
+          "id": "3866f612-ca84-4079-8aab-4eedd89676f9",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "mainP50Ms": 2.292,
+          "convP50Ms": 1.773,
+          "deltaMs": -0.519
+        },
+        {
+          "id": "d2983287-5876-4b2f-b4ca-308b84baf9cb",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "mainP50Ms": 1.577,
+          "convP50Ms": 1.063,
+          "deltaMs": -0.514
+        },
+        {
+          "id": "4557c7e1-f308-472b-9dd7-6fc55a48c263",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "mainP50Ms": 5.74,
+          "convP50Ms": 5.307,
+          "deltaMs": -0.433
+        },
+        {
+          "id": "28244ca0-43be-467b-a1d8-0e43b0abe4ac",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "mainP50Ms": 1.44,
+          "convP50Ms": 1.153,
+          "deltaMs": -0.287
+        }
+      ],
+      "largestMainWins": [
+        {
+          "id": "a678f18b-6244-4dd8-9ad5-42ad457dc90a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "mainP50Ms": 3.892,
+          "convP50Ms": 9.005,
+          "deltaMs": 5.113
+        },
+        {
+          "id": "522f8d72-0cc2-4861-9203-a69fff2a85f6",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "mainP50Ms": 1.839,
+          "convP50Ms": 5.023,
+          "deltaMs": 3.184
+        },
+        {
+          "id": "22be7337-2a5c-4004-aeec-4f7b39b8b1a4",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "mainP50Ms": 16.443,
+          "convP50Ms": 19.583,
+          "deltaMs": 3.14
+        },
+        {
+          "id": "c67dc2d7-9d79-43f2-b7ef-e4d24a2b782f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "mainP50Ms": 2.24,
+          "convP50Ms": 4.868,
+          "deltaMs": 2.628
+        },
+        {
+          "id": "980c4f6d-8ab1-4824-a607-1b71e6e8bb98",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "mainP50Ms": 1.825,
+          "convP50Ms": 3.136,
+          "deltaMs": 1.311
+        },
+        {
+          "id": "da905c31-3ac3-429e-b8dc-9814b4837956",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "mainP50Ms": 2.354,
+          "convP50Ms": 3.523,
+          "deltaMs": 1.169
+        },
+        {
+          "id": "2813246f-5b33-4e7f-bd00-e222521d7529",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "mainP50Ms": 1.337,
+          "convP50Ms": 2.254,
+          "deltaMs": 0.917
+        },
+        {
+          "id": "c591e1eb-539e-490a-992f-5853cc70752b",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "mainP50Ms": 5.256,
+          "convP50Ms": 6.152,
+          "deltaMs": 0.896
+        },
+        {
+          "id": "b7e11f9a-23d0-4522-9c12-854c226de284",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "mainP50Ms": 1.005,
+          "convP50Ms": 1.882,
+          "deltaMs": 0.877
+        },
+        {
+          "id": "f2acdd73-8815-4aa7-9424-eb8975479e53",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "mainP50Ms": 1.005,
+          "convP50Ms": 1.79,
+          "deltaMs": 0.785
+        },
+        {
+          "id": "cb87ff37-2c0c-4026-855c-cf014def50c2",
+          "method": "POST",
+          "url": "/r4/CodeSystem/$validate-code?",
+          "mainP50Ms": 0.853,
+          "convP50Ms": 1.579,
+          "deltaMs": 0.726
+        },
+        {
+          "id": "8540c2c9-ef14-4055-a6b7-a5411ba8727c",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Freason-medication-status-codes&incomplete-ok=true",
+          "mainP50Ms": 1.225,
+          "convP50Ms": 1.912,
+          "deltaMs": 0.687
+        }
+      ]
+    }
+  }
+}

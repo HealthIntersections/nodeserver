@@ -1,0 +1,122 @@
+{
+  "generatedAt": "2026-02-13T03:35:38.083Z",
+  "input": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/captured/tmp-zet.ndjson",
+  "queryCount": 1,
+  "repeats": 6,
+  "warmup": 1,
+  "pathPrefix": "/r4/",
+  "endpointPath": "/r4",
+  "fhirVersion": "4.0",
+  "targets": [
+    {
+      "name": "main",
+      "repoRoot": "/home/jmandel/hobby/FHIRsmith",
+      "librarySource": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/captured/perf-main-two-snomed.yml"
+    },
+    {
+      "name": "convergence",
+      "repoRoot": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence",
+      "librarySource": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/tx/tx.snomed-v0.yml"
+    }
+  ],
+  "cacheModes": [
+    "off"
+  ],
+  "runs": {
+    "main:off": {
+      "startupMs": 1858.009,
+      "requestCount": 6,
+      "statusCounts": {
+        "200": 6
+      },
+      "overallTimings": {
+        "count": 6,
+        "minMs": 16.669,
+        "p50Ms": 16.903,
+        "p95Ms": 18.787,
+        "meanMs": 17.266,
+        "maxMs": 18.787
+      },
+      "perQuery": [
+        {
+          "id": "d1ccb6e6-57cc-4656-bc30-318f280a5ff8",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fmedication-codes&filter=zet&incomplete-ok=true",
+          "signature": "GET ValueSet $expand q:filter,incomplete-ok,url b:-",
+          "timings": {
+            "count": 6,
+            "minMs": 16.669,
+            "p50Ms": 16.903,
+            "p95Ms": 18.787,
+            "meanMs": 17.266,
+            "maxMs": 18.787
+          },
+          "statuses": {
+            "200": 6
+          }
+        }
+      ]
+    },
+    "convergence:off": {
+      "startupMs": 2741.3,
+      "requestCount": 6,
+      "statusCounts": {
+        "200": 6
+      },
+      "overallTimings": {
+        "count": 6,
+        "minMs": 87.593,
+        "p50Ms": 95.367,
+        "p95Ms": 119.24,
+        "meanMs": 97.9,
+        "maxMs": 119.24
+      },
+      "perQuery": [
+        {
+          "id": "d1ccb6e6-57cc-4656-bc30-318f280a5ff8",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fmedication-codes&filter=zet&incomplete-ok=true",
+          "signature": "GET ValueSet $expand q:filter,incomplete-ok,url b:-",
+          "timings": {
+            "count": 6,
+            "minMs": 87.593,
+            "p50Ms": 95.367,
+            "p95Ms": 119.24,
+            "meanMs": 97.9,
+            "maxMs": 119.24
+          },
+          "statuses": {
+            "200": 6
+          }
+        }
+      ]
+    }
+  },
+  "comparisons": {
+    "off": {
+      "comparedQueries": 1,
+      "fasterConv": 0,
+      "fasterMain": 1,
+      "tie": 0,
+      "absoluteDeltaMs": {
+        "count": 1,
+        "minMs": 78.464,
+        "p50Ms": 78.464,
+        "p95Ms": 78.464,
+        "meanMs": 78.464,
+        "maxMs": 78.464
+      },
+      "largestConvWins": [],
+      "largestMainWins": [
+        {
+          "id": "d1ccb6e6-57cc-4656-bc30-318f280a5ff8",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fmedication-codes&filter=zet&incomplete-ok=true",
+          "mainP50Ms": 16.903,
+          "convP50Ms": 95.367,
+          "deltaMs": 78.464
+        }
+      ]
+    }
+  }
+}

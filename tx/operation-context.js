@@ -389,7 +389,7 @@ class ExpansionCache {
 
 
 class OperationContext {
-  constructor(langs, i18n = null, id = null, timeLimit = 30, resourceCache = null, expansionCache = null) {
+  constructor(langs, i18n = null, id = null, timeLimit = 30, resourceCache = null, expansionCache = null, codeSystemProviderCache = null) {
     this.i18n = i18n;
     this.langs = this._ensureLanguages(langs);
     this.id = id || this._generateId();
@@ -400,6 +400,8 @@ class OperationContext {
     this.logEntries = [];
     this.resourceCache = resourceCache;
     this.expansionCache = expansionCache;
+    this.codeSystemProviderCache = codeSystemProviderCache || new Map();
+    this.traceNotes = true;
     this.debugging = isDebugging();
 
     this.timeTracker.step('tx-op');
@@ -421,12 +423,13 @@ class OperationContext {
   copy() {
     const newContext = new OperationContext(
       this.langs, this.i18n, this.id, this.timeLimit / 1000,
-      this.resourceCache, this.expansionCache
+      this.resourceCache, this.expansionCache, this.codeSystemProviderCache
     );
     newContext.contexts = [...this.contexts];
     newContext.startTime = this.startTime;
     newContext.timeTracker = this.timeTracker.link();
     newContext.logEntries = [...this.logEntries];
+    newContext.traceNotes = this.traceNotes;
     newContext.debugging = this.debugging;
     return newContext;
   }
@@ -481,6 +484,9 @@ class OperationContext {
    * @param {string} note - Log message
    */
   log(note) {
+    if (!this.traceNotes) {
+      return;
+    }
     const elapsed = Math.round(performance.now() - this.startTime);
     const logEntry = `${elapsed}ms ${note}`;
     this.logEntries.push(logEntry);
@@ -493,6 +499,9 @@ class OperationContext {
    * @param {string} note - Note to add
    */
   addNote(vs, note) {
+    if (!this.traceNotes) {
+      return;
+    }
     const vurl = vs && vs.vurl ? vs.vurl : 'unknown-valueset';
     const elapsed = Math.round(performance.now() - this.startTime);
     const logEntry = `${elapsed}ms ${vurl}: ${note}`;

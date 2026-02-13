@@ -210,6 +210,37 @@ class ValueSetExpander {
     this.csCounter = new Map();
   }
 
+  shouldLoadProperties() {
+    return Array.isArray(this.params.properties) && this.params.properties.length > 0;
+  }
+
+  async loadProviderProperties(cs, context) {
+    if (!this.shouldLoadProperties()) {
+      return null;
+    }
+    if (typeof cs.getProperties === 'function') {
+      return cs.getProperties(context);
+    }
+    if (typeof cs.properties === 'function') {
+      return cs.properties(context);
+    }
+    return null;
+  }
+
+  canUseDisplayOnlyFastPath() {
+    if (this.params.includeDesignations || this.params.hasDesignations) {
+      return false;
+    }
+    const workingLanguages = this.params.workingLanguages ? this.params.workingLanguages() : null;
+    if (!workingLanguages || !Array.isArray(workingLanguages.languages) || workingLanguages.languages.length === 0) {
+      return true;
+    }
+    return workingLanguages.languages.every((lang) => {
+      const code = String(lang?.code || '').toLowerCase();
+      return code === '' || code === '*' || code.startsWith('en');
+    });
+  }
+
   addDefinedCode(cs, system, c, imports, parent, excludeInactive, srcURL) {
     this.worker.deadCheck('addDefinedCode');
     let n = null;
@@ -226,6 +257,15 @@ class ValueSetExpander {
   }
 
   async listDisplaysFromProvider(displays, cs, context) {
+    if (this.canUseDisplayOnlyFastPath() && typeof cs.display === 'function') {
+      const display = await cs.display(context);
+      if (display != null) {
+        const inactive = typeof cs.isInactive === 'function' ? await cs.isInactive(context) : false;
+        displays.addDesignation(true, inactive ? 'inactive' : 'active', null, null, display);
+      }
+      displays.source = cs;
+      return;
+    }
     await cs.designations(context, displays);
     displays.source = cs;
   }
@@ -760,8 +800,9 @@ class ValueSetExpander {
               if (await this.passesFilters(cs, c, prep, filters, 0)) {
                 const cds = new Designations(this.worker.i18n.languageDefinitions);
                 await this.listDisplaysFromProvider(cds, cs, c);
+                const csProperties = await this.loadProviderProperties(cs, c);
                 await this.includeCode(cs, null, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c), await cs.deprecated(c), await cs.getCodeStatus(c),
-                  cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.getExtensions(c), null, await cs.getProperties(c), null, excludeInactive, vsSrc.url);
+                  cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.getExtensions(c), null, csProperties, null, excludeInactive, vsSrc.url);
               }
             }
             this.worker.opContext.log('iterate filters done');
@@ -785,8 +826,9 @@ class ValueSetExpander {
                 if (!ov) {
                   ov = await cs.itemWeight(cctxt.context);
                 }
+                const csProperties = await this.loadProviderProperties(cs, cctxt.context);
                 let added = await this.includeCode(cs, null, cs.system(), cs.version(), cc.code, await cs.isAbstract(cctxt.context), await cs.isInactive(cctxt.context), await cs.isDeprecated(cctxt.context), await cs.getStatus(cctxt.context), cds,
-                  await cs.definition(cctxt.context), ov, expansion, valueSets, await cs.extensions(cctxt.context), cc.extension, await cs.properties(cctxt.context), null, excludeInactive, vsSrc.url);
+                  await cs.definition(cctxt.context), ov, expansion, valueSets, await cs.extensions(cctxt.context), cc.extension, csProperties, null, excludeInactive, vsSrc.url);
                 if (added) {
                   this.addToTotal();
                 }
@@ -827,9 +869,7 @@ class ValueSetExpander {
           }
 
           this.worker.opContext.log('iterate filters');
-          while (await cs.filterMore(prep, fset[0])) {
-            this.worker.deadCheck('processCodes#5');
-            const c = await cs.filterConcept(prep, fset[0]);
+          await this.iteratePrimaryFilterSet(cs, prep, fset, async (c) => {
             const ok = (!this.params.activeOnly || !await cs.isInactive(c)) && (await this.passesFilters(cs, c, prep, fset, 1));
             if (ok) {
               // count++;
@@ -842,15 +882,16 @@ class ValueSetExpander {
                 } else {
                   this.canBeHierarchy = false;
                 }
+                const csProperties = await this.loadProviderProperties(cs, c);
                 let added = await this.includeCode(cs, parent, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
                   await cs.isDeprecated(c), await cs.getStatus(c), cds, await cs.definition(c), await cs.itemWeight(c),
-                  expansion, null, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, vsSrc.url);
+                  expansion, null, await cs.extensions(c), null, csProperties, null, excludeInactive, vsSrc.url);
                 if (added) {
                   this.addToTotal();
                 }
               }
             }
-          }
+          }, 'processCodes#5');
           this.worker.opContext.log('iterate filters done');
         }
       }
@@ -878,6 +919,34 @@ class ValueSetExpander {
       // }
     }
     return true;
+  }
+
+  async iteratePrimaryFilterSet(cs, prep, filterSets, onConcept, opTag = 'iterateFilters') {
+    const primary = Array.isArray(filterSets) ? filterSets[0] : filterSets;
+    if (!primary) {
+      return;
+    }
+
+    if (typeof cs.filterPage === 'function') {
+      while (true) {
+        this.worker.deadCheck(opTag);
+        const page = await cs.filterPage(prep, primary, 256);
+        if (!Array.isArray(page) || page.length === 0) {
+          break;
+        }
+        for (const c of page) {
+          this.worker.deadCheck(opTag);
+          await onConcept(c);
+        }
+      }
+      return;
+    }
+
+    while (await cs.filterMore(prep, primary)) {
+      this.worker.deadCheck(opTag);
+      const c = await cs.filterConcept(prep, primary);
+      await onConcept(c);
+    }
   }
 
   async excludeCodes(cset, path, vsSrc, filter, expansion, excludeInactive, notClosed) {
@@ -1017,18 +1086,14 @@ class ValueSetExpander {
         if (await cs.filtersNotClosed(prep)) {
           notClosed.value = true;
         }
-        //let count = 0;
-        while (await cs.filterMore(prep, fset[0])) {
-          this.worker.deadCheck('processCodes#5');
-          const c = await cs.filterConcept(prep, fset[0]);
+        await this.iteratePrimaryFilterSet(cs, prep, fset, async (c) => {
           const ok = (!this.params.activeOnly || !await cs.isInactive(c)) && (await this.passesFilters(cs, c, prep, fset, 1));
           if (ok) {
-            //count++;
             if (this.passesImports(valueSets, await cs.system(), await cs.code(c), 0)) {
               this.excludeCode(cs, await cs.system(), await cs.version(), await cs.code(c), expansion, null, vsSrc.url);
             }
           }
-        }
+        }, 'processCodes#5');
         this.worker.opContext.log('iterate filters finished');
       }
     }
@@ -1052,8 +1117,9 @@ class ValueSetExpander {
     if ((!this.params.excludeNotForUI || !await cs.isAbstract(context)) && (!this.params.activeOnly || !await cs.isInactive(context))) {
       const cds = new Designations(this.worker.i18n.languageDefinitions);
       await this.listDisplaysFromProvider(cds, cs, context);
+      const csProperties = await this.loadProviderProperties(cs, context);
       const t = await this.includeCode(cs, parent, await cs.system(), await cs.version(), context.code, await cs.isAbstract(context), await cs.isInactive(context), await cs.isDeprecated(context), await cs.getStatus(context), cds, await cs.definition(context),
-        await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, await cs.properties(context), null, excludeInactive, srcUrl);
+        await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, csProperties, null, excludeInactive, srcUrl);
       if (t != null) {
         result++;
       }

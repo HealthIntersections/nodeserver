@@ -520,7 +520,7 @@ class TxParameters {
       return v ? '1|' : '0|';
     };
 
-    let s = '|'+this.count+'|'+this.limit+'|'+this.offset+
+    let s = '|'+this.count+'|'+this.limit+'|'+this.offset+'|f='+(this.filter || '')+
       this.FUid + '|' + b(this.FMembershipOnly) + '|' + this.FProperties.join(',') + '|' +
       b(this.FActiveOnly) + b(this.FDisplayWarning) + b(this.FExcludeNested) + b(this.FGenerateNarrative) + b(this.FExcludeNotForUI) + b(this.FExcludePostCoordinated) +
       b(this.FIncludeDesignations) + b(this.FIncludeDefinition) + b(this.hasActiveOnly) + b(this.hasExcludeNested) + b(this.hasGenerateNarrative) +

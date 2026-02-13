@@ -1,0 +1,250 @@
+{
+  "generatedAt": "2026-02-13T04:13:49.106Z",
+  "input": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/captured/tmp-hotspot-4.ndjson",
+  "queryCount": 4,
+  "repeats": 6,
+  "warmup": 1,
+  "pathPrefix": "/r4/",
+  "endpointPath": "/r4",
+  "fhirVersion": "4.0",
+  "targets": [
+    {
+      "name": "main",
+      "repoRoot": "/home/jmandel/hobby/FHIRsmith-main",
+      "librarySource": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/captured/perf-main-two-snomed-mainbranch.yml"
+    },
+    {
+      "name": "convergence",
+      "repoRoot": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence",
+      "librarySource": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/tx/tx.snomed-v0.yml"
+    }
+  ],
+  "cacheModes": [
+    "off"
+  ],
+  "runs": {
+    "main:off": {
+      "startupMs": 3420.4,
+      "requestCount": 24,
+      "statusCounts": {
+        "200": 18,
+        "422": 6
+      },
+      "overallTimings": {
+        "count": 24,
+        "minMs": 2.232,
+        "p50Ms": 7.075,
+        "p95Ms": 24.708,
+        "meanMs": 12.332,
+        "maxMs": 30.537
+      },
+      "perQuery": [
+        {
+          "id": "a678f18b-6244-4dd8-9ad5-42ad457dc90a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 6,
+            "minMs": 4.658,
+            "p50Ms": 5.133,
+            "p95Ms": 7.075,
+            "meanMs": 5.519,
+            "maxMs": 7.075
+          },
+          "statuses": {
+            "200": 6
+          }
+        },
+        {
+          "id": "53d0e436-ce3c-4d8c-b82c-0f9908e9de09",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,valueSet,_limit,_incomplete",
+          "timings": {
+            "count": 6,
+            "minMs": 2.232,
+            "p50Ms": 2.619,
+            "p95Ms": 3.8,
+            "meanMs": 2.762,
+            "maxMs": 3.8
+          },
+          "statuses": {
+            "200": 6
+          }
+        },
+        {
+          "id": "22be7337-2a5c-4004-aeec-4f7b39b8b1a4",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,incomplete-ok,valueSet,_limit,_incomplete",
+          "timings": {
+            "count": 6,
+            "minMs": 14.957,
+            "p50Ms": 15.465,
+            "p95Ms": 20.518,
+            "meanMs": 17.5,
+            "maxMs": 20.518
+          },
+          "statuses": {
+            "422": 6
+          }
+        },
+        {
+          "id": "12af2a21-df61-444b-b4cb-02e5fc9eea6f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 6,
+            "minMs": 20.847,
+            "p50Ms": 21.619,
+            "p95Ms": 30.537,
+            "meanMs": 23.548,
+            "maxMs": 30.537
+          },
+          "statuses": {
+            "200": 6
+          }
+        }
+      ]
+    },
+    "convergence:off": {
+      "startupMs": 2663.63,
+      "requestCount": 24,
+      "statusCounts": {
+        "200": 18,
+        "422": 6
+      },
+      "overallTimings": {
+        "count": 24,
+        "minMs": 2.575,
+        "p50Ms": 27.588,
+        "p95Ms": 58.921,
+        "meanMs": 28.887,
+        "maxMs": 59.584
+      },
+      "perQuery": [
+        {
+          "id": "a678f18b-6244-4dd8-9ad5-42ad457dc90a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 6,
+            "minMs": 15.833,
+            "p50Ms": 17.174,
+            "p95Ms": 36.871,
+            "meanMs": 24.131,
+            "maxMs": 36.871
+          },
+          "statuses": {
+            "200": 6
+          }
+        },
+        {
+          "id": "53d0e436-ce3c-4d8c-b82c-0f9908e9de09",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,valueSet,_limit,_incomplete",
+          "timings": {
+            "count": 6,
+            "minMs": 2.575,
+            "p50Ms": 2.892,
+            "p95Ms": 6.942,
+            "meanMs": 3.656,
+            "maxMs": 6.942
+          },
+          "statuses": {
+            "200": 6
+          }
+        },
+        {
+          "id": "22be7337-2a5c-4004-aeec-4f7b39b8b1a4",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,incomplete-ok,valueSet,_limit,_incomplete",
+          "timings": {
+            "count": 6,
+            "minMs": 25.104,
+            "p50Ms": 28.809,
+            "p95Ms": 36.251,
+            "meanMs": 29.907,
+            "maxMs": 36.251
+          },
+          "statuses": {
+            "422": 6
+          }
+        },
+        {
+          "id": "12af2a21-df61-444b-b4cb-02e5fc9eea6f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 6,
+            "minMs": 56.03,
+            "p50Ms": 57.491,
+            "p95Ms": 59.584,
+            "meanMs": 57.856,
+            "maxMs": 59.584
+          },
+          "statuses": {
+            "200": 6
+          }
+        }
+      ]
+    }
+  },
+  "comparisons": {
+    "off": {
+      "comparedQueries": 4,
+      "fasterConv": 0,
+      "fasterMain": 4,
+      "tie": 0,
+      "absoluteDeltaMs": {
+        "count": 4,
+        "minMs": 0.273,
+        "p50Ms": 12.041,
+        "p95Ms": 35.872,
+        "meanMs": 15.383,
+        "maxMs": 35.872
+      },
+      "largestConvWins": [],
+      "largestMainWins": [
+        {
+          "id": "12af2a21-df61-444b-b4cb-02e5fc9eea6f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "mainP50Ms": 21.619,
+          "convP50Ms": 57.491,
+          "deltaMs": 35.872
+        },
+        {
+          "id": "22be7337-2a5c-4004-aeec-4f7b39b8b1a4",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "mainP50Ms": 15.465,
+          "convP50Ms": 28.809,
+          "deltaMs": 13.344
+        },
+        {
+          "id": "a678f18b-6244-4dd8-9ad5-42ad457dc90a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "mainP50Ms": 5.133,
+          "convP50Ms": 17.174,
+          "deltaMs": 12.041
+        },
+        {
+          "id": "53d0e436-ce3c-4d8c-b82c-0f9908e9de09",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "mainP50Ms": 2.619,
+          "convP50Ms": 2.892,
+          "deltaMs": 0.273
+        }
+      ]
+    }
+  }
+}

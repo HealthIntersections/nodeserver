@@ -46,9 +46,12 @@ class BatchValidateWorker extends TerminologyWorker {
   }
 
   async handleValueSet(req, res) {
+    const priorTraceNotes = this.opContext.traceNotes;
     try {
       let params = req.body;
       this.addHttpParams(req, params);
+
+      this.opContext.traceNotes = this.#shouldTraceBatchNotes(params);
 
       let globalParams = [];
       for (const p of params.parameter) {
@@ -71,7 +74,9 @@ class BatchValidateWorker extends TerminologyWorker {
           }
           op.jsonObj.parameter.push(...p.resource.parameter);
 
-          let worker = new ValidateWorker(this.opContext.copy(), this.log, this.provider, this.languages, this.i18n);
+          // Keep one request-scope operation context so provider-resolution caches
+          // are reused across validations in this batch.
+          let worker = new ValidateWorker(this.opContext, this.log, this.provider, this.languages, this.i18n);
           try {
             let p;
             if (this.hasValueSet(op.jsonObj.parameter)) {
@@ -94,8 +99,10 @@ class BatchValidateWorker extends TerminologyWorker {
       }
       let result = { resourceType : "Parameters", parameter: output}
       req.logInfo = `${output.length} validations`;
+      this.opContext.traceNotes = priorTraceNotes;
       return res.json(result);
     } catch (error) {
+      this.opContext.traceNotes = priorTraceNotes;
       this.log.error(error);
       return res.status(error.statusCode || 500).json(this.operationOutcome(
         'error', error.issueCode || 'exception', error.message));
@@ -121,6 +128,22 @@ class BatchValidateWorker extends TerminologyWorker {
 
   hasValueSet(parameter) {
     return parameter.find(p => p.name == 'url' || p.name == 'valueSet');
+  }
+
+  #shouldTraceBatchNotes(params) {
+    const list = Array.isArray(params?.parameter) ? params.parameter : [];
+    for (const p of list) {
+      if (p?.name !== 'validation' || !p?.resource?.parameter) {
+        continue;
+      }
+      for (const pp of p.resource.parameter) {
+        if (pp?.name === 'diagnostics') {
+          if (pp.valueBoolean === true) return true;
+          if (String(pp.valueString || '').toLowerCase() === 'true') return true;
+        }
+      }
+    }
+    return false;
   }
 }
 

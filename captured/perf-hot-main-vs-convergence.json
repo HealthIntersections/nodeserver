@@ -1,0 +1,291 @@
+{
+  "generatedAt": "2026-02-13T03:38:49.476Z",
+  "input": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/captured/tmp-hot.ndjson",
+  "queryCount": 5,
+  "repeats": 3,
+  "warmup": 0,
+  "pathPrefix": "/r4/",
+  "endpointPath": "/r4",
+  "fhirVersion": "4.0",
+  "targets": [
+    {
+      "name": "main",
+      "repoRoot": "/home/jmandel/hobby/FHIRsmith",
+      "librarySource": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/captured/perf-main-two-snomed.yml"
+    },
+    {
+      "name": "convergence",
+      "repoRoot": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence",
+      "librarySource": "/home/jmandel/hobby/FHIRsmith-tx-mainline-convergence/tx/tx.snomed-v0.yml"
+    }
+  ],
+  "cacheModes": [
+    "off"
+  ],
+  "runs": {
+    "main:off": {
+      "startupMs": 1794.979,
+      "requestCount": 15,
+      "statusCounts": {
+        "200": 15
+      },
+      "overallTimings": {
+        "count": 15,
+        "minMs": 4.931,
+        "p50Ms": 23.502,
+        "p95Ms": 302.294,
+        "meanMs": 111.281,
+        "maxMs": 302.294
+      },
+      "perQuery": [
+        {
+          "id": "22be7337-2a5c-4004-aeec-4f7b39b8b1a4",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,incomplete-ok,valueSet,_limit,_incomplete",
+          "timings": {
+            "count": 3,
+            "minMs": 223.832,
+            "p50Ms": 225.226,
+            "p95Ms": 268.206,
+            "meanMs": 239.088,
+            "maxMs": 268.206
+          },
+          "statuses": {
+            "200": 3
+          }
+        },
+        {
+          "id": "12af2a21-df61-444b-b4cb-02e5fc9eea6f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 3,
+            "minMs": 246.261,
+            "p50Ms": 255.197,
+            "p95Ms": 302.294,
+            "meanMs": 267.917,
+            "maxMs": 302.294
+          },
+          "statuses": {
+            "200": 3
+          }
+        },
+        {
+          "id": "d1ccb6e6-57cc-4656-bc30-318f280a5ff8",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fmedication-codes&filter=zet&incomplete-ok=true",
+          "signature": "GET ValueSet $expand q:filter,incomplete-ok,url b:-",
+          "timings": {
+            "count": 3,
+            "minMs": 18.335,
+            "p50Ms": 18.715,
+            "p95Ms": 19.439,
+            "meanMs": 18.83,
+            "maxMs": 19.439
+          },
+          "statuses": {
+            "200": 3
+          }
+        },
+        {
+          "id": "a678f18b-6244-4dd8-9ad5-42ad457dc90a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 3,
+            "minMs": 4.931,
+            "p50Ms": 7.348,
+            "p95Ms": 11.349,
+            "meanMs": 7.876,
+            "maxMs": 11.349
+          },
+          "statuses": {
+            "200": 3
+          }
+        },
+        {
+          "id": "e7f00960-9f91-47bf-afd8-2ce44edecef6",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 3,
+            "minMs": 20.789,
+            "p50Ms": 23.502,
+            "p95Ms": 23.795,
+            "meanMs": 22.695,
+            "maxMs": 23.795
+          },
+          "statuses": {
+            "200": 3
+          }
+        }
+      ]
+    },
+    "convergence:off": {
+      "startupMs": 2702.576,
+      "requestCount": 15,
+      "statusCounts": {
+        "200": 12,
+        "422": 3
+      },
+      "overallTimings": {
+        "count": 15,
+        "minMs": 28.052,
+        "p50Ms": 80.739,
+        "p95Ms": 418.14,
+        "meanMs": 163.739,
+        "maxMs": 418.14
+      },
+      "perQuery": [
+        {
+          "id": "22be7337-2a5c-4004-aeec-4f7b39b8b1a4",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,incomplete-ok,valueSet,_limit,_incomplete",
+          "timings": {
+            "count": 3,
+            "minMs": 262.456,
+            "p50Ms": 269.946,
+            "p95Ms": 280.202,
+            "meanMs": 270.868,
+            "maxMs": 280.202
+          },
+          "statuses": {
+            "422": 3
+          }
+        },
+        {
+          "id": "12af2a21-df61-444b-b4cb-02e5fc9eea6f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,cache-id,valueSet",
+          "timings": {
+            "count": 3,
+            "minMs": 368.676,
+            "p50Ms": 375.741,
+            "p95Ms": 418.14,
+            "meanMs": 387.519,
+            "maxMs": 418.14
+          },
+          "statuses": {
+            "200": 3
+          }
+        },
+        {
+          "id": "d1ccb6e6-57cc-4656-bc30-318f280a5ff8",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fmedication-codes&filter=zet&incomplete-ok=true",
+          "signature": "GET ValueSet $expand q:filter,incomplete-ok,url b:-",
+          "timings": {
+            "count": 3,
+            "minMs": 77.342,
+            "p50Ms": 80.739,
+            "p95Ms": 82.201,
+            "meanMs": 80.094,
+            "maxMs": 82.201
+          },
+          "statuses": {
+            "200": 3
+          }
+        },
+        {
+          "id": "a678f18b-6244-4dd8-9ad5-42ad457dc90a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation",
+          "timings": {
+            "count": 3,
+            "minMs": 44.111,
+            "p50Ms": 46.327,
+            "p95Ms": 47.463,
+            "meanMs": 45.967,
+            "maxMs": 47.463
+          },
+          "statuses": {
+            "200": 3
+          }
+        },
+        {
+          "id": "e7f00960-9f91-47bf-afd8-2ce44edecef6",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+          "timings": {
+            "count": 3,
+            "minMs": 28.052,
+            "p50Ms": 32.896,
+            "p95Ms": 41.789,
+            "meanMs": 34.246,
+            "maxMs": 41.789
+          },
+          "statuses": {
+            "200": 3
+          }
+        }
+      ]
+    }
+  },
+  "comparisons": {
+    "off": {
+      "comparedQueries": 5,
+      "fasterConv": 0,
+      "fasterMain": 5,
+      "tie": 0,
+      "absoluteDeltaMs": {
+        "count": 5,
+        "minMs": 9.394,
+        "p50Ms": 44.72,
+        "p95Ms": 120.544,
+        "meanMs": 55.132,
+        "maxMs": 120.544
+      },
+      "largestConvWins": [],
+      "largestMainWins": [
+        {
+          "id": "12af2a21-df61-444b-b4cb-02e5fc9eea6f",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand",
+          "mainP50Ms": 255.197,
+          "convP50Ms": 375.741,
+          "deltaMs": 120.544
+        },
+        {
+          "id": "d1ccb6e6-57cc-4656-bc30-318f280a5ff8",
+          "method": "GET",
+          "url": "/r4/ValueSet/$expand?url=http%3A%2F%2Fhl7.org%2Ffhir%2FValueSet%2Fmedication-codes&filter=zet&incomplete-ok=true",
+          "mainP50Ms": 18.715,
+          "convP50Ms": 80.739,
+          "deltaMs": 62.024
+        },
+        {
+          "id": "22be7337-2a5c-4004-aeec-4f7b39b8b1a4",
+          "method": "POST",
+          "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+          "mainP50Ms": 225.226,
+          "convP50Ms": 269.946,
+          "deltaMs": 44.72
+        },
+        {
+          "id": "a678f18b-6244-4dd8-9ad5-42ad457dc90a",
+          "method": "POST",
+          "url": "/r4/ValueSet/$batch-validate-code?",
+          "mainP50Ms": 7.348,
+          "convP50Ms": 46.327,
+          "deltaMs": 38.979
+        },
+        {
+          "id": "e7f00960-9f91-47bf-afd8-2ce44edecef6",
+          "method": "POST",
+          "url": "/r4/ValueSet/$validate-code?",
+          "mainP50Ms": 23.502,
+          "convP50Ms": 32.896,
+          "deltaMs": 9.394
+        }
+      ]
+    }
+  }
+}

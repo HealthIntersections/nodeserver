@@ -592,6 +592,22 @@ class CodeSystemProvider {
   async filterConcept(filterContext, set) {throw new Error("Must override"); }
 
   /**
+   * Optional batched filter iterator for providers that can return multiple
+   * contexts efficiently. Return `null` or `[]` when unsupported/exhausted.
+   *
+   @param {FilterExecutionContext} filterContext filtering context
+   @param {FilterConceptSet} set of interest
+   @param {number} count max concepts to return
+   @returns {CodeSystemProviderContext[] | null}
+   */
+  async filterPage(filterContext, set, count) {
+    void filterContext;
+    void set;
+    void count;
+    return null;
+  }
+
+  /**
    * filterLocate - instead of iterating, find a code in the FilterConceptSet
    *
    @param {FilterExecutionContext} filterContext filtering context
