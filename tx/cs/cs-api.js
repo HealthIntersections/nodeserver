@@ -436,6 +436,20 @@ class CodeSystemProvider {
   async locate(code) { throw new Error("Must override"); }
 
   /**
+   * Optional bulk lookup for providers that can resolve many codes efficiently.
+   * Returns a map of code => { context, message }. Return null when unsupported.
+   *
+   * @param {string[]} codes
+   * @param {boolean} allAltCodes
+   * @returns {Map<string, {context: CodeSystemProviderContext|null, message: string|null}>|null}
+   */
+  async locateMany(codes, allAltCodes = false) {
+    void codes;
+    void allAltCodes;
+    return null;
+  }
+
+  /**
    
    * @param {string} code
    * @param {string} parent

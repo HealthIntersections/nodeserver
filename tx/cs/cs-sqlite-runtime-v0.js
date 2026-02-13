@@ -387,7 +387,8 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     };
   }
 
-  async locateBatch(codes) {
+  async locateMany(codes, allAltCodes = false) {
+    void allAltCodes;
     const out = new Map();
     if (!Array.isArray(codes) || codes.length === 0) {
       return out;
@@ -435,6 +436,11 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     }
 
     return out;
+  }
+
+  // Backward-compat alias while workers migrate to locateMany.
+  async locateBatch(codes, allAltCodes = false) {
+    return this.locateMany(codes, allAltCodes);
   }
 
   async locateIsA(code, parent, disallowParent = false) {

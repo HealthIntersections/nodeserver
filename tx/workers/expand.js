@@ -313,6 +313,48 @@ class ValueSetExpander {
     return true;
   }
 
+  async resolveConceptLookupMap(cs, conceptRefs) {
+    if (!cs || !Array.isArray(conceptRefs) || conceptRefs.length < 50) {
+      return null;
+    }
+
+    const codes = [];
+    const seen = new Set();
+    for (const ref of conceptRefs) {
+      const code = String(ref?.code || '');
+      if (!code || seen.has(code)) continue;
+      seen.add(code);
+      codes.push(code);
+    }
+    if (codes.length === 0) {
+      return null;
+    }
+
+    let bulkResult = null;
+    if (typeof cs.locateMany === 'function') {
+      bulkResult = await cs.locateMany(codes, this.allAltCodes);
+    } else if (typeof cs.locateBatch === 'function') {
+      bulkResult = await cs.locateBatch(codes, this.allAltCodes);
+    }
+
+    if (bulkResult instanceof Map) {
+      return bulkResult;
+    }
+    if (bulkResult && typeof bulkResult === 'object' && !Array.isArray(bulkResult)) {
+      return new Map(Object.entries(bulkResult));
+    }
+    if (Array.isArray(bulkResult)) {
+      const map = new Map();
+      for (const row of bulkResult) {
+        if (!row || !row.code) continue;
+        map.set(String(row.code), row.result ?? row.value ?? row.located ?? row);
+      }
+      return map;
+    }
+
+    return null;
+  }
+
   useDesignation(cd) {
     if (!this.params.hasDesignations) {
       return true;
@@ -817,16 +859,13 @@ class ValueSetExpander {
         if (cset.concept) {
           this.worker.opContext.log('iterate concepts');
           const cds = new Designations(this.worker.i18n.languageDefinitions);
-          let conceptBatch = null;
-          if (typeof cs.locateBatch === 'function' && cset.concept.length > 50) {
-            conceptBatch = await cs.locateBatch(cset.concept.map((cc) => cc.code), this.allAltCodes);
-          }
+          const conceptBatch = await this.resolveConceptLookupMap(cs, cset.concept);
 
           for (const cc of cset.concept) {
             this.worker.deadCheck('processCodes#3');
             cds.clear();
             Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference');
-            const cctxt = conceptBatch?.get?.(cc.code) || await cs.locate(cc.code, this.allAltCodes);
+            const cctxt = conceptBatch ? conceptBatch.get(cc.code) : await cs.locate(cc.code, this.allAltCodes);
             if (cctxt && cctxt.context && (!this.params.activeOnly || !await cs.isInactive(cctxt.context)) && await this.passesFilters(cs, cctxt.context, prep, filters, 0)) {
               await this.listDisplaysFromProvider(cds, cs, cctxt.context);
               this.listDisplaysFromIncludeConcept(cds, cc, vsSrc);
@@ -1055,15 +1094,12 @@ class ValueSetExpander {
       if (cset.concept) {
         this.worker.opContext.log('iterate concepts');
         const cds = new Designations(this.worker.i18n.languageDefinitions);
-        let conceptBatch = null;
-        if (typeof cs.locateBatch === 'function' && cset.concept.length > 50) {
-          conceptBatch = await cs.locateBatch(cset.concept.map((cc) => cc.code), this.allAltCodes);
-        }
+        const conceptBatch = await this.resolveConceptLookupMap(cs, cset.concept);
         for (const cc of cset.concept) {
           this.worker.deadCheck('processCodes#3');
           cds.clear();
           Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference');
-          const cctxt = conceptBatch?.get?.(cc.code) || await cs.locate(cc.code, this.allAltCodes);
+          const cctxt = conceptBatch ? conceptBatch.get(cc.code) : await cs.locate(cc.code, this.allAltCodes);
           if (cctxt && cctxt.context && (!this.params.activeOnly || !await cs.isInactive(cctxt)) && await this.passesFilters(cs, cctxt, prep, filters, 0)) {
             if (filter.passesDesignations(cds) || filter.passes(cc.code)) {
               let ov = Extensions.readString(cc, 'http://hl7.org/fhir/StructureDefinition/itemWeight');
