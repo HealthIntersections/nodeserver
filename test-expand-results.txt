@@ -1,0 +1,19 @@
+=== expandForValueSet test results ===
+Date: 2026-02-20T23:01:38.110Z
+Tests: 13 (full)
+
+Test                          | New (ms) | Old (ms) | Speedup | Codes | Result
+------------------------------|----------|----------|---------|-------|-------
+filter-tty-sbd-10             |      6.8 |    248.7 |  36.5x  |    10 | ✅ exact
+concept-5                     |      2.5 |      3.8 |   1.5x  |     5 | ✅ exact
+exclude-concepts-3            |      3.2 |    235.2 |  73.8x  |    10 | ✅ exact
+multi-include-2               |     63.9 |    471.0 |   7.4x  |    10 | ✅ page order differs, sets equal (40000 codes)
+activeonly-sbd                |      2.2 |    202.5 |  93.4x  |    10 | ✅ exact
+filter-tty-in-multi           |      1.4 |    476.0 | 341.6x  |    10 | ✅ exact
+filter-sty-t200               |    217.1 |   1521.6 |   7.0x  |    10 | ✅ exact
+paged-offset-100              |      1.3 |    228.2 | 177.4x  |    10 | ✅ exact
+text-aspirin                  |      1.8 |  TIMEOUT |     ∞  |    10 | ⏱️ baseline timeout (opt OK: 10 codes)
+exclude-filter                |      3.9 |    320.5 |  83.2x  |    10 | ✅ exact
+multi-include-concept+filter  |    140.2 |    189.5 |   1.4x  |    10 | ✅ page order differs, sets equal (23256 codes)
+combo-active-text-paged       |      1.4 |  TIMEOUT |     ∞  |     5 | ⏱️ baseline timeout (opt OK: 5 codes)
+multi-include-multi-exclude   |     99.7 |    673.7 |   6.8x  |    10 | ✅ page order differs, sets equal (40000 codes)
