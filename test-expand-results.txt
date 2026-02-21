@@ -1,19 +1,19 @@
 === expandForValueSet test results ===
-Date: 2026-02-20T23:01:38.110Z
+Date: 2026-02-21T03:19:10.352Z
 Tests: 13 (full)
 
 Test                          | New (ms) | Old (ms) | Speedup | Codes | Result
 ------------------------------|----------|----------|---------|-------|-------
-filter-tty-sbd-10             |      6.8 |    248.7 |  36.5x  |    10 | ✅ exact
-concept-5                     |      2.5 |      3.8 |   1.5x  |     5 | ✅ exact
-exclude-concepts-3            |      3.2 |    235.2 |  73.8x  |    10 | ✅ exact
-multi-include-2               |     63.9 |    471.0 |   7.4x  |    10 | ✅ page order differs, sets equal (40000 codes)
-activeonly-sbd                |      2.2 |    202.5 |  93.4x  |    10 | ✅ exact
-filter-tty-in-multi           |      1.4 |    476.0 | 341.6x  |    10 | ✅ exact
-filter-sty-t200               |    217.1 |   1521.6 |   7.0x  |    10 | ✅ exact
-paged-offset-100              |      1.3 |    228.2 | 177.4x  |    10 | ✅ exact
-text-aspirin                  |      1.8 |  TIMEOUT |     ∞  |    10 | ⏱️ baseline timeout (opt OK: 10 codes)
-exclude-filter                |      3.9 |    320.5 |  83.2x  |    10 | ✅ exact
-multi-include-concept+filter  |    140.2 |    189.5 |   1.4x  |    10 | ✅ page order differs, sets equal (23256 codes)
-combo-active-text-paged       |      1.4 |  TIMEOUT |     ∞  |     5 | ⏱️ baseline timeout (opt OK: 5 codes)
-multi-include-multi-exclude   |     99.7 |    673.7 |   6.8x  |    10 | ✅ page order differs, sets equal (40000 codes)
+filter-tty-sbd-10             |      9.0 |    253.2 |  28.2x  |    10 | ✅ exact
+concept-5                     |      2.0 |      2.8 |   1.4x  |     5 | ✅ exact
+exclude-concepts-3            |     67.9 |    215.1 |   3.2x  |    10 | ✅ exact
+multi-include-2               |     74.2 |    471.9 |   6.4x  |    10 | ✅ page order differs, sets equal (40000 codes)
+activeonly-sbd                |      2.8 |    283.9 | 101.6x  |    10 | ✅ exact
+filter-tty-in-multi           |      2.0 |    556.3 | 274.0x  |    10 | ✅ exact
+filter-sty-t200               |    318.5 |      0.7 |   0.0x  |     2 | ✅ exact
+paged-offset-100              |      1.4 |    197.0 | 143.7x  |    10 | ✅ exact
+text-aspirin                  |      0.9 |      0.7 |   0.7x  |    10 | ✅ exact
+exclude-filter                |     43.4 |    299.7 |   6.9x  |    10 | ✅ exact
+multi-include-concept+filter  |     29.2 |    192.1 |   6.6x  |    10 | ✅ page order differs, sets equal (23256 codes)
+combo-active-text-paged       |      1.9 |  TIMEOUT |     ∞  |     5 | ⏱️ baseline timeout (opt OK: 5 codes)
+multi-include-multi-exclude   |    126.9 |    833.5 |   6.6x  |    10 | ✅ page order differs, sets equal (40000 codes)

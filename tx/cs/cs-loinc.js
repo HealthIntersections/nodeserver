@@ -1215,6 +1215,22 @@ class LoincServices extends BaseCSServices {
         const placeholders = exc.concepts.map((_, j) => `@_ec${i}_${j}`).join(',');
         excludeSql += ` AND Code NOT IN (${placeholders})`;
         exc.concepts.forEach((cc, j) => { allParams[`_ec${i}_${j}`] = cc.code; });
+      } else if (exc.filters && exc.filters.length > 0) {
+        let exJoins = '';
+        let exWhere = '';
+        let exGroupBy = false;
+        for (let j = 0; j < exc.filters.length; j++) {
+          const result = this.#buildLoincFilterSql(exc.filters[j], `e${i}f${j}`);
+          if (!result) continue; // unsupported filter — worker's isExcluded handles it
+          exWhere += result.where;
+          if (result.joins) exJoins += result.joins;
+          if (result.needsGroupBy) exGroupBy = true;
+          Object.assign(allParams, result.params);
+        }
+        if (exWhere || exJoins) {
+          const gb = exGroupBy ? ' GROUP BY c.CodeKey' : '';
+          excludeSql += ` AND Code NOT IN (SELECT c.Code FROM Codes c${exJoins} WHERE 1=1${exWhere}${gb})`;
+        }
       }
     }
 

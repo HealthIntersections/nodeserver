@@ -634,6 +634,7 @@ class RxNormServices extends CodeSystemProvider {
     let sql = '';
     let joins = '';
     const params = {};
+    const codeField = this.getCodeField();
     for (let i = 0; i < filters.length; i++) {
       const f = filters[i];
       const prop = f.property.toUpperCase();
@@ -648,14 +649,11 @@ class RxNormServices extends CodeSystemProvider {
         sql += ` AND rxnconso.TTY IN (${placeholders})`;
         values.forEach((val, j) => { params[`${pfx}_tty${j}`] = val; });
       } else if (f.op === '=' && prop === 'STY') {
-        // Use JOIN for STY — planner drives from rxnsty via X_RXNSTY_2(TUI)
-        // then probes rxnconso via X_RXNCONSO_1(RXCUI), much faster than
-        // IN-subquery which scans all RXNORM rows via X_RXNCONSO_2(SAB)
         const alias = `_sty${pfx}`;
-        joins += ` JOIN rxnsty ${alias} ON ${alias}.RXCUI = rxnconso.${this.getCodeField()} AND ${alias}.TUI = @${pfx}_sty`;
+        joins += ` JOIN rxnsty ${alias} ON ${alias}.RXCUI = rxnconso.${codeField} AND ${alias}.TUI = @${pfx}_sty`;
         params[`${pfx}_sty`] = f.value;
       } else if (f.op === '=' && prop === 'SAB') {
-        sql += ` AND ${this.getCodeField()} IN (SELECT ${this.getCodeField()} FROM rxnconso WHERE SAB = @${pfx}_sab)`;
+        sql += ` AND rxnconso.${codeField} IN (SELECT ${codeField} FROM rxnconso WHERE SAB = @${pfx}_sab)`;
         params[`${pfx}_sab`] = f.value;
       } else {
         return null; // Unsupported filter — fall back
@@ -676,59 +674,57 @@ class RxNormServices extends CodeSystemProvider {
     const sys = this.system();
     const ver = this.version();
 
-    // Build include clauses — each include becomes a condition group, OR'd together
-    const includeGroups = [];
-    let joinClauses = '';
+    // Build each include/exclude as a SELECT, combine with UNION/EXCEPT.
+    // This lets SQLite use the same #buildFilterSql for both sides and
+    // avoids NOT IN subqueries that block the event loop.
+    const selectParts = [];
     const allParams = { _sab: sab };
 
     // Track concept codes for archive fallback
     const conceptCodes = new Set();
-    let conceptOnly = true; // true if all includes are concept lists (no filters)
-    let needsGroupBy = false;
+    let conceptOnly = true;
+
+    const baseCols = `rxnconso.${codeField}, rxnconso.STR, rxnconso.SUPPRESS`;
 
     for (let i = 0; i < spec.includes.length; i++) {
       const inc = spec.includes[i];
-
       if (inc.concepts && inc.concepts.length > 0) {
-        // Explicit code list
         const placeholders = inc.concepts.map((_, j) => `@_ic${i}_${j}`).join(',');
-        includeGroups.push(`rxnconso.${codeField} IN (${placeholders})`);
+        const indexHint = ' INDEXED BY X_RXNCONSO_1';
+        selectParts.push(`SELECT ${baseCols} FROM rxnconso${indexHint} WHERE rxnconso.SAB = @_sab AND rxnconso.TTY <> 'SY' AND rxnconso.${codeField} IN (${placeholders})`);
         inc.concepts.forEach((cc, j) => {
           allParams[`_ic${i}_${j}`] = cc.code;
           conceptCodes.add(cc.code);
         });
       } else if (inc.filters && inc.filters.length > 0) {
         conceptOnly = false;
-        // Filter-based
         const result = this.#buildFilterSql(inc.filters, `_i${i}`);
-        if (!result) return null; // Unsupported filter — fall back entirely
-        // The filter SQL starts with " AND ..." so strip the leading AND for the group
-        includeGroups.push('(1=1' + result.sql + ')');
-        if (result.joins) joinClauses += result.joins;
-        if (result.needsGroupBy) needsGroupBy = true;
+        if (!result) return null;
+        selectParts.push(`SELECT ${baseCols} FROM rxnconso${result.joins || ''} WHERE rxnconso.SAB = @_sab AND rxnconso.TTY <> 'SY'${result.sql}`);
         Object.assign(allParams, result.params);
       } else {
         return null; // Bare "whole code system" — fall back
       }
     }
 
-    if (includeGroups.length === 0) return null;
+    if (selectParts.length === 0) return null;
 
-    // Build exclude clause
-    let excludeSql = '';
+    // Combine includes with UNION
+    let sql = selectParts.length === 1
+      ? selectParts[0]
+      : selectParts.join(' UNION ');
+
+    // Each exclude becomes an EXCEPT SELECT
     for (let i = 0; i < spec.excludes.length; i++) {
       const exc = spec.excludes[i];
       if (exc.concepts && exc.concepts.length > 0) {
         const placeholders = exc.concepts.map((_, j) => `@_ec${i}_${j}`).join(',');
-        excludeSql += ` AND rxnconso.${codeField} NOT IN (${placeholders})`;
+        sql += ` EXCEPT SELECT ${baseCols} FROM rxnconso WHERE rxnconso.SAB = @_sab AND rxnconso.${codeField} IN (${placeholders})`;
         exc.concepts.forEach((cc, j) => { allParams[`_ec${i}_${j}`] = cc.code; });
       } else if (exc.filters && exc.filters.length > 0) {
         const result = this.#buildFilterSql(exc.filters, `_e${i}`);
-        if (!result) {
-          // Can't push this exclude to SQL — worker's isExcluded will handle it
-          continue;
-        }
-        excludeSql += ` AND rxnconso.${codeField} NOT IN (SELECT rxnconso.${codeField} FROM rxnconso${result.joins || ''} WHERE rxnconso.SAB = @_sab AND rxnconso.TTY <> 'SY' ${result.sql})`;
+        if (!result) continue; // Can't push — worker's isExcluded will handle
+        sql += ` EXCEPT SELECT ${baseCols} FROM rxnconso${result.joins || ''} WHERE rxnconso.SAB = @_sab AND rxnconso.TTY <> 'SY'${result.sql}`;
         Object.assign(allParams, result.params);
       }
     }
@@ -736,31 +732,17 @@ class RxNormServices extends CodeSystemProvider {
     // activeOnly
     let activeSql = '';
     if (spec.activeOnly) {
-      activeSql = ` AND rxnconso.SUPPRESS <> '1'`;
+      activeSql = ` AND SUPPRESS <> '1'`;
     }
 
     // searchText (basic LIKE match on STR)
     if (spec.searchText) {
-      activeSql += ` AND rxnconso.STR LIKE @_searchText`;
+      activeSql += ` AND STR LIKE @_searchText`;
       allParams._searchText = `%${spec.searchText}%`;
     }
 
-    // Combine: SELECT ... WHERE SAB=? AND TTY<>'SY' AND (include1 OR include2) AND NOT excludes
-    const includeCondition = includeGroups.length === 1
-      ? includeGroups[0]
-      : '(' + includeGroups.join(' OR ') + ')';
-
-    // For concept-only queries, hint the planner to use the RXCUI index
-    // (otherwise it picks the SAB index and scans all RXNORM rows)
-    const indexHint = conceptOnly ? ' INDEXED BY X_RXNCONSO_1' : '';
-
-    let sql = `SELECT rxnconso.${codeField}, rxnconso.STR, rxnconso.SUPPRESS FROM rxnconso${indexHint}${joinClauses}`
-      + ` WHERE rxnconso.SAB = @_sab AND rxnconso.TTY <> 'SY'`
-      + ` AND ${includeCondition}`
-      + excludeSql
-      + activeSql
-      + (needsGroupBy ? ` GROUP BY rxnconso.${codeField}` : '')
-      + ` ORDER BY rxnconso.${codeField}`;
+    // Wrap with outer query for ordering, filtering, paging
+    sql = `SELECT ${codeField}, STR, SUPPRESS FROM (${sql}) WHERE 1=1${activeSql} ORDER BY ${codeField}`;
 
     // Paging — SQL handles offset directly so the framework doesn't re-skip
     if (spec.count != null && spec.count > 0) {
@@ -776,7 +758,7 @@ class RxNormServices extends CodeSystemProvider {
       const seen = new Set();
       for (const row of stmt.iterate(allParams)) {
         const code = row[codeField];
-        if (seen.has(code)) continue; // dedup (e.g. STY JOIN produces duplicates)
+        if (seen.has(code)) continue;
         seen.add(code);
         yield {
           code: row[codeField],
