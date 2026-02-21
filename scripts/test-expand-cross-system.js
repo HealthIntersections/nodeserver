@@ -23,27 +23,9 @@ const PORT = 3000;
 const BASE_URL = `http://localhost:${PORT}/r4`;
 const SERVER_START_TIMEOUT = 300000;
 const LIBRARY_CONFIG = 'tx/tx.rxnorm-loinc.yml';
-const CONFIG_PATH = path.join(__dirname, '..', 'data', 'config.json');
 
 const RXSYS = 'http://www.nlm.nih.gov/research/umls/rxnorm';
 const LNSYS = 'http://loinc.org';
-
-// --- Config patching ---
-let origLibrarySource;
-
-function patchConfig() {
-  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-  origLibrarySource = config.modules.tx.librarySource;
-  config.modules.tx.librarySource = LIBRARY_CONFIG;
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-}
-
-function restoreConfig() {
-  if (!origLibrarySource) return;
-  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-  config.modules.tx.librarySource = origLibrarySource;
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-}
 
 // --- Test helpers ---
 function makeVS(compose) {
@@ -169,42 +151,42 @@ const RXNORM_TESTS = [
 const LOINC_TESTS = [
   {
     name: 'ln-exclude-filter-partial',
-    desc: 'Include CLASS=CHEM, exclude COMPONENT=Glucose (partial)',
+    desc: 'Include CLASS=LP7786-9, exclude COMPONENT=LP14635-4 (partial)',
     drainCount: 5000,
     body: makeVS({
-      include: [{ system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] }],
-      exclude: [{ system: LNSYS, filter: [{ property: 'COMPONENT', op: '=', value: 'Glucose' }] }],
+      include: [{ system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'LP7786-9' }] }],
+      exclude: [{ system: LNSYS, filter: [{ property: 'COMPONENT', op: '=', value: 'LP14635-4' }] }],
       _params: [{ name: 'count', valueInteger: 10 }],
     }),
   },
   {
     name: 'ln-exclude-same-filter',
-    desc: 'Include CLASS=CHEM, exclude CLASS=CHEM (full cover → 0 results)',
+    desc: 'Include CLASS=LP7786-9, exclude CLASS=LP7786-9 (full cover → 0)',
     body: makeVS({
-      include: [{ system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] }],
-      exclude: [{ system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] }],
+      include: [{ system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'LP7786-9' }] }],
+      exclude: [{ system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'LP7786-9' }] }],
       _params: [{ name: 'count', valueInteger: 10 }],
     }),
   },
   {
     name: 'ln-exclude-disjoint',
-    desc: 'Include CLASS=CHEM, exclude CLASS=MICRO (disjoint → no effect)',
+    desc: 'Include CLASS=LP7786-9, exclude CLASS=LP7819-8 (disjoint)',
     drainCount: 5000,
     body: makeVS({
-      include: [{ system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] }],
-      exclude: [{ system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'MICRO' }] }],
+      include: [{ system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'LP7786-9' }] }],
+      exclude: [{ system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'LP7819-8' }] }],
       _params: [{ name: 'count', valueInteger: 10 }],
     }),
   },
   {
     name: 'ln-concepts-exclude-filter',
-    desc: '5 LOINC codes include, exclude CLASS=CHEM (removes CHEM members)',
+    desc: '5 LOINC codes include, exclude CLASS=LP7786-9 (removes CHEM)',
     body: makeVS({
       include: [{ system: LNSYS, concept: [
         { code: '2339-0' }, { code: '2345-7' }, { code: '718-7' },
         { code: '4548-4' }, { code: '14749-6' },
       ]}],
-      exclude: [{ system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] }],
+      exclude: [{ system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'LP7786-9' }] }],
     }),
   },
   {
@@ -213,11 +195,11 @@ const LOINC_TESTS = [
     drainCount: 8000,
     body: makeVS({
       include: [
-        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] },
-        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'HEM/BC' }] },
+        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'LP7786-9' }] },
+        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'LP7803-2' }] },
       ],
       exclude: [
-        { system: LNSYS, filter: [{ property: 'COMPONENT', op: '=', value: 'Glucose' }] },
+        { system: LNSYS, filter: [{ property: 'COMPONENT', op: '=', value: 'LP14635-4' }] },
         { system: LNSYS, concept: [{ code: '2339-0' }, { code: '2345-7' }, { code: '718-7' }] },
       ],
       _params: [{ name: 'count', valueInteger: 10 }],
@@ -236,7 +218,7 @@ const CROSS_SYSTEM_TESTS = [
     body: makeVS({
       include: [
         { system: RXSYS, filter: [{ property: 'TTY', op: '=', value: 'SBD' }] },
-        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] },
+        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'LP7786-9' }] },
       ],
       _params: [{ name: 'count', valueInteger: 10 }],
     }),
@@ -248,10 +230,10 @@ const CROSS_SYSTEM_TESTS = [
     body: makeVS({
       include: [
         { system: RXSYS, filter: [{ property: 'TTY', op: '=', value: 'SBD' }] },
-        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] },
+        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'LP7786-9' }] },
       ],
       exclude: [
-        { system: LNSYS, filter: [{ property: 'COMPONENT', op: '=', value: 'Glucose' }] },
+        { system: LNSYS, filter: [{ property: 'COMPONENT', op: '=', value: 'LP14635-4' }] },
       ],
       _params: [{ name: 'count', valueInteger: 10 }],
     }),
@@ -262,7 +244,7 @@ const CROSS_SYSTEM_TESTS = [
     drainCount: 30000,
     body: makeVS({
       include: [
-        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] },
+        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'LP7786-9' }] },
         { system: RXSYS, filter: [{ property: 'TTY', op: '=', value: 'SBD' }] },
       ],
       exclude: [
@@ -302,11 +284,11 @@ const CROSS_SYSTEM_TESTS = [
     body: makeVS({
       include: [
         { system: RXSYS, filter: [{ property: 'TTY', op: '=', value: 'SBD' }] },
-        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'CHEM' }] },
+        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'LP7786-9' }] },
       ],
       exclude: [
         { system: RXSYS, filter: [{ property: 'STY', op: '=', value: 'T200' }] },
-        { system: LNSYS, filter: [{ property: 'COMPONENT', op: '=', value: 'Glucose' }] },
+        { system: LNSYS, filter: [{ property: 'COMPONENT', op: '=', value: 'LP14635-4' }] },
       ],
       _params: [{ name: 'count', valueInteger: 10 }],
     }),
@@ -317,7 +299,7 @@ const CROSS_SYSTEM_TESTS = [
     body: makeVS({
       include: [
         { system: RXSYS, concept: [{ code: '197381' }, { code: '197382' }, { code: '313782' }] },
-        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'HEM/BC' }] },
+        { system: LNSYS, filter: [{ property: 'CLASS', op: '=', value: 'LP7803-2' }] },
       ],
       exclude: [
         { system: LNSYS, concept: [{ code: '718-7' }] },
@@ -436,8 +418,7 @@ async function main() {
   const serverDir = path.resolve(__dirname, '..');
 
   log(`Running ${testList.length} tests`);
-  log('Patching config for RxNorm+LOINC library...');
-  patchConfig();
+  log(`Using library: ${LIBRARY_CONFIG}`);
 
   let server;
   try {
@@ -445,7 +426,7 @@ async function main() {
     server = spawn('node', ['server.js'], {
       cwd: serverDir,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, NODE_ENV: 'test' },
+      env: { ...process.env, NODE_ENV: 'test', TX_LIBRARY_SOURCE: LIBRARY_CONFIG },
     });
     server.stdout.on('data', () => {});
     server.stderr.on('data', () => {});
@@ -570,7 +551,6 @@ async function main() {
     log(`Results written to ${outPath}`);
 
   } finally {
-    restoreConfig();
     if (server) {
       server.kill('SIGTERM');
       await new Promise(r => setTimeout(r, 1000));
@@ -580,6 +560,5 @@ async function main() {
 
 main().catch(err => {
   console.error(err);
-  restoreConfig();
   process.exit(1);
 });

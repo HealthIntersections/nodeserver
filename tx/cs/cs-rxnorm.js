@@ -675,14 +675,13 @@ class RxNormServices extends CodeSystemProvider {
     const ver = this.version();
 
     // Build each include/exclude as a SELECT, combine with UNION/EXCEPT.
-    // This lets SQLite use the same #buildFilterSql for both sides and
-    // avoids NOT IN subqueries that block the event loop.
+    // Archive fallback for retired concept codes is folded into the SQL via
+    // UNION against RXNATOMARCHIVE — no JS-side tracking needed.
     const selectParts = [];
     const allParams = { _sab: sab };
 
-    // Track concept codes for archive fallback
-    const conceptCodes = new Set();
-    let conceptOnly = true;
+    // Collect all included concept code placeholders for archive UNION
+    const conceptPlaceholders = [];
 
     const baseCols = `rxnconso.${codeField}, rxnconso.STR, rxnconso.SUPPRESS`;
 
@@ -694,10 +693,9 @@ class RxNormServices extends CodeSystemProvider {
         selectParts.push(`SELECT ${baseCols} FROM rxnconso${indexHint} WHERE rxnconso.SAB = @_sab AND rxnconso.TTY <> 'SY' AND rxnconso.${codeField} IN (${placeholders})`);
         inc.concepts.forEach((cc, j) => {
           allParams[`_ic${i}_${j}`] = cc.code;
-          conceptCodes.add(cc.code);
+          conceptPlaceholders.push(`@_ic${i}_${j}`);
         });
       } else if (inc.filters && inc.filters.length > 0) {
-        conceptOnly = false;
         const result = this.#buildFilterSql(inc.filters, `_i${i}`);
         if (!result) return null;
         selectParts.push(`SELECT ${baseCols} FROM rxnconso${result.joins || ''} WHERE rxnconso.SAB = @_sab AND rxnconso.TTY <> 'SY'${result.sql}`);
@@ -709,7 +707,19 @@ class RxNormServices extends CodeSystemProvider {
 
     if (selectParts.length === 0) return null;
 
-    // Combine includes with UNION
+    // Archive fallback: concept codes not in rxnconso may be retired.
+    // UNION them in from RXNATOMARCHIVE so SQL handles it in one pass.
+    if (conceptPlaceholders.length > 0) {
+      const archIn = conceptPlaceholders.join(',');
+      selectParts.push(
+        `SELECT a.${codeField}, a.STR, '1' AS SUPPRESS FROM RXNATOMARCHIVE a`
+        + ` WHERE a.${codeField} IN (${archIn}) AND a.SAB = @_sab AND a.TTY <> 'SY'`
+        + ` AND a.${codeField} NOT IN (SELECT ${codeField} FROM rxnconso WHERE SAB = @_sab AND TTY <> 'SY' AND ${codeField} IN (${archIn}))`
+        + ` GROUP BY a.${codeField}`
+      );
+    }
+
+    // Combine includes (+ archive) with UNION
     let sql = selectParts.length === 1
       ? selectParts[0]
       : selectParts.join(' UNION ');
@@ -719,7 +729,9 @@ class RxNormServices extends CodeSystemProvider {
       const exc = spec.excludes[i];
       if (exc.concepts && exc.concepts.length > 0) {
         const placeholders = exc.concepts.map((_, j) => `@_ec${i}_${j}`).join(',');
+        // EXCEPT against both rxnconso and archive so excluded codes are removed from either source
         sql += ` EXCEPT SELECT ${baseCols} FROM rxnconso WHERE rxnconso.SAB = @_sab AND rxnconso.${codeField} IN (${placeholders})`;
+        sql += ` EXCEPT SELECT a.${codeField}, a.STR, '1' FROM RXNATOMARCHIVE a WHERE a.SAB = @_sab AND a.${codeField} IN (${placeholders})`;
         exc.concepts.forEach((cc, j) => { allParams[`_ec${i}_${j}`] = cc.code; });
       } else if (exc.filters && exc.filters.length > 0) {
         const result = this.#buildFilterSql(exc.filters, `_e${i}`);
@@ -760,51 +772,21 @@ class RxNormServices extends CodeSystemProvider {
         const code = row[codeField];
         if (seen.has(code)) continue;
         seen.add(code);
+        const isArchived = row.SUPPRESS === '1';
         yield {
-          code: row[codeField],
+          code,
           display: row.STR,
           system: sys,
           version: ver,
           isAbstract: false,
-          isInactive: row.SUPPRESS === '1',
+          isInactive: isArchived,
           isDeprecated: false,
-          status: row.SUPPRESS === '1' ? 'inactive' : 'active',
+          status: isArchived ? 'inactive' : 'active',
           definition: null,
           designations: [],
           properties: null,
           extensions: null,
         };
-      }
-      // Archive fallback for explicit concept codes not found in rxnconso
-      if (conceptCodes.size > 0) {
-        const missing = [...conceptCodes].filter(c => !seen.has(c));
-        if (missing.length > 0) {
-          const archPlaceholders = missing.map((_, i) => `@_arch${i}`).join(',');
-          const archParams = {};
-          missing.forEach((c, i) => { archParams[`_arch${i}`] = c; });
-          archParams._archSab = sab;
-          const archSql = `SELECT ${codeField}, STR FROM RXNATOMARCHIVE`
-            + ` WHERE ${codeField} IN (${archPlaceholders}) AND SAB = @_archSab AND TTY <> 'SY'`
-            + ` GROUP BY ${codeField}`
-            + ` ORDER BY ${codeField}`;
-          const archStmt = syncDb.prepare(archSql);
-          for (const row of archStmt.iterate(archParams)) {
-            yield {
-              code: row[codeField],
-              display: row.STR,
-              system: sys,
-              version: ver,
-              isAbstract: false,
-              isInactive: true,
-              isDeprecated: true,
-              status: 'retired',
-              definition: null,
-              designations: [],
-              properties: null,
-              extensions: null,
-            };
-          }
-        }
       }
     })();
   }

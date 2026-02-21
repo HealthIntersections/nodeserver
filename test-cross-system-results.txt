@@ -1,26 +1,26 @@
 === Cross-system expandForValueSet test results ===
-Date: 2026-02-21T03:19:47.417Z
+Date: 2026-02-21T03:53:23.195Z
 Tests: 20
 
 Test                               | Opt (ms) | Base (ms) | Speedup | Codes | Result
 -----------------------------------|----------|-----------|---------|-------|-------
-rx-exclude-same-tty                |     51.4 |     384.4 |    7.5x |     0 | ✅ exact
-rx-exclude-disjoint-tty            |     57.8 |     358.6 |    6.2x |    10 | ✅ exact
-rx-exclude-partial-tty             |    106.9 |     706.7 |    6.6x |    10 | ✅ exact
-rx-sty-exclude-overlapping         |    341.8 |       1.3 |    0.0x |     0 | ✅ exact
-rx-concepts-exclude-tty-filter     |     34.4 |     114.3 |    3.3x |    10 | ✅ order differs
-rx-filter-exclude-20-concepts      |     83.5 |     432.9 |    5.2x |    10 | ✅ exact
-rx-multi-include-sty+concepts-exclude|    389.6 |       1.0 |    0.0x |     0 | ✅ exact
-rx-3-tty-include-2-tty-exclude     |    127.4 |     684.7 |    5.4x |    10 | ✅ exact
-ln-exclude-filter-partial          |   1927.5 |       1.2 |    0.0x |    10 | ✅ exact
-ln-exclude-same-filter             |    209.1 |     167.5 |    0.8x |     0 | ✅ exact
-ln-exclude-disjoint                |    230.5 |     207.2 |    0.9x |    10 | ✅ exact
-ln-concepts-exclude-filter         |      2.6 |      54.3 |   21.1x |     5 | ❌ count 5 vs 1
-ln-multi-include-multi-exclude     |    587.4 |       1.2 |    0.0x |    10 | ✅ exact
-cross-rx-ln-include                |    350.1 |       0.9 |    0.0x |    10 | ✅ exact
-cross-rx-include-ln-exclude        |    287.4 |       5.3 |    0.0x |    10 | ✅ exact
-cross-ln-include-rx-exclude        |    446.9 |       1.2 |    0.0x |    10 | ✅ exact
-cross-concepts-both-systems        |      3.1 |       2.0 |    0.6x |     6 | ✅ exact
-cross-concepts-exclude-concepts    |      2.8 |       2.1 |    0.8x |     5 | ❌ count 5 vs 4
-cross-filter-exclude-cross         |    435.5 |       0.9 |    0.0x |    10 | ✅ exact
-cross-mixed-concepts-filters       |     57.7 |     172.2 |    3.0x |    10 | ✅ exact
+rx-exclude-same-tty                |     44.2 |     373.8 |    8.5x |     0 | ✅ exact
+rx-exclude-disjoint-tty            |     39.1 |     309.5 |    7.9x |    10 | ✅ exact
+rx-exclude-partial-tty             |     98.2 |     553.1 |    5.6x |    10 | ✅ exact
+rx-sty-exclude-overlapping         |    271.9 |       1.5 |    0.0x |     0 | ✅ exact
+rx-concepts-exclude-tty-filter     |     56.6 |      98.5 |    1.7x |    10 | ✅ order differs
+rx-filter-exclude-20-concepts      |     84.2 |     347.0 |    4.1x |    10 | ✅ exact
+rx-multi-include-sty+concepts-exclude|    276.1 |       0.8 |    0.0x |     0 | ✅ exact
+rx-3-tty-include-2-tty-exclude     |     96.4 |     515.1 |    5.3x |    10 | ✅ exact
+ln-exclude-filter-partial          |     18.3 |     902.5 |   49.2x |    10 | ✅ exact
+ln-exclude-same-filter             |     23.5 |     156.0 |    6.6x |     0 | ✅ exact
+ln-exclude-disjoint                |     25.7 |     152.0 |    5.9x |    10 | ✅ exact
+ln-concepts-exclude-filter         |     10.9 |      33.9 |    3.1x |     1 | ✅ exact
+ln-multi-include-multi-exclude     |     18.5 |     348.6 |   18.9x |    10 | ✅ exact
+cross-rx-ln-include                |    176.8 |     298.2 |    1.7x |    10 | ✅ exact
+cross-rx-include-ln-exclude        |    143.8 |     268.7 |    1.9x |    10 | ✅ exact
+cross-ln-include-rx-exclude        |    266.0 |       0.9 |    0.0x |    10 | ✅ exact
+cross-concepts-both-systems        |     26.4 |       1.9 |    0.1x |     6 | ✅ exact
+cross-concepts-exclude-concepts    |     25.6 |       2.7 |    0.1x |     4 | ✅ exact
+cross-filter-exclude-cross         |    268.0 |       0.9 |    0.0x |    10 | ✅ exact
+cross-mixed-concepts-filters       |     51.9 |     131.6 |    2.5x |    10 | ✅ exact

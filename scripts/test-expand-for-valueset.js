@@ -19,24 +19,6 @@ const PORT = 3000;
 const BASE_URL = `http://localhost:${PORT}/r4`;
 const SERVER_START_TIMEOUT = 300000;
 const LITE_CONFIG = 'tx/tx.rxnorm-only.yml';
-const CONFIG_PATH = path.join(__dirname, '..', 'data', 'config.json');
-
-// --- Config patching ---
-let origLibrarySource;
-
-function patchConfig() {
-  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-  origLibrarySource = config.modules.tx.librarySource;
-  config.modules.tx.librarySource = LITE_CONFIG;
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-}
-
-function restoreConfig() {
-  if (!origLibrarySource) return;
-  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-  config.modules.tx.librarySource = origLibrarySource;
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-}
 
 // --- Test cases ---
 function makeVS(compose) {
@@ -287,8 +269,7 @@ async function main() {
   const serverDir = path.resolve(__dirname, '..');
 
   log(`Running ${testList.length} tests (${full ? 'full' : 'core'} mode, pass --full for all)`);
-  log('Patching config for lite library...');
-  patchConfig();
+  log(`Using library: ${LITE_CONFIG}`);
 
   let server;
   try {
@@ -296,7 +277,7 @@ async function main() {
     server = spawn('node', ['server.js'], {
       cwd: serverDir,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, NODE_ENV: 'test' },
+      env: { ...process.env, NODE_ENV: 'test', TX_LIBRARY_SOURCE: LITE_CONFIG },
     });
 
     let serverOutput = '';
@@ -473,7 +454,6 @@ async function main() {
     log(`Results written to ${outPath}`);
 
   } finally {
-    restoreConfig();
     if (server) {
       server.kill('SIGTERM');
       await new Promise(r => setTimeout(r, 1000));
@@ -483,6 +463,5 @@ async function main() {
 
 main().catch(err => {
   console.error(err);
-  restoreConfig();
   process.exit(1);
 });

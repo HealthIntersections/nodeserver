@@ -1093,7 +1093,6 @@ class LoincServices extends BaseCSServices {
     // Relationship-based filters (COMPONENT, CLASS, SYSTEM, SCALE_TYP, METHOD_TYP, TIME_ASPCT, etc.)
     if (this.relationships.has(prop) && op === '=') {
       const relKey = this.relationships.get(prop);
-      // value is a part code — look up its CodeKey
       const ctx = this.codes.get(value);
       if (!ctx) return null;
       const alias = `_rel_${prefix}`;
@@ -1207,13 +1206,13 @@ class LoincServices extends BaseCSServices {
 
     if (selectParts.length === 0) return null;
 
-    // Build exclude clause
-    let excludeSql = '';
+    // Build excludes — each becomes an EXCEPT SELECT
+    const excludeParts = [];
     for (let i = 0; i < spec.excludes.length; i++) {
       const exc = spec.excludes[i];
       if (exc.concepts && exc.concepts.length > 0) {
         const placeholders = exc.concepts.map((_, j) => `@_ec${i}_${j}`).join(',');
-        excludeSql += ` AND Code NOT IN (${placeholders})`;
+        excludeParts.push(`SELECT c.CodeKey, c.Code, c.Description, c.StatusKey FROM Codes c WHERE c.Code IN (${placeholders})`);
         exc.concepts.forEach((cc, j) => { allParams[`_ec${i}_${j}`] = cc.code; });
       } else if (exc.filters && exc.filters.length > 0) {
         let exJoins = '';
@@ -1221,7 +1220,7 @@ class LoincServices extends BaseCSServices {
         let exGroupBy = false;
         for (let j = 0; j < exc.filters.length; j++) {
           const result = this.#buildLoincFilterSql(exc.filters[j], `e${i}f${j}`);
-          if (!result) continue; // unsupported filter — worker's isExcluded handles it
+          if (!result) continue;
           exWhere += result.where;
           if (result.joins) exJoins += result.joins;
           if (result.needsGroupBy) exGroupBy = true;
@@ -1229,7 +1228,7 @@ class LoincServices extends BaseCSServices {
         }
         if (exWhere || exJoins) {
           const gb = exGroupBy ? ' GROUP BY c.CodeKey' : '';
-          excludeSql += ` AND Code NOT IN (SELECT c.Code FROM Codes c${exJoins} WHERE 1=1${exWhere}${gb})`;
+          excludeParts.push(`SELECT c.CodeKey, c.Code, c.Description, c.StatusKey FROM Codes c${exJoins} WHERE 1=1${exWhere}${gb}`);
         }
       }
     }
@@ -1251,14 +1250,16 @@ class LoincServices extends BaseCSServices {
       allParams._searchText = `%${spec.searchText}%`;
     }
 
-    // Wrap in outer query for dedup, ordering, excludes, paging
-    const inner = selectParts.length === 1
+    // Combine includes with UNION, excludes with EXCEPT
+    let inner = selectParts.length === 1
       ? selectParts[0]
-      : selectParts.join(' UNION ALL ');
+      : selectParts.join(' UNION ');
+    for (const ep of excludeParts) {
+      inner += ' EXCEPT ' + ep;
+    }
 
     let sql = `SELECT CodeKey, Code, Description, StatusKey FROM (${inner})`
       + ` WHERE 1=1`
-      + excludeSql
       + activeSql
       + ` GROUP BY Code`
       + ` ORDER BY CodeKey`;

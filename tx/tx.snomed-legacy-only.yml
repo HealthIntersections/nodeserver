@@ -1,0 +1,5 @@
+base:
+  url: https://storage.googleapis.com/tx-fhir-org
+
+sources:
+  - snomed:sct_intl_20250201.cache
