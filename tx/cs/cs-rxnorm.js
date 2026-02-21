@@ -662,6 +662,91 @@ class RxNormServices extends CodeSystemProvider {
     return { sql, joins, params, needsGroupBy: joins.length > 0 };
   }
 
+  /**
+   * Build a NOT EXISTS WHERE clause for an exclude filter group.
+   * Multiple filters on the same exclude are conjunctive (AND) — exclude only
+   * codes matching ALL filters. Uses a single correlated subquery.
+   */
+  #buildExcludeWhereSql(filters, paramPrefix, codeField) {
+    const params = {};
+    const outerRef = `t.${codeField}`;
+
+    // Categorize filters by which table they need
+    const ttyFilters = [];  // need rxnconso
+    const styFilters = [];  // need rxnsty only
+    const otherFilters = []; // need rxnconso (SAB etc)
+
+    for (let i = 0; i < filters.length; i++) {
+      const f = filters[i];
+      const prop = f.property.toUpperCase();
+      const pfx = `${paramPrefix}_f${i}`;
+
+      if ((f.op === '=' || f.op === 'in') && prop === 'TTY') {
+        ttyFilters.push({ f, pfx });
+      } else if (f.op === '=' && prop === 'STY') {
+        styFilters.push({ f, pfx });
+      } else if (f.op === '=' && prop === 'SAB') {
+        otherFilters.push({ f, pfx });
+      } else {
+        return null; // Unsupported filter
+      }
+    }
+
+    // STY-only: correlate directly against rxnsty (no rxnconso scan)
+    if (styFilters.length > 0 && ttyFilters.length === 0 && otherFilters.length === 0) {
+      const conditions = styFilters.map(({ f, pfx }) => {
+        params[`${pfx}_sty`] = f.value;
+        return `NOT EXISTS (SELECT 1 FROM rxnsty _sty${pfx}`
+          + ` WHERE _sty${pfx}.RXCUI = ${outerRef} AND _sty${pfx}.TUI = @${pfx}_sty)`;
+      });
+      return { sql: conditions.join(' AND '), params };
+    }
+
+    // TTY-only (no STY): correlate against rxnconso
+    if (ttyFilters.length > 0 && styFilters.length === 0 && otherFilters.length === 0) {
+      let where = '';
+      for (const { f, pfx } of ttyFilters) {
+        if (f.op === '=') {
+          where += ` AND _ex.TTY = @${pfx}_tty`;
+          params[`${pfx}_tty`] = f.value;
+        } else { // op === 'in'
+          const values = f.value.split(',').map(v => v.trim()).filter(v => v);
+          const placeholders = values.map((_, j) => `@${pfx}_tty${j}`).join(',');
+          where += ` AND _ex.TTY IN (${placeholders})`;
+          values.forEach((val, j) => { params[`${pfx}_tty${j}`] = val; });
+        }
+      }
+      const sql = `NOT EXISTS (SELECT 1 FROM rxnconso _ex INDEXED BY X_RXNCONSO_1`
+        + ` WHERE _ex.${codeField} = ${outerRef} AND _ex.SAB = @_sab${where})`;
+      return { sql, params };
+    }
+
+    // Mixed filters: need rxnconso with JOINs — build carefully
+    let where = '';
+    let joins = '';
+    for (const { f, pfx } of ttyFilters) {
+      if (f.op === '=') {
+        where += ` AND _ex.TTY = @${pfx}_tty`;
+        params[`${pfx}_tty`] = f.value;
+      } else {
+        const values = f.value.split(',').map(v => v.trim()).filter(v => v);
+        const placeholders = values.map((_, j) => `@${pfx}_tty${j}`).join(',');
+        where += ` AND _ex.TTY IN (${placeholders})`;
+        values.forEach((val, j) => { params[`${pfx}_tty${j}`] = val; });
+      }
+    }
+    for (const { f, pfx } of styFilters) {
+      joins += ` JOIN rxnsty _sty${pfx} ON _sty${pfx}.RXCUI = _ex.${codeField} AND _sty${pfx}.TUI = @${pfx}_sty`;
+      params[`${pfx}_sty`] = f.value;
+    }
+    for (const { f, pfx } of otherFilters) {
+      where += ` AND _ex.${codeField} IN (SELECT ${codeField} FROM rxnconso WHERE SAB = @${pfx}_sab)`;
+      params[`${pfx}_sab`] = f.value;
+    }
+    const sql = `NOT EXISTS (SELECT 1 FROM rxnconso _ex INDEXED BY X_RXNCONSO_1${joins}`
+      + ` WHERE _ex.${codeField} = ${outerRef} AND _ex.SAB = @_sab AND _ex.TTY <> 'SY'${where})`;
+    return { sql, params };
+  }
   async expandForValueSet(spec) {
     // Bypass flag: set RxNormServices.bypassExpandForValueSet = true to skip
     if (RxNormServices.bypassExpandForValueSet) return null;
@@ -725,19 +810,20 @@ class RxNormServices extends CodeSystemProvider {
       ? selectParts[0]
       : selectParts.join(' UNION ');
 
-    // Each exclude becomes an EXCEPT SELECT
+    // Build excludes as WHERE conditions on the outer query.
+    // Using NOT EXISTS instead of EXCEPT lets SQLite short-circuit
+    // with LIMIT — it doesn't need to materialize the full exclude set.
+    const excludeWhere = [];
     for (let i = 0; i < spec.excludes.length; i++) {
       const exc = spec.excludes[i];
       if (exc.concepts && exc.concepts.length > 0) {
         const placeholders = exc.concepts.map((_, j) => `@_ec${i}_${j}`).join(',');
-        // EXCEPT against both rxnconso and archive so excluded codes are removed from either source
-        sql += ` EXCEPT SELECT ${baseCols} FROM rxnconso WHERE rxnconso.SAB = @_sab AND rxnconso.${codeField} IN (${placeholders})`;
-        sql += ` EXCEPT SELECT a.${codeField}, a.STR, '1' FROM RXNATOMARCHIVE a INDEXED BY idx_rxnatomarchive_rxcui_sab WHERE a.SAB = @_sab AND a.${codeField} IN (${placeholders})`;
+        excludeWhere.push(`${codeField} NOT IN (${placeholders})`);
         exc.concepts.forEach((cc, j) => { allParams[`_ec${i}_${j}`] = cc.code; });
       } else if (exc.filters && exc.filters.length > 0) {
-        const result = this.#buildFilterSql(exc.filters, `_e${i}`);
+        const result = this.#buildExcludeWhereSql(exc.filters, `_e${i}`, codeField);
         if (!result) continue; // Can't push — worker's isExcluded will handle
-        sql += ` EXCEPT SELECT ${baseCols} FROM rxnconso${result.joins || ''} WHERE rxnconso.SAB = @_sab AND rxnconso.TTY <> 'SY'${result.sql}`;
+        excludeWhere.push(result.sql);
         Object.assign(allParams, result.params);
       }
     }
@@ -755,7 +841,8 @@ class RxNormServices extends CodeSystemProvider {
     }
 
     // Wrap with outer query for ordering, filtering, paging
-    sql = `SELECT ${codeField}, STR, SUPPRESS FROM (${sql}) WHERE 1=1${activeSql} ORDER BY ${codeField}`;
+    const excludeSql = excludeWhere.length > 0 ? ' AND ' + excludeWhere.join(' AND ') : '';
+    sql = `SELECT ${codeField}, STR, SUPPRESS FROM (${sql}) AS t WHERE 1=1${activeSql}${excludeSql} ORDER BY ${codeField}`;
 
     // Paging — SQL handles offset directly so the framework doesn't re-skip
     if (spec.count != null && spec.count > 0) {
