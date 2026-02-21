@@ -308,10 +308,34 @@ const CROSS_SYSTEM_TESTS = [
       _params: [{ name: 'count', valueInteger: 10 }],
     }),
   },
+  // Unsupported filter property → forces fallback to baseline path (~1.0x)
+  {
+    name: 'rx-unsupported-filter-fallback',
+    desc: 'Include with unsupported filter property → baseline fallback',
+    body: makeVS({
+      include: [
+        { system: RXSYS, filter: [{ property: 'BOGUS_PROPERTY', op: '=', value: 'XYZ' }] },
+      ],
+      _params: [{ name: 'count', valueInteger: 10 }],
+    }),
+  },
+  {
+    name: 'rx-unsupported-exclude-filter-fallback',
+    desc: 'Supported include + unsupported exclude filter → exclude falls back',
+    body: makeVS({
+      include: [
+        { system: RXSYS, filter: [{ property: 'TTY', op: '=', value: 'SBD' }] },
+      ],
+      exclude: [
+        { system: RXSYS, filter: [{ property: 'BOGUS_PROPERTY', op: '=', value: 'XYZ' }] },
+      ],
+      _params: [{ name: 'count', valueInteger: 10 }],
+    }),
+  },
 ];
 
 // ============================================================
-//  HTTP helpers (same as test-expand-for-valueset.js)
+//  HTTP helpers
 // ============================================================
 function postJson(url, body, timeoutMs = 5000) {
   return new Promise((resolve, reject) => {

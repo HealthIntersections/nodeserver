@@ -1220,7 +1220,7 @@ class LoincServices extends BaseCSServices {
         let exGroupBy = false;
         for (let j = 0; j < exc.filters.length; j++) {
           const result = this.#buildLoincFilterSql(exc.filters[j], `e${i}f${j}`);
-          if (!result) continue;
+          if (!result) return null; // Unsupported exclude filter — fall back entirely
           exWhere += result.where;
           if (result.joins) exJoins += result.joins;
           if (result.needsGroupBy) exGroupBy = true;

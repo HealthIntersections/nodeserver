@@ -822,7 +822,7 @@ class RxNormServices extends CodeSystemProvider {
         exc.concepts.forEach((cc, j) => { allParams[`_ec${i}_${j}`] = cc.code; });
       } else if (exc.filters && exc.filters.length > 0) {
         const result = this.#buildExcludeWhereSql(exc.filters, `_e${i}`, codeField);
-        if (!result) continue; // Can't push — worker's isExcluded will handle
+        if (!result) return null; // Unsupported exclude filter — fall back entirely
         excludeWhere.push(result.sql);
         Object.assign(allParams, result.params);
       }
