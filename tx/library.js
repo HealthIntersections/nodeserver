@@ -19,6 +19,8 @@ const {RxNormServicesFactory} = require("./cs/cs-rxnorm");
 const {NdcServicesFactory} = require("./cs/cs-ndc");
 const {UniiServicesFactory} = require("./cs/cs-unii");
 const {SnomedServicesFactory} = require("./cs/cs-snomed");
+const {SqliteRuntimeV0FactoryProvider} = require("./cs/cs-sqlite-runtime-v0");
+require("./cs/cs-sqlite-v0-specializers");
 const {CPTServicesFactory} = require("./cs/cs-cpt");
 const {OMOPServicesFactory} = require("./cs/cs-omop");
 const {PackageValueSetProvider} = require("./vs/vs-package");
@@ -239,6 +241,13 @@ class Library {
         await this.loadSnomed(details, isDefault, mode);
         break;
 
+      case 'sqlite-v0':
+      case 'snomed-sqlite-v0':
+      case 'loinc-sqlite-v0':
+      case 'rxnorm-sqlite-v0':
+        await this.loadSqliteV0(details, isDefault, mode);
+        break;
+
       case 'cpt':
         await this.loadCpt(details, isDefault, mode);
         break;
@@ -402,6 +411,17 @@ class Library {
     const sct = new SnomedServicesFactory(this.i18n, sctFN);
     await sct.load();
     this.registerProvider(sctFN, sct, isDefault);
+  }
+
+  async loadSqliteV0(details, isDefault, mode) {
+    const sqliteFN = await this.getOrDownloadFile(details);
+    if (mode === "fetch" || mode === "npm") {
+      return;
+    }
+    const factory = await SqliteRuntimeV0FactoryProvider.createFromMetadata(
+      this.i18n, sqliteFN, { idPrefix: 'sqlite-v0' }
+    );
+    this.registerProvider(sqliteFN, factory, isDefault);
   }
 
   async loadCpt(details, isDefault, mode) {
