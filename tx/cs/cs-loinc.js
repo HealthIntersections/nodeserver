@@ -1,4 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
+let BetterSqlite3;
+try { BetterSqlite3 = require('better-sqlite3'); } catch (e) { /* optional */ }
 const assert = require('assert');
 const { CodeSystem } = require('../library/codesystem');
 const { Language, Languages} = require('../../library/languages');
@@ -109,9 +111,11 @@ class LoincPrep {
 }
 
 class LoincServices extends BaseCSServices {
-  constructor(opContext, supplements, db, sharedData) {
+  constructor(opContext, supplements, db, sharedData, dbPath = null) {
     super(opContext, supplements);
     this.db = db;
+    this.dbPath = dbPath;
+    this._syncDb = null; // Lazy better-sqlite3 connection
 
     // Shared data from factory
     this.langs = sharedData.langs;
@@ -131,6 +135,10 @@ class LoincServices extends BaseCSServices {
     if (this.db) {
       this.db.close();
       this.db = null;
+    }
+    if (this._syncDb) {
+      this._syncDb.close();
+      this._syncDb = null;
     }
   }
 
@@ -569,6 +577,15 @@ class LoincServices extends BaseCSServices {
     return { context: null, message: undefined };
   }
 
+  async locateMany(codes, allAltCodes = false) {
+    const results = new Map();
+    for (const code of codes) {
+      const context = this.codes.get(code);
+      results.set(code, context ? { context, message: null } : { context: null, message: undefined });
+    }
+    return results;
+  }
+
   // Iterator methods
   async iterator(context) {
 
@@ -994,6 +1011,19 @@ class LoincServices extends BaseCSServices {
     return this.codeList[key];
   }
 
+  async filterPage(filterContext, set, count) {
+    set.cursor = set.cursor || 0;
+    if (set.cursor >= set.keys.length) return [];
+
+    const end = Math.min(set.cursor + count, set.keys.length);
+    const results = [];
+    for (let i = set.cursor; i < end; i++) {
+      results.push(this.codeList[set.keys[i]]);
+    }
+    set.cursor = end;
+    return results;
+  }
+
   async filterLocate(filterContext, set, code) {
     const context = this.codes.get(code);
     if (!context) {
@@ -1041,6 +1071,210 @@ class LoincServices extends BaseCSServices {
 
   isDisplay(designation) {
     return designation.use.code == "SHORTNAME" || designation.use.code == "LONG_COMMON_NAME" || designation.use.code == "LinguisticVariantDisplayName";
+  }
+
+  #getSyncDb() {
+    if (!this._syncDb) {
+      if (!BetterSqlite3 || !this.dbPath) return null;
+      this._syncDb = new BetterSqlite3(this.dbPath, { readonly: true });
+    }
+    return this._syncDb;
+  }
+
+  /**
+   * Build SQL fragments for a single filter {property, op, value}.
+   * Returns { where, joins, params } or null if unsupported.
+   */
+  #buildLoincFilterSql(filter, prefix) {
+    const prop = filter.property;
+    const op = filter.op;
+    const value = filter.value;
+
+    // Relationship-based filters (COMPONENT, CLASS, SYSTEM, SCALE_TYP, METHOD_TYP, TIME_ASPCT, etc.)
+    if (this.relationships.has(prop) && op === '=') {
+      const relKey = this.relationships.get(prop);
+      // value is a part code — look up its CodeKey
+      const ctx = this.codes.get(value);
+      if (!ctx) return null;
+      const alias = `_rel_${prefix}`;
+      return {
+        where: '',
+        joins: ` JOIN Relationships ${alias} ON ${alias}.SourceKey = c.CodeKey AND ${alias}.RelationshipTypeKey = ${relKey} AND ${alias}.TargetKey = @${prefix}_target`,
+        params: { [`${prefix}_target`]: ctx.key },
+        needsGroupBy: true
+      };
+    }
+
+    // LIST filter — answers for an answer list
+    if (prop === 'LIST' && op === '=') {
+      const ctx = this.codes.get(value);
+      if (!ctx) return null;
+      const answerRelKey = this.relationships.get('Answer');
+      if (!answerRelKey) return null;
+      const alias = `_ans_${prefix}`;
+      // Answer relationships: SourceKey=AnswerList, TargetKey=Answer code
+      // We want the target (answer) codes, so join differently
+      return {
+        where: '',
+        joins: ` JOIN Relationships ${alias} ON ${alias}.TargetKey = c.CodeKey AND ${alias}.RelationshipTypeKey = ${answerRelKey} AND ${alias}.SourceKey = @${prefix}_list`,
+        params: { [`${prefix}_list`]: ctx.key },
+        needsGroupBy: true
+      };
+    }
+
+    // STATUS filter
+    if (prop === 'STATUS' && op === '=') {
+      const statusKey = this.statusKeys.get(value);
+      if (statusKey === undefined) return null;
+      return {
+        where: ` AND c.StatusKey = @${prefix}_status`,
+        joins: '',
+        params: { [`${prefix}_status`]: parseInt(statusKey) },
+        needsGroupBy: false
+      };
+    }
+
+    // CLASSTYPE property filter
+    if (prop === 'CLASSTYPE' && op === '=') {
+      const ptKey = this.propertyList.get('CLASSTYPE');
+      if (!ptKey) return null;
+      // PropertyValues stores the raw value; CLASSTYPE '1' = Laboratory, '2' = Clinical, etc.
+      const alias = `_prop_${prefix}`;
+      return {
+        where: '',
+        joins: ` JOIN Properties ${alias} ON ${alias}.CodeKey = c.CodeKey AND ${alias}.PropertyTypeKey = ${ptKey}`
+             + ` JOIN PropertyValues ${alias}_pv ON ${alias}_pv.PropertyValueKey = ${alias}.PropertyValueKey AND ${alias}_pv.Value = @${prefix}_pval`,
+        params: { [`${prefix}_pval`]: classTypes[value] || value },
+        needsGroupBy: true
+      };
+    }
+
+    // Unsupported filter — fall back
+    return null;
+  }
+
+  async expandForValueSet(spec) {
+    if (LoincServices.bypassExpandForValueSet) return null;
+
+    const syncDb = this.#getSyncDb();
+    if (!syncDb) return null;
+
+    const sys = this.system();
+    const ver = this.version();
+    const allParams = {};
+    const conceptCodes = new Set();
+
+    // Build a separate SELECT for each include, UNION ALL them
+    const selectParts = [];
+
+    for (let i = 0; i < spec.includes.length; i++) {
+      const inc = spec.includes[i];
+
+      if (inc.concepts && inc.concepts.length > 0) {
+        // Explicit code list — no Type restriction (concepts can be any type)
+        const placeholders = inc.concepts.map((_, j) => `@_ic${i}_${j}`).join(',');
+        selectParts.push(`SELECT c.CodeKey, c.Code, c.Description, c.StatusKey FROM Codes c WHERE c.Code IN (${placeholders})`);
+        inc.concepts.forEach((cc, j) => {
+          allParams[`_ic${i}_${j}`] = cc.code;
+          conceptCodes.add(cc.code);
+        });
+      } else if (inc.filters && inc.filters.length > 0) {
+        // Filter-based — each include is an independent SELECT with its own JOINs
+        let joins = '';
+        let where = '';
+        let needsGroupBy = false;
+
+        for (let j = 0; j < inc.filters.length; j++) {
+          const result = this.#buildLoincFilterSql(inc.filters[j], `i${i}f${j}`);
+          if (!result) return null; // Unsupported filter — fall back entirely
+          where += result.where;
+          if (result.joins) joins += result.joins;
+          if (result.needsGroupBy) needsGroupBy = true;
+          Object.assign(allParams, result.params);
+        }
+
+        // Relationship JOINs naturally scope to the correct code types
+        // (e.g., COMPONENT relationship only links from Type=1 LOINC codes).
+        // No explicit Type filter needed — the data model handles it.
+        let typeSql = '';
+
+        const groupBy = needsGroupBy ? ' GROUP BY c.CodeKey' : '';
+        selectParts.push(`SELECT c.CodeKey, c.Code, c.Description, c.StatusKey FROM Codes c${joins} WHERE 1=1${where}${typeSql}${groupBy}`);
+      } else {
+        return null; // Bare "whole code system" — fall back
+      }
+    }
+
+    if (selectParts.length === 0) return null;
+
+    // Build exclude clause
+    let excludeSql = '';
+    for (let i = 0; i < spec.excludes.length; i++) {
+      const exc = spec.excludes[i];
+      if (exc.concepts && exc.concepts.length > 0) {
+        const placeholders = exc.concepts.map((_, j) => `@_ec${i}_${j}`).join(',');
+        excludeSql += ` AND Code NOT IN (${placeholders})`;
+        exc.concepts.forEach((cc, j) => { allParams[`_ec${i}_${j}`] = cc.code; });
+      }
+    }
+
+    // activeOnly — exclude DEPRECATED (2) and DISCOURAGED (4) status codes
+    let activeSql = '';
+    if (spec.activeOnly) {
+      const depKey = this.statusKeys.get('DEPRECATED');
+      const discKey = this.statusKeys.get('DISCOURAGED');
+      const excludeKeys = [depKey, discKey].filter(k => k !== undefined).map(k => parseInt(k));
+      if (excludeKeys.length > 0) {
+        activeSql = ` AND StatusKey NOT IN (${excludeKeys.join(',')})`;
+      }
+    }
+
+    // searchText
+    if (spec.searchText) {
+      activeSql += ` AND Description LIKE @_searchText COLLATE NOCASE`;
+      allParams._searchText = `%${spec.searchText}%`;
+    }
+
+    // Wrap in outer query for dedup, ordering, excludes, paging
+    const inner = selectParts.length === 1
+      ? selectParts[0]
+      : selectParts.join(' UNION ALL ');
+
+    let sql = `SELECT CodeKey, Code, Description, StatusKey FROM (${inner})`
+      + ` WHERE 1=1`
+      + excludeSql
+      + activeSql
+      + ` GROUP BY Code`
+      + ` ORDER BY CodeKey`;
+
+    // Paging
+    if (spec.count != null && spec.count > 0) {
+      const limit = spec.count;
+      const offset = (spec.offset != null && spec.offset > 0) ? spec.offset : 0;
+      sql += ` LIMIT ${limit} OFFSET ${offset}`;
+    }
+
+    const self = this;
+    return (function* () {
+      const stmt = syncDb.prepare(sql);
+      for (const row of stmt.iterate(allParams)) {
+        const statusDesc = self.statusCodes.get(row.StatusKey.toString());
+        yield {
+          code: row.Code,
+          display: row.Description,
+          system: sys,
+          version: ver,
+          isAbstract: false,
+          isInactive: statusDesc === 'DISCOURAGED',
+          isDeprecated: statusDesc === 'DEPRECATED',
+          status: statusDesc === 'NotStated' ? null : statusDesc,
+          definition: null,
+          designations: [],
+          properties: null,
+          extensions: null,
+        };
+      }
+    })();
   }
 }
 
@@ -1352,7 +1586,7 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
       });
     });
 
-    return new LoincServices(opContext, supplements, db, this._sharedData);
+    return new LoincServices(opContext, supplements, db, this._sharedData, this.dbPath);
   }
 
   useCount() {

@@ -621,6 +621,44 @@ class CodeSystemProvider {
   }
 
   /**
+   * Expand all include/exclude blocks for this code system in one shot.
+   *
+   * The worker groups compose.include and compose.exclude blocks by system,
+   * then hands the full hull to the provider. SQL-backed providers can translate
+   * the entire spec into a single query with LIMIT/OFFSET, activeOnly, and
+   * exclude push-down.
+   *
+   * @param {Object} spec
+   * @param {Object[]} spec.includes - include blocks for this CS, each with
+   *   { concepts: [{code, display?}]|null, filters: [{property, op, value}] }
+   * @param {Object[]} spec.excludes - exclude blocks for this CS, each with
+   *   { concepts: [{code}]|null, filters: [{property, op, value}] }
+   * @param {boolean} spec.activeOnly - exclude inactive codes
+   * @param {string|null} spec.searchText - expansion 'filter' parameter
+   * @param {boolean} spec.includeDesignations - whether designations are needed
+   * @param {string[]} spec.properties - which properties to include
+   * @param {number|null} spec.offset - paging offset (must apply if non-null)
+   * @param {number|null} spec.count - paging count (must apply if non-null)
+   *
+   * @returns {AsyncIterable<{
+   *   code: string,
+   *   display: string,
+   *   system: string,
+   *   version: string,
+   *   isAbstract: boolean,
+   *   isInactive: boolean,
+   *   isDeprecated: boolean,
+   *   status: string|null,
+   *   definition: string|null,
+   *   designations: Array<{language: string, use: Object|null, value: string}>,
+   *   properties: Array<{code: string, value: *}>|null,
+   *   extensions: Array|null
+   * }>|null} An async iterable of expanded entries, or null if this provider
+   * cannot handle the spec (worker falls back to per-code iteration).
+   */
+  async expandForValueSet(spec) { return null; }
+
+  /**
    * register the concept maps that are implicitly defined as part of the code system
    *
    * @param {ConceptMap[]} conceptMaps

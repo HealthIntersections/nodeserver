@@ -502,6 +502,38 @@ app.get('/health', async (req, res) => {
   res.json(healthStatus);
 });
 
+app.get('/debug/perf-counters', (req, res) => {
+  const perfCounters = require('./tx/perf-counters');
+  res.json(perfCounters.snapshot());
+});
+
+app.post('/debug/perf-counters/reset', (req, res) => {
+  const perfCounters = require('./tx/perf-counters');
+  perfCounters.reset();
+  res.json({ ok: true });
+});
+
+app.post('/debug/perf-counters/enable', (req, res) => {
+  const perfCounters = require('./tx/perf-counters');
+  perfCounters.enable();
+  res.json({ ok: true });
+});
+
+app.post('/debug/bypass-expand-for-valueset', (req, res) => {
+  const { RxNormServices } = require('./tx/cs/cs-rxnorm');
+  const { LoincServices } = require('./tx/cs/cs-loinc');
+  const bypass = req.query.bypass !== 'false';
+  RxNormServices.bypassExpandForValueSet = bypass;
+  LoincServices.bypassExpandForValueSet = bypass;
+  res.json({ bypassExpandForValueSet: bypass });
+});
+
+app.get('/debug/bypass-expand-for-valueset', (req, res) => {
+  const { RxNormServices } = require('./tx/cs/cs-rxnorm');
+  const { LoincServices } = require('./tx/cs/cs-loinc');
+  res.json({ bypassExpandForValueSet: !!(RxNormServices.bypassExpandForValueSet || LoincServices.bypassExpandForValueSet) });
+});
+
 /**
  * Get log directory statistics: file count, total size, and disk space info
  * @returns {string} HTML table row(s) with log stats
