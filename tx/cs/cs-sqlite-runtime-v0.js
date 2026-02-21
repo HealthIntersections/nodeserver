@@ -1,6 +1,8 @@
 'use strict';
 
 const sqlite3 = require('sqlite3').verbose();
+let BetterSqlite3;
+try { BetterSqlite3 = require('better-sqlite3'); } catch (_) { BetterSqlite3 = null; }
 const { CodeSystem } = require('../library/codesystem');
 const { CodeSystemProvider, CodeSystemFactoryProvider, FilterExecutionContext } = require('./cs-api');
 
@@ -91,6 +93,8 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     this.sharedState = options.sharedState || null;
     this.statusCache = null;
     this.ownsDb = options.ownsDb === true;
+    this.dbPath = options.dbPath || null;
+    this._syncDb = null;
     this.defaultIterationRegex = null;
     const regexSource = this.runtime?.iteration?.defaultCodeRegex;
     if (regexSource) {
@@ -107,6 +111,248 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     this.statusCache = null;
     this.db.close();
     this.db = null;
+  }
+
+  // --- expandForValueSet: single-query expansion for ValueSet operations ---
+
+  #getSyncDb() {
+    if (this._syncDb) return this._syncDb;
+    if (!BetterSqlite3 || !this.dbPath) return null;
+    this._syncDb = new BetterSqlite3(this.dbPath, { readonly: true });
+    return this._syncDb;
+  }
+
+  /**
+   * Build a SQL condition for a single filter {property, op, value}.
+   * Returns { sql, params, joins } or null if unsupported.
+   * @param {string} alias - concept table alias (e.g. 'c' or 'c2')
+   */
+  #buildV0FilterSql(filter, paramPrefix, alias = 'c') {
+    const { property, op, value } = filter;
+    const csId = this.meta.csId;
+    const params = {};
+
+    if (property === 'concept') {
+      if (op === '=') {
+        params[`${paramPrefix}_code`] = value;
+        return {
+          sql: ` AND ${alias}.code = @${paramPrefix}_code`,
+          params,
+          joins: '',
+        };
+      }
+
+      if (op === 'is-a' || op === 'descendent-of') {
+        const includeSelf = op === 'is-a'
+          ? (this.runtime?.filters?.concept?.isAIncludesSelf !== false)
+          : false;
+        // Use closure table for hierarchy
+        params[`${paramPrefix}_anc_code`] = value;
+        params[`${paramPrefix}_cs`] = csId;
+        const selfClause = includeSelf ? '' : ` AND cl_${paramPrefix}.descendant_id != cl_${paramPrefix}.ancestor_id`;
+        return {
+          sql: selfClause,
+          params,
+          joins: ` JOIN closure cl_${paramPrefix} ON cl_${paramPrefix}.descendant_id = ${alias}.concept_id`
+            + ` AND cl_${paramPrefix}.ancestor_id = (SELECT concept_id FROM concept WHERE code = @${paramPrefix}_anc_code AND cs_id = @${paramPrefix}_cs)`,
+        };
+      }
+
+      if (op === 'in') {
+        const url = resolveInValueSetUrl(this.system(), value, this.runtime);
+        params[`${paramPrefix}_vs_url`] = url;
+        params[`${paramPrefix}_cs`] = csId;
+        return {
+          sql: '',
+          params,
+          joins: ` JOIN value_set_member vsm_${paramPrefix} ON vsm_${paramPrefix}.concept_id = ${alias}.concept_id AND vsm_${paramPrefix}.active = 1`
+            + ` JOIN value_set vs_${paramPrefix} ON vs_${paramPrefix}.vs_id = vsm_${paramPrefix}.vs_id AND vs_${paramPrefix}.cs_id = @${paramPrefix}_cs AND vs_${paramPrefix}.url = @${paramPrefix}_vs_url`,
+        };
+      }
+
+      return null; // Unsupported concept operator
+    }
+
+    if (property === 'code' && op === 'regex') {
+      // Can't do regex in SQL — fall back
+      return null;
+    }
+
+    // Property filter: resolve via property_def → concept_link or concept_literal
+    const syncDb = this.#getSyncDb();
+    if (!syncDb) return null;
+
+    const propDef = syncDb.prepare(
+      'SELECT property_id, value_kind FROM property_def WHERE cs_id = ? AND property_code = ? LIMIT 1'
+    ).get(csId, property);
+    if (!propDef) return null;
+
+    if (propDef.value_kind === 'concept') {
+      if (op === '=') {
+        params[`${paramPrefix}_prop`] = propDef.property_id;
+        params[`${paramPrefix}_val_code`] = value;
+        params[`${paramPrefix}_val_cs`] = csId;
+        params[`${paramPrefix}_eset`] = this.meta.hierarchyEdgeSetId || 1;
+        return {
+          sql: '',
+          params,
+          joins: ` JOIN concept_link lnk_${paramPrefix}`
+            + ` ON lnk_${paramPrefix}.source_concept_id = ${alias}.concept_id`
+            + ` AND lnk_${paramPrefix}.property_id = @${paramPrefix}_prop`
+            + ` AND lnk_${paramPrefix}.edge_set_id = @${paramPrefix}_eset`
+            + ` AND lnk_${paramPrefix}.active = 1`
+            + ` AND lnk_${paramPrefix}.target_concept_id = (SELECT concept_id FROM concept WHERE code = @${paramPrefix}_val_code AND cs_id = @${paramPrefix}_val_cs)`,
+        };
+      }
+      return null;
+    }
+
+    if (propDef.value_kind === 'string' || propDef.value_kind === 'literal') {
+      if (op === '=') {
+        params[`${paramPrefix}_prop`] = propDef.property_id;
+        params[`${paramPrefix}_val`] = value;
+        return {
+          sql: '',
+          params,
+          joins: ` JOIN concept_literal lit_${paramPrefix}`
+            + ` ON lit_${paramPrefix}.source_concept_id = ${alias}.concept_id`
+            + ` AND lit_${paramPrefix}.property_id = @${paramPrefix}_prop`
+            + ` AND lit_${paramPrefix}.value = @${paramPrefix}_val`,
+        };
+      }
+      return null;
+    }
+
+    return null; // Unsupported property type
+  }
+
+  async expandForValueSet(spec) {
+    if (SqliteRuntimeV0FactoryProvider.bypassExpandForValueSet) return null;
+
+    const syncDb = this.#getSyncDb();
+    if (!syncDb) return null;
+
+    const csId = this.meta.csId;
+    const sys = this.system();
+    const ver = this.version();
+
+    // Build per-include SQL subqueries, UNION ALL'd together
+    const unionParts = [];
+    const allParams = { _csId: csId };
+    let conceptCodes = null; // Track explicit codes for missing-concept fallback
+
+    for (let i = 0; i < spec.includes.length; i++) {
+      const inc = spec.includes[i];
+
+      if (inc.concepts && inc.concepts.length > 0) {
+        // Explicit concept list
+        const placeholders = inc.concepts.map((_, j) => `@_ic${i}_${j}`).join(',');
+        inc.concepts.forEach((cc, j) => { allParams[`_ic${i}_${j}`] = cc.code; });
+        unionParts.push(
+          `SELECT c.concept_id, c.code, c.display, c.definition, c.active`
+          + ` FROM concept c`
+          + ` WHERE c.cs_id = @_csId AND c.code IN (${placeholders})`
+        );
+        if (!conceptCodes) conceptCodes = new Set();
+        for (const cc of inc.concepts) conceptCodes.add(cc.code);
+      } else if (inc.filters && inc.filters.length > 0) {
+        // Filter-based include
+        let joins = '';
+        let where = '';
+        let unsupported = false;
+
+        for (let fi = 0; fi < inc.filters.length; fi++) {
+          const result = this.#buildV0FilterSql(inc.filters[fi], `_i${i}f${fi}`);
+          if (!result) {
+            unsupported = true;
+            break;
+          }
+          joins += result.joins;
+          where += result.sql;
+          Object.assign(allParams, result.params);
+        }
+        if (unsupported) return null; // Fall back to per-code iteration
+
+        unionParts.push(
+          `SELECT c.concept_id, c.code, c.display, c.definition, c.active`
+          + ` FROM concept c${joins}`
+          + ` WHERE c.cs_id = @_csId${where}`
+        );
+      } else {
+        // Bare "whole code system" — fall back
+        return null;
+      }
+    }
+
+    if (unionParts.length === 0) return null;
+
+    // Build exclude clause
+    let excludeSql = '';
+    for (let i = 0; i < spec.excludes.length; i++) {
+      const exc = spec.excludes[i];
+      if (exc.concepts && exc.concepts.length > 0) {
+        const placeholders = exc.concepts.map((_, j) => `@_ec${i}_${j}`).join(',');
+        exc.concepts.forEach((cc, j) => { allParams[`_ec${i}_${j}`] = cc.code; });
+        excludeSql += ` AND code NOT IN (${placeholders})`;
+      } else if (exc.filters && exc.filters.length > 0) {
+        // Build exclude subquery
+        let exJoins = '';
+        let exWhere = '';
+        let unsupported = false;
+        for (let fi = 0; fi < exc.filters.length; fi++) {
+          const result = this.#buildV0FilterSql(exc.filters[fi], `_e${i}f${fi}`, 'c2');
+          if (!result) { unsupported = true; break; }
+          exJoins += result.joins;
+          exWhere += result.sql;
+          Object.assign(allParams, result.params);
+        }
+        if (!unsupported) {
+          excludeSql += ` AND code NOT IN (SELECT c2.code FROM concept c2${exJoins}`
+            + ` WHERE c2.cs_id = @_csId${exWhere})`;
+        }
+        // If unsupported exclude filter, skip — worker's isExcluded handles it
+      }
+    }
+
+    // activeOnly
+    const activeSql = spec.activeOnly ? ' AND active = 1' : '';
+
+    // Wrap union in outer SELECT for dedup, filtering, and paging
+    const innerSql = unionParts.join(' UNION ALL ');
+
+    let sql = `SELECT DISTINCT code, display, definition, active FROM (${innerSql})`
+      + ` WHERE 1=1${activeSql}${excludeSql}`
+      + ` ORDER BY code`;
+
+    // Paging
+    if (spec.count != null && spec.count > 0) {
+      sql += ` LIMIT ${Math.max(0, spec.count)}`;
+    }
+    if (spec.offset != null && spec.offset > 0) {
+      sql += ` OFFSET ${Math.max(0, spec.offset)}`;
+    }
+
+    // Return a synchronous generator backed by better-sqlite3's lazy cursor
+    const self = this;
+    return (function* () {
+      const stmt = syncDb.prepare(sql);
+      for (const row of stmt.iterate(allParams)) {
+        yield {
+          code: row.code,
+          display: row.display,
+          system: sys,
+          version: ver,
+          isAbstract: false,
+          isInactive: row.active !== 1,
+          isDeprecated: false,
+          status: row.active === 1 ? 'active' : 'inactive',
+          definition: row.definition || null,
+          designations: [],
+          properties: null,
+          extensions: null,
+        };
+      }
+    })();
   }
 
   system() {
@@ -2532,7 +2778,8 @@ class SqliteRuntimeV0FactoryProvider extends CodeSystemFactoryProvider {
     this.recordUse();
     return new SqliteRuntimeV0Provider(opContext, supplements, this._db, this._meta, this._runtime, {
       ownsDb: false,
-      sharedState: this._sharedState
+      sharedState: this._sharedState,
+      dbPath: this.dbPath
     });
   }
 
