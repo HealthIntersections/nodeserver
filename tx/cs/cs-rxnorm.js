@@ -709,12 +709,13 @@ class RxNormServices extends CodeSystemProvider {
 
     // Archive fallback: concept codes not in rxnconso may be retired.
     // UNION them in from RXNATOMARCHIVE so SQL handles it in one pass.
+    // Index hints ensure RXCUI-based lookups instead of partial scans.
     if (conceptPlaceholders.length > 0) {
       const archIn = conceptPlaceholders.join(',');
       selectParts.push(
-        `SELECT a.${codeField}, a.STR, '1' AS SUPPRESS FROM RXNATOMARCHIVE a`
+        `SELECT a.${codeField}, a.STR, '1' AS SUPPRESS FROM RXNATOMARCHIVE a INDEXED BY idx_rxnatomarchive_rxcui_sab`
         + ` WHERE a.${codeField} IN (${archIn}) AND a.SAB = @_sab AND a.TTY <> 'SY'`
-        + ` AND a.${codeField} NOT IN (SELECT ${codeField} FROM rxnconso WHERE SAB = @_sab AND TTY <> 'SY' AND ${codeField} IN (${archIn}))`
+        + ` AND NOT EXISTS (SELECT 1 FROM rxnconso c INDEXED BY X_RXNCONSO_1 WHERE c.${codeField} = a.${codeField} AND c.SAB = @_sab AND c.TTY <> 'SY')`
         + ` GROUP BY a.${codeField}`
       );
     }
@@ -731,7 +732,7 @@ class RxNormServices extends CodeSystemProvider {
         const placeholders = exc.concepts.map((_, j) => `@_ec${i}_${j}`).join(',');
         // EXCEPT against both rxnconso and archive so excluded codes are removed from either source
         sql += ` EXCEPT SELECT ${baseCols} FROM rxnconso WHERE rxnconso.SAB = @_sab AND rxnconso.${codeField} IN (${placeholders})`;
-        sql += ` EXCEPT SELECT a.${codeField}, a.STR, '1' FROM RXNATOMARCHIVE a WHERE a.SAB = @_sab AND a.${codeField} IN (${placeholders})`;
+        sql += ` EXCEPT SELECT a.${codeField}, a.STR, '1' FROM RXNATOMARCHIVE a INDEXED BY idx_rxnatomarchive_rxcui_sab WHERE a.SAB = @_sab AND a.${codeField} IN (${placeholders})`;
         exc.concepts.forEach((cc, j) => { allParams[`_ec${i}_${j}`] = cc.code; });
       } else if (exc.filters && exc.filters.length > 0) {
         const result = this.#buildFilterSql(exc.filters, `_e${i}`);
