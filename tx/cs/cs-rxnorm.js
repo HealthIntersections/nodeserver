@@ -1,4 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
+let BetterSqlite3;
+try { BetterSqlite3 = require('better-sqlite3'); } catch (e) { /* optional */ }
 const assert = require('assert');
 const { CodeSystem } = require('../library/codesystem');
 const { CodeSystemProvider, CodeSystemFactoryProvider } = require('./cs-api');
@@ -12,6 +14,7 @@ class RxNormConcept {
     this.display = display;
     this.others = []; // Array of alternative displays (SY terms, etc.)
     this.archived = false;
+    this.suppress = false; // Eagerly loaded from locate() to avoid redundant queries
   }
 }
 
@@ -54,10 +57,12 @@ class RxNormIteratorContext {
 }
 
 class RxNormServices extends CodeSystemProvider {
-  constructor(opContext, supplements, db, sharedData, isNCI = false) {
+  constructor(opContext, supplements, db, sharedData, isNCI = false, dbPath = null) {
     super(opContext, supplements);
     this.db = db;
     this.isNCI = isNCI;
+    this.dbPath = dbPath;
+    this._syncDb = null; // Lazy better-sqlite3 connection
 
     // Shared data from factory
     this.dbVersion = sharedData.version;
@@ -70,6 +75,10 @@ class RxNormServices extends CodeSystemProvider {
     if (this.db) {
       this.db.close();
       this.db = null;
+    }
+    if (this._syncDb) {
+      this._syncDb.close();
+      this._syncDb = null;
     }
   }
 
@@ -148,18 +157,11 @@ class RxNormServices extends CodeSystemProvider {
       return 'archived';
     }
 
-    // Check suppress flag
-    return new Promise((resolve, reject) => {
-      const sql = `SELECT suppress FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ? AND TTY <> 'SY'`;
-
-      this.db.get(sql, [ctxt.code, this.getSAB()], (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(row ? row.suppress === '1' ? 'suppressed' : null : null);
-        }
-      });
-    });
+    // Use cached suppress flag from locate() if available
+    if (ctxt) {
+      return ctxt.suppress ? 'suppressed' : null;
+    }
+    return null;
   }
 
   async isInactive(context) {
@@ -170,18 +172,8 @@ class RxNormServices extends CodeSystemProvider {
       return true;
     }
 
-    // Check suppress flag
-    return new Promise((resolve, reject) => {
-      const sql = `SELECT suppress FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ? AND TTY <> 'SY'`;
-
-      this.db.get(sql, [ctxt.code, this.getSAB()], (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(row ? row.suppress === '1' : false);
-        }
-      });
-    });
+    // Use cached suppress flag from locate()
+    return ctxt ? ctxt.suppress : false;
   }
 
   async isDeprecated(context) {
@@ -233,7 +225,7 @@ class RxNormServices extends CodeSystemProvider {
     if (!code) return { context: null, message: 'Empty code' };
 
     return new Promise((resolve, reject) => {
-      let sql = `SELECT STR, TTY FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ?`;
+      let sql = `SELECT STR, TTY, SUPPRESS FROM rxnconso WHERE ${this.getCodeField()} = ? AND SAB = ?`;
 
       this.db.all(sql, [code, this.getSAB()], (err, rows) => {
         if (err) {
@@ -266,6 +258,10 @@ class RxNormServices extends CodeSystemProvider {
     });
   }
 
+  // locateMany intentionally not overridden: SQLite's prepared-statement
+  // index lookups are faster than a single IN(...) query with many codes.
+  // The base class fallback (N individual locate() calls) wins here.
+
   #createConceptFromRows(code, rows, archived) {
     const concept = new RxNormConcept(code);
     concept.archived = archived;
@@ -275,6 +271,10 @@ class RxNormServices extends CodeSystemProvider {
         concept.others.push(row.STR.trim());
       } else {
         concept.display = row.STR.trim();
+      }
+      // Cache suppress flag from locate() query to avoid redundant SQL
+      if (row.SUPPRESS !== undefined) {
+        concept.suppress = row.SUPPRESS === '1';
       }
     }
 
@@ -487,7 +487,7 @@ class RxNormServices extends CodeSystemProvider {
       }
     }
 
-    const fullQuery = `SELECT ${this.getCodeField()}, STR ${sql2} WHERE SAB = $sab AND TTY <> 'SY' ${sql1}`;
+    const fullQuery = `SELECT ${this.getCodeField()}, STR, SUPPRESS ${sql2} WHERE SAB = $sab AND TTY <> 'SY' ${sql1} ORDER BY ${this.getCodeField()}`;
     allParams.sab = this.getSAB();
 
     // Create a single filter holder with the combined query
@@ -614,6 +614,269 @@ class RxNormServices extends CodeSystemProvider {
 
   #sqlWrapString(str) {
     return str.replace(/'/g, "''");
+  }
+
+  // --- expandForValueSet: single-query expansion for ValueSet operations ---
+
+  #getSyncDb() {
+    if (!this._syncDb) {
+      if (!BetterSqlite3 || !this.dbPath) return null;
+      this._syncDb = new BetterSqlite3(this.dbPath, { readonly: true });
+    }
+    return this._syncDb;
+  }
+
+  /**
+   * Build SQL WHERE fragments from a spec's filter array.
+   * Returns { sql, params } or null if unsupported filter encountered.
+   */
+  #buildFilterSql(filters, paramPrefix) {
+    let sql = '';
+    let joins = '';
+    const params = {};
+    const codeField = this.getCodeField();
+    for (let i = 0; i < filters.length; i++) {
+      const f = filters[i];
+      const prop = f.property.toUpperCase();
+      const pfx = `${paramPrefix}_f${i}`;
+
+      if (f.op === '=' && prop === 'TTY') {
+        sql += ` AND rxnconso.TTY = @${pfx}_tty`;
+        params[`${pfx}_tty`] = f.value;
+      } else if (f.op === 'in' && prop === 'TTY') {
+        const values = f.value.split(',').map(v => v.trim()).filter(v => v);
+        const placeholders = values.map((_, j) => `@${pfx}_tty${j}`).join(',');
+        sql += ` AND rxnconso.TTY IN (${placeholders})`;
+        values.forEach((val, j) => { params[`${pfx}_tty${j}`] = val; });
+      } else if (f.op === '=' && prop === 'STY') {
+        const alias = `_sty${pfx}`;
+        joins += ` JOIN rxnsty ${alias} ON ${alias}.RXCUI = rxnconso.${codeField} AND ${alias}.TUI = @${pfx}_sty`;
+        params[`${pfx}_sty`] = f.value;
+      } else if (f.op === '=' && prop === 'SAB') {
+        sql += ` AND rxnconso.${codeField} IN (SELECT ${codeField} FROM rxnconso WHERE SAB = @${pfx}_sab)`;
+        params[`${pfx}_sab`] = f.value;
+      } else {
+        return null; // Unsupported filter — fall back
+      }
+    }
+    return { sql, joins, params, needsGroupBy: joins.length > 0 };
+  }
+
+  /**
+   * Build a NOT EXISTS WHERE clause for an exclude filter group.
+   * Multiple filters on the same exclude are conjunctive (AND) — exclude only
+   * codes matching ALL filters. Uses a single correlated subquery.
+   */
+  #buildExcludeWhereSql(filters, paramPrefix, codeField) {
+    const params = {};
+    const outerRef = `t.${codeField}`;
+
+    // Categorize filters by which table they need
+    const ttyFilters = [];  // need rxnconso
+    const styFilters = [];  // need rxnsty only
+    const otherFilters = []; // need rxnconso (SAB etc)
+
+    for (let i = 0; i < filters.length; i++) {
+      const f = filters[i];
+      const prop = f.property.toUpperCase();
+      const pfx = `${paramPrefix}_f${i}`;
+
+      if ((f.op === '=' || f.op === 'in') && prop === 'TTY') {
+        ttyFilters.push({ f, pfx });
+      } else if (f.op === '=' && prop === 'STY') {
+        styFilters.push({ f, pfx });
+      } else if (f.op === '=' && prop === 'SAB') {
+        otherFilters.push({ f, pfx });
+      } else {
+        return null; // Unsupported filter
+      }
+    }
+
+    // STY-only: correlate directly against rxnsty (no rxnconso scan)
+    if (styFilters.length > 0 && ttyFilters.length === 0 && otherFilters.length === 0) {
+      const conditions = styFilters.map(({ f, pfx }) => {
+        params[`${pfx}_sty`] = f.value;
+        return `NOT EXISTS (SELECT 1 FROM rxnsty _sty${pfx}`
+          + ` WHERE _sty${pfx}.RXCUI = ${outerRef} AND _sty${pfx}.TUI = @${pfx}_sty)`;
+      });
+      return { sql: conditions.join(' AND '), params };
+    }
+
+    // TTY-only (no STY): correlate against rxnconso
+    if (ttyFilters.length > 0 && styFilters.length === 0 && otherFilters.length === 0) {
+      let where = '';
+      for (const { f, pfx } of ttyFilters) {
+        if (f.op === '=') {
+          where += ` AND _ex.TTY = @${pfx}_tty`;
+          params[`${pfx}_tty`] = f.value;
+        } else { // op === 'in'
+          const values = f.value.split(',').map(v => v.trim()).filter(v => v);
+          const placeholders = values.map((_, j) => `@${pfx}_tty${j}`).join(',');
+          where += ` AND _ex.TTY IN (${placeholders})`;
+          values.forEach((val, j) => { params[`${pfx}_tty${j}`] = val; });
+        }
+      }
+      const sql = `NOT EXISTS (SELECT 1 FROM rxnconso _ex INDEXED BY X_RXNCONSO_1`
+        + ` WHERE _ex.${codeField} = ${outerRef} AND _ex.SAB = @_sab${where})`;
+      return { sql, params };
+    }
+
+    // Mixed filters: need rxnconso with JOINs — build carefully
+    let where = '';
+    let joins = '';
+    for (const { f, pfx } of ttyFilters) {
+      if (f.op === '=') {
+        where += ` AND _ex.TTY = @${pfx}_tty`;
+        params[`${pfx}_tty`] = f.value;
+      } else {
+        const values = f.value.split(',').map(v => v.trim()).filter(v => v);
+        const placeholders = values.map((_, j) => `@${pfx}_tty${j}`).join(',');
+        where += ` AND _ex.TTY IN (${placeholders})`;
+        values.forEach((val, j) => { params[`${pfx}_tty${j}`] = val; });
+      }
+    }
+    for (const { f, pfx } of styFilters) {
+      joins += ` JOIN rxnsty _sty${pfx} ON _sty${pfx}.RXCUI = _ex.${codeField} AND _sty${pfx}.TUI = @${pfx}_sty`;
+      params[`${pfx}_sty`] = f.value;
+    }
+    for (const { f, pfx } of otherFilters) {
+      where += ` AND _ex.${codeField} IN (SELECT ${codeField} FROM rxnconso WHERE SAB = @${pfx}_sab)`;
+      params[`${pfx}_sab`] = f.value;
+    }
+    const sql = `NOT EXISTS (SELECT 1 FROM rxnconso _ex INDEXED BY X_RXNCONSO_1${joins}`
+      + ` WHERE _ex.${codeField} = ${outerRef} AND _ex.SAB = @_sab AND _ex.TTY <> 'SY'${where})`;
+    return { sql, params };
+  }
+  async expandForValueSet(spec) {
+    // Bypass flag: set RxNormServices.bypassExpandForValueSet = true to skip
+    if (RxNormServices.bypassExpandForValueSet) return null;
+
+    const syncDb = this.#getSyncDb();
+    if (!syncDb) return null;
+
+    const codeField = this.getCodeField();
+    const sab = this.getSAB();
+    const sys = this.system();
+    const ver = this.version();
+
+    // Build each include/exclude as a SELECT, combine with UNION/EXCEPT.
+    // Archive fallback for retired concept codes is folded into the SQL via
+    // UNION against RXNATOMARCHIVE — no JS-side tracking needed.
+    const selectParts = [];
+    const allParams = { _sab: sab };
+
+    // Collect all included concept code placeholders for archive UNION
+    const conceptPlaceholders = [];
+
+    const baseCols = `rxnconso.${codeField}, rxnconso.STR, rxnconso.SUPPRESS`;
+
+    for (let i = 0; i < spec.includes.length; i++) {
+      const inc = spec.includes[i];
+      if (inc.concepts && inc.concepts.length > 0) {
+        const placeholders = inc.concepts.map((_, j) => `@_ic${i}_${j}`).join(',');
+        const indexHint = ' INDEXED BY X_RXNCONSO_1';
+        selectParts.push(`SELECT ${baseCols} FROM rxnconso${indexHint} WHERE rxnconso.SAB = @_sab AND rxnconso.TTY <> 'SY' AND rxnconso.${codeField} IN (${placeholders})`);
+        inc.concepts.forEach((cc, j) => {
+          allParams[`_ic${i}_${j}`] = cc.code;
+          conceptPlaceholders.push(`@_ic${i}_${j}`);
+        });
+      } else if (inc.filters && inc.filters.length > 0) {
+        const result = this.#buildFilterSql(inc.filters, `_i${i}`);
+        if (!result) return null;
+        selectParts.push(`SELECT ${baseCols} FROM rxnconso${result.joins || ''} WHERE rxnconso.SAB = @_sab AND rxnconso.TTY <> 'SY'${result.sql}`);
+        Object.assign(allParams, result.params);
+      } else {
+        return null; // Bare "whole code system" — fall back
+      }
+    }
+
+    if (selectParts.length === 0) return null;
+
+    // Archive fallback: concept codes not in rxnconso may be retired.
+    // UNION them in from RXNATOMARCHIVE so SQL handles it in one pass.
+    // Index hints ensure RXCUI-based lookups instead of partial scans.
+    if (conceptPlaceholders.length > 0) {
+      const archIn = conceptPlaceholders.join(',');
+      selectParts.push(
+        `SELECT a.${codeField}, a.STR, '1' AS SUPPRESS FROM RXNATOMARCHIVE a INDEXED BY idx_rxnatomarchive_rxcui_sab`
+        + ` WHERE a.${codeField} IN (${archIn}) AND a.SAB = @_sab AND a.TTY <> 'SY'`
+        + ` AND NOT EXISTS (SELECT 1 FROM rxnconso c INDEXED BY X_RXNCONSO_1 WHERE c.${codeField} = a.${codeField} AND c.SAB = @_sab AND c.TTY <> 'SY')`
+        + ` GROUP BY a.${codeField}`
+      );
+    }
+
+    // Combine includes (+ archive) with UNION
+    let sql = selectParts.length === 1
+      ? selectParts[0]
+      : selectParts.join(' UNION ');
+
+    // Build excludes as WHERE conditions on the outer query.
+    // Using NOT EXISTS instead of EXCEPT lets SQLite short-circuit
+    // with LIMIT — it doesn't need to materialize the full exclude set.
+    const excludeWhere = [];
+    for (let i = 0; i < spec.excludes.length; i++) {
+      const exc = spec.excludes[i];
+      if (exc.concepts && exc.concepts.length > 0) {
+        const placeholders = exc.concepts.map((_, j) => `@_ec${i}_${j}`).join(',');
+        excludeWhere.push(`${codeField} NOT IN (${placeholders})`);
+        exc.concepts.forEach((cc, j) => { allParams[`_ec${i}_${j}`] = cc.code; });
+      } else if (exc.filters && exc.filters.length > 0) {
+        const result = this.#buildExcludeWhereSql(exc.filters, `_e${i}`, codeField);
+        if (!result) return null; // Unsupported exclude filter — fall back entirely
+        excludeWhere.push(result.sql);
+        Object.assign(allParams, result.params);
+      }
+    }
+
+    // activeOnly
+    let activeSql = '';
+    if (spec.activeOnly) {
+      activeSql = ` AND SUPPRESS <> '1'`;
+    }
+
+    // searchText (basic LIKE match on STR)
+    if (spec.searchText) {
+      activeSql += ` AND STR LIKE @_searchText`;
+      allParams._searchText = `%${spec.searchText}%`;
+    }
+
+    // Wrap with outer query for ordering, filtering, paging
+    const excludeSql = excludeWhere.length > 0 ? ' AND ' + excludeWhere.join(' AND ') : '';
+    sql = `SELECT ${codeField}, STR, SUPPRESS FROM (${sql}) AS t WHERE 1=1${activeSql}${excludeSql} ORDER BY ${codeField}`;
+
+    // Paging — SQL handles offset directly so the framework doesn't re-skip
+    if (spec.count != null && spec.count > 0) {
+      const limit = spec.count;
+      const offset = (spec.offset != null && spec.offset > 0) ? spec.offset : 0;
+      sql += ` LIMIT ${limit} OFFSET ${offset}`;
+    }
+
+    // Return a generator backed by better-sqlite3's lazy cursor
+    const self = this;
+    return (function* () {
+      const stmt = syncDb.prepare(sql);
+      const seen = new Set();
+      for (const row of stmt.iterate(allParams)) {
+        const code = row[codeField];
+        if (seen.has(code)) continue;
+        seen.add(code);
+        const isArchived = row.SUPPRESS === '1';
+        yield {
+          code,
+          display: row.STR,
+          system: sys,
+          version: ver,
+          isAbstract: false,
+          isInactive: isArchived,
+          isDeprecated: false,
+          status: isArchived ? 'inactive' : 'active',
+          definition: null,
+          designations: [],
+          properties: null,
+          extensions: null,
+        };
+      }
+    })();
   }
 
   // Subsumption testing
@@ -795,7 +1058,7 @@ class RxNormTypeServicesFactory extends CodeSystemFactoryProvider {
     // Create fresh database connection for this provider instance
     const db = new sqlite3.Database(this.dbPath);
 
-    return new RxNormServices(opContext, supplements, db, this._sharedData, this.isNCI);
+    return new RxNormServices(opContext, supplements, db, this._sharedData, this.isNCI, this.dbPath);
   }
 
   name() {

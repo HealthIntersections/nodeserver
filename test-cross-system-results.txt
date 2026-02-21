@@ -1,0 +1,28 @@
+=== Cross-system expandForValueSet test results ===
+Date: 2026-02-21T04:10:31.389Z
+Tests: 22
+
+Test                               | Opt (ms) | Base (ms) | Speedup | Codes | Result
+-----------------------------------|----------|-----------|---------|-------|-------
+rx-exclude-same-tty                |     41.4 |     360.2 |    8.7x |     0 | ✅ exact
+rx-exclude-disjoint-tty            |      2.8 |     292.1 |  105.7x |    10 | ✅ exact
+rx-exclude-partial-tty             |     46.3 |     584.9 |   12.6x |    10 | ✅ exact
+rx-sty-exclude-overlapping         |     21.6 |    1373.5 |   63.7x |     0 | ✅ exact
+rx-concepts-exclude-tty-filter     |      3.3 |      82.0 |   24.7x |    10 | ✅ order differs
+rx-filter-exclude-20-concepts      |      1.4 |     362.3 |  265.9x |    10 | ✅ exact
+rx-multi-include-sty+concepts-exclude|    115.2 |    1554.9 |   13.5x |     0 | ✅ exact
+rx-3-tty-include-2-tty-exclude     |     34.1 |     548.5 |   16.1x |    10 | ✅ exact
+ln-exclude-filter-partial          |     18.0 |     964.0 |   53.6x |    10 | ✅ exact
+ln-exclude-same-filter             |     21.7 |     154.1 |    7.1x |     0 | ✅ exact
+ln-exclude-disjoint                |     27.6 |     143.2 |    5.2x |    10 | ✅ exact
+ln-concepts-exclude-filter         |     11.1 |      32.7 |    2.9x |     1 | ✅ exact
+ln-multi-include-multi-exclude     |     21.4 |     353.9 |   16.5x |    10 | ✅ exact
+cross-rx-ln-include                |    172.2 |     285.2 |    1.7x |    10 | ✅ exact
+cross-rx-include-ln-exclude        |    164.5 |     283.7 |    1.7x |    10 | ✅ exact
+cross-ln-include-rx-exclude        |     66.0 |    1534.6 |   23.2x |    10 | ✅ exact
+cross-concepts-both-systems        |      3.4 |       3.8 |    1.1x |     6 | ✅ exact
+cross-concepts-exclude-concepts    |      2.8 |       3.0 |    1.1x |     4 | ✅ exact
+cross-filter-exclude-cross         |     91.3 |    1500.5 |   16.4x |    10 | ✅ exact
+cross-mixed-concepts-filters       |     16.5 |     112.6 |    6.8x |    10 | ✅ exact
+rx-unsupported-filter-fallback     |      1.6 |       1.0 |    0.7x |     0 | ✅ exact
+rx-unsupported-exclude-filter-fallback|      1.1 |       0.9 |    0.9x |     0 | ✅ exact

@@ -1,0 +1,14 @@
+filter-component-bacteria	11.2	30.5	2.7	10	✅ exact
+filter-class-chem	13.8	940.5	68.0	10	✅ exact
+filter-scale-qn	50.8	2611.0	51.4	10	✅ exact
+filter-system-ser	21.4	679.5	31.7	10	✅ exact
+concept-5	2.5	1.6	0.6	5	✅ page order differs, sets equal
+exclude-concepts	2.0	57.4	28.6	10	✅ exact
+activeonly-class	13.7	119.4	8.7	10	✅ exact
+filter-list-ll150	2.3	14.5	6.4	10	✅ page order differs, sets equal (255 codes)
+filter-classtype-lab	81.5	2021.2	24.8	10	✅ exact
+paged-class-offset-100	13.7	102.7	7.5	10	✅ exact
+multi-filter-component-scale	2.3	79.8	34.7	7	✅ exact
+filter-status-active	50.0	5324.5	106.4	10	✅ exact
+text-glucose	1.0	0.9	1.0	10	✅ exact
+multi-include-2-components	3.5	87.7	24.8	10	✅ page order differs, sets equal (743 codes)

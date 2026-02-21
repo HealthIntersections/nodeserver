@@ -1,0 +1,235 @@
+{
+  "generatedAt": "2026-02-21T01:59:59.866Z",
+  "input": "/home/jmandel/hobby/FHIRsmith-incremental/captured/snomed.ndjson",
+  "port": 9400,
+  "endpointPath": "/r4",
+  "librarySource": "tx/tx.snomed-legacy-only.yml",
+  "intendedSource": "prod",
+  "overall": {
+    "total": 6,
+    "intendedPass": 5,
+    "intendedFail": 1,
+    "prodMatch": 5,
+    "devMatch": 5,
+    "noActual": 0,
+    "postTotal": 6,
+    "postWithBody": 6,
+    "postMissingBody": 0,
+    "avgDurationMs": 307,
+    "maxDurationMs": 1221,
+    "byActual": {
+      "200": 6
+    },
+    "topPairs": [
+      [
+        "200->200",
+        5
+      ],
+      [
+        "422->200",
+        1
+      ]
+    ],
+    "topFailSigs": [
+      [
+        "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,incomplete-ok,valueSet,_limit,_incomplete",
+        1
+      ]
+    ]
+  },
+  "r4": {
+    "total": 6,
+    "intendedPass": 5,
+    "intendedFail": 1,
+    "prodMatch": 5,
+    "devMatch": 5,
+    "noActual": 0,
+    "postTotal": 6,
+    "postWithBody": 6,
+    "postMissingBody": 0,
+    "avgDurationMs": 307,
+    "maxDurationMs": 1221,
+    "byActual": {
+      "200": 6
+    },
+    "topPairs": [
+      [
+        "200->200",
+        5
+      ],
+      [
+        "422->200",
+        1
+      ]
+    ],
+    "topFailSigs": [
+      [
+        "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,incomplete-ok,valueSet,_limit,_incomplete",
+        1
+      ]
+    ]
+  },
+  "r5": {
+    "total": 0,
+    "intendedPass": 0,
+    "intendedFail": 0,
+    "prodMatch": 0,
+    "devMatch": 0,
+    "noActual": 0,
+    "postTotal": 0,
+    "postWithBody": 0,
+    "postMissingBody": 0,
+    "avgDurationMs": 0,
+    "maxDurationMs": 0,
+    "byActual": {},
+    "topPairs": [],
+    "topFailSigs": []
+  },
+  "comparison": null,
+  "results": [
+    {
+      "id": "22be7337-2a5c-4004-aeec-4f7b39b8b1a4",
+      "ts": "2026-02-07T11:06:25.549Z",
+      "method": "POST",
+      "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+      "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,incomplete-ok,valueSet,_limit,_incomplete",
+      "prodStatus": 422,
+      "devStatus": 400,
+      "intendedSource": "prod",
+      "intendedStatus": 422,
+      "actualStatus": 200,
+      "error": null,
+      "statusMatch": {
+        "intended": false,
+        "prod": false,
+        "dev": false
+      },
+      "hadBody": true,
+      "requestBodyMissing": false,
+      "requestBodyParseError": false,
+      "durationMs": 559,
+      "responseBytes": 2587016,
+      "responseResourceType": "ValueSet"
+    },
+    {
+      "id": "12af2a21-df61-444b-b4cb-02e5fc9eea6f",
+      "ts": "2026-02-07T17:46:18.273Z",
+      "method": "POST",
+      "url": "/r4/ValueSet/$expand",
+      "signature": "POST ValueSet $expand q:- b:x-system-cache-id,defaultDisplayLanguage,_limit,_incomplete,displayLanguage,count,offset,excludeNested,cache-id,valueSet",
+      "prodStatus": 200,
+      "devStatus": 200,
+      "intendedSource": "prod",
+      "intendedStatus": 200,
+      "actualStatus": 200,
+      "error": null,
+      "statusMatch": {
+        "intended": true,
+        "prod": true,
+        "dev": true
+      },
+      "hadBody": true,
+      "requestBodyMissing": false,
+      "requestBodyParseError": false,
+      "durationMs": 1221,
+      "responseBytes": 94375,
+      "responseResourceType": "ValueSet"
+    },
+    {
+      "id": "a678f18b-6244-4dd8-9ad5-42ad457dc90a",
+      "ts": "2026-02-07T09:42:34.451Z",
+      "method": "POST",
+      "url": "/r4/ValueSet/$batch-validate-code?",
+      "signature": "POST ValueSet $batch-validate-code q:- b:validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation,validation",
+      "prodStatus": 200,
+      "devStatus": 200,
+      "intendedSource": "prod",
+      "intendedStatus": 200,
+      "actualStatus": 200,
+      "error": null,
+      "statusMatch": {
+        "intended": true,
+        "prod": true,
+        "dev": true
+      },
+      "hadBody": true,
+      "requestBodyMissing": false,
+      "requestBodyParseError": false,
+      "durationMs": 10,
+      "responseBytes": 7352,
+      "responseResourceType": "Parameters"
+    },
+    {
+      "id": "e7f00960-9f91-47bf-afd8-2ce44edecef6",
+      "ts": "2026-02-07T11:57:28.853Z",
+      "method": "POST",
+      "url": "/r4/ValueSet/$validate-code?",
+      "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,tx-resource,cache-id,profile-url,system-version,diagnostics",
+      "prodStatus": 200,
+      "devStatus": 200,
+      "intendedSource": "prod",
+      "intendedStatus": 200,
+      "actualStatus": 200,
+      "error": null,
+      "statusMatch": {
+        "intended": true,
+        "prod": true,
+        "dev": true
+      },
+      "hadBody": true,
+      "requestBodyMissing": false,
+      "requestBodyParseError": false,
+      "durationMs": 44,
+      "responseBytes": 11725,
+      "responseResourceType": "Parameters"
+    },
+    {
+      "id": "53d0e436-ce3c-4d8c-b82c-0f9908e9de09",
+      "ts": "2026-02-07T11:06:18.756Z",
+      "method": "POST",
+      "url": "/r4/ValueSet/$expand?_limit=1000&_incomplete=true",
+      "signature": "POST ValueSet $expand q:_incomplete,_limit b:x-system-cache-id,includeDefinition,excludeNested,valueSet,_limit,_incomplete",
+      "prodStatus": 200,
+      "devStatus": 200,
+      "intendedSource": "prod",
+      "intendedStatus": 200,
+      "actualStatus": 200,
+      "error": null,
+      "statusMatch": {
+        "intended": true,
+        "prod": true,
+        "dev": true
+      },
+      "hadBody": true,
+      "requestBodyMissing": false,
+      "requestBodyParseError": false,
+      "durationMs": 4,
+      "responseBytes": 6263,
+      "responseResourceType": "ValueSet"
+    },
+    {
+      "id": "56f58c7b-b1bc-4613-936e-ce8b7f1eb13b",
+      "ts": "2026-02-07T15:03:11.644Z",
+      "method": "POST",
+      "url": "/r4/ValueSet/$validate-code?",
+      "signature": "POST ValueSet $validate-code q:- b:coding,displayLanguage,default-to-latest-version,valueSet,cache-id,profile-url,system-version,diagnostics",
+      "prodStatus": 200,
+      "devStatus": 200,
+      "intendedSource": "prod",
+      "intendedStatus": 200,
+      "actualStatus": 200,
+      "error": null,
+      "statusMatch": {
+        "intended": true,
+        "prod": true,
+        "dev": true
+      },
+      "hadBody": true,
+      "requestBodyMissing": false,
+      "requestBodyParseError": false,
+      "durationMs": 3,
+      "responseBytes": 1879,
+      "responseResourceType": "Parameters"
+    }
+  ]
+}

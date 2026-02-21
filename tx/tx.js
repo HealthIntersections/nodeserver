@@ -144,7 +144,10 @@ class TXModule {
     // Load HTML template
     txHtml.loadTemplate();
 
-    // Validate config
+    // Validate config — allow env var override for library source
+    if (process.env.TX_LIBRARY_SOURCE) {
+      config.librarySource = process.env.TX_LIBRARY_SOURCE;
+    }
     if (!config.librarySource) {
       throw new Error('TX module requires librarySource configuration');
     }
