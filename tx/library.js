@@ -19,6 +19,7 @@ const {RxNormServicesFactory} = require("./cs/cs-rxnorm");
 const {NdcServicesFactory} = require("./cs/cs-ndc");
 const {UniiServicesFactory} = require("./cs/cs-unii");
 const {SnomedServicesFactory} = require("./cs/cs-snomed");
+const {SqliteRuntimeV0FactoryProvider} = require("./cs/cs-sqlite-runtime-v0");
 const {CPTServicesFactory} = require("./cs/cs-cpt");
 const {OMOPServicesFactory} = require("./cs/cs-omop");
 const {PackageValueSetProvider} = require("./vs/vs-package");
@@ -239,6 +240,10 @@ class Library {
         await this.loadSnomed(details, isDefault, mode);
         break;
 
+      case 'sqlite-v0':
+        await this.loadSqliteV0(details, isDefault, mode);
+        break;
+
       case 'cpt':
         await this.loadCpt(details, isDefault, mode);
         break;
@@ -402,6 +407,26 @@ class Library {
     const sct = new SnomedServicesFactory(this.i18n, sctFN);
     await sct.load();
     this.registerProvider(sctFN, sct, isDefault);
+  }
+
+  async loadSqliteV0(details, isDefault, mode) {
+    // Parse optional ?specialization=id or ?specialization=none
+    let filePart = details;
+    let specialization;
+    const qIdx = details.indexOf('?');
+    if (qIdx !== -1) {
+      filePart = details.substring(0, qIdx);
+      const params = new URLSearchParams(details.substring(qIdx + 1));
+      specialization = params.get('specialization') || undefined;
+    }
+    const sqliteFN = await this.getOrDownloadFile(filePart);
+    if (mode === "fetch" || mode === "npm") {
+      return;
+    }
+    const factory = await SqliteRuntimeV0FactoryProvider.createFromMetadata(
+      this.i18n, sqliteFN, { idPrefix: 'sqlite-v0', specialization }
+    );
+    this.registerProvider(sqliteFN, factory, isDefault);
   }
 
   async loadCpt(details, isDefault, mode) {

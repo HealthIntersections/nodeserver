@@ -557,6 +557,17 @@ class TxParameters {
   }
 
   assign(other) {
+    this.count = other.count;
+    this.offset = other.offset;
+    this.limit = other.limit;
+    this.filter = other.filter;
+    this.limitedExpansion = other.limitedExpansion;
+    this.incompleteOK = other.incompleteOK;
+    this.abstractOk = other.abstractOk;
+    this.inferSystem = other.inferSystem;
+    if (other.supplements) {
+      this.supplements = new Set(other.supplements);
+    }
     if (other.FVersionRules) {
       this.FVersionRules = [...other.FVersionRules];
     }

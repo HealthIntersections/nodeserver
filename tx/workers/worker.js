@@ -7,6 +7,7 @@ const {Issue} = require("../library/operation-outcome");
 const {Languages} = require("../../library/languages");
 const {ConceptMap} = require("../library/conceptmap");
 const {Renderer} = require("../library/renderer");
+const perfCounters = require('../perf-counters');
 
 /**
  * Custom error for terminology setup issues
@@ -43,6 +44,7 @@ class TerminologyWorker {
     this.noCacheThisOne = false;
     this.params = null; // Will be set by subclasses
     this.renderer = new Renderer(i18n, languages, provider);
+    this._providerCache = new Map();
   }
 
   /**
@@ -144,6 +146,17 @@ class TerminologyWorker {
     if (!noVParams) {
       version = this.determineVersionBase(url, version, params);
     }
+
+    // Memoize by resolved url|version|supplements within a single request
+    const suppKey = statedSupplements ? [...statedSupplements].sort().join(',') : '';
+    const kindsKey = Array.isArray(kinds) ? kinds.join(',') : String(kinds);
+    const cacheKey = `${url}|${version}|${kindsKey}|${suppKey}`;
+    if (this._providerCache.has(cacheKey)) {
+      perfCounters.bump('cache.hit');
+      return this._providerCache.get(cacheKey);
+    }
+    perfCounters.bump('cache.miss');
+
     let codeSystemResource = null;
     let provider = null;
     const supplements = this.loadSupplements(url, version, statedSupplements);
@@ -184,6 +197,7 @@ class TerminologyWorker {
       if (checkVer) {
         this.checkVersion(url, provider.version(), params, provider.versionAlgorithm(), op);
       }
+      this._providerCache.set(cacheKey, provider);
     }
 
     return provider;

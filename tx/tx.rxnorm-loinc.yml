@@ -1,0 +1,6 @@
+base:
+  url: https://storage.googleapis.com/tx-fhir-org
+
+sources:
+  - rxnorm:rxnorm_02032025-a.db
+  - loinc:loinc-2.77-a.db
