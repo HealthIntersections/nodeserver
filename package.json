@@ -32,6 +32,7 @@
     "axios": "^1.13.4",
     "base45": "^3.0.0",
     "bcrypt": "^6.0.0",
+    "better-sqlite3": "^12.6.2",
     "cbor": "^9.0.1",
     "chalk": "^4.1.2",
     "chokidar": "^4.0.3",
@@ -115,5 +116,8 @@
   "bugs": {
     "url": "https://github.com/HealthIntersections/fhirsmith/issues"
   },
-  "homepage": "https://github.com/HealthIntersections/fhirsmith#readme"
+  "homepage": "https://github.com/HealthIntersections/fhirsmith#readme",
+  "optionalDependencies": {
+    "better-sqlite3-with-progress": "github:jmandel/better-sqlite3#progress-handler"
+  }
 }

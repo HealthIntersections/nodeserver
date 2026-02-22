@@ -85,11 +85,12 @@ class Library {
     }
   }
 
-  constructor(configFile, vsacCfg, log, stats) {
+  constructor(configFile, vsacCfg, log, stats, txConfig) {
     this.configFile = configFile;
     this.vsacCfg = vsacCfg;
     this.log = log;
     this.stats = stats;
+    this.txConfig = txConfig || {};
 
     // Only synchronous initialization here
     this.codeSystemFactories = new Map();
@@ -424,7 +425,7 @@ class Library {
       return;
     }
     const factory = await SqliteRuntimeV0FactoryProvider.createFromMetadata(
-      this.i18n, sqliteFN, { idPrefix: 'sqlite-v0', specialization }
+      this.i18n, sqliteFN, { idPrefix: 'sqlite-v0', specialization, effortLimitMs: this.txConfig.sqliteEffortLimitMs }
     );
     this.registerProvider(sqliteFN, factory, isDefault);
   }

@@ -83,7 +83,9 @@
 
 const sqlite3 = require('sqlite3').verbose();
 let BetterSqlite3;
-try { BetterSqlite3 = require('better-sqlite3'); } catch (_) { BetterSqlite3 = null; }
+try { BetterSqlite3 = require('better-sqlite3-with-progress'); } catch (_) {
+  try { BetterSqlite3 = require('better-sqlite3'); } catch (_) { BetterSqlite3 = null; }
+}
 const { CodeSystem } = require('../library/codesystem');
 const { CodeSystemProvider, CodeSystemFactoryProvider, FilterExecutionContext } = require('./cs-api');
 
@@ -176,6 +178,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     this.statusCache = null;
     this.ownsDb = options.ownsDb === true;
     this.dbPath = options.dbPath || null;
+    this.effortLimitMs = options.effortLimitMs || 1000;
     this._syncDb = null;
     this.defaultIterationRegex = null;
     const regexSource = this.runtime?.iteration?.defaultCodeRegex;
@@ -226,6 +229,15 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
     });
     // Reset counter before each statement execution via a helper
     this._syncDb._resetRegexpEffort = () => { regexpCalls = 0; regexpCache.clear(); };
+    // Install progress handler for query effort limiting (if available)
+    if (typeof this._syncDb.progressHandler === 'function') {
+      const effortLimitMs = this.effortLimitMs;
+      let startTime = 0;
+      this._syncDb.progressHandler(10000, () => {
+        return performance.now() - startTime > effortLimitMs;
+      });
+      this._syncDb._resetEffort = () => { startTime = performance.now(); };
+    }
     return this._syncDb;
   }
 
@@ -1174,6 +1186,7 @@ class SqliteRuntimeV0Provider extends CodeSystemProvider {
         }
 
         if (syncDb._resetRegexpEffort) syncDb._resetRegexpEffort();
+        if (syncDb._resetEffort) syncDb._resetEffort();
         const stmt = syncDb.prepare(sql);
         const rows = [];
         for (const row of stmt.iterate(allParams)) {
@@ -2903,6 +2916,7 @@ class SqliteRuntimeV0FactoryProvider extends CodeSystemFactoryProvider {
     super(i18n);
     this.dbPath = dbPath;
     this.idPrefix = options.idPrefix || 'sqlite-runtime-v0';
+    this.effortLimitMs = options.effortLimitMs;
     this._loaded = false;
     this._loadPromise = null;
     this._db = null;
@@ -3068,7 +3082,8 @@ class SqliteRuntimeV0FactoryProvider extends CodeSystemFactoryProvider {
     return new SqliteRuntimeV0Provider(opContext, supplements, this._db, this._meta, this._runtime, {
       ownsDb: false,
       sharedState: this._sharedState,
-      dbPath: this.dbPath
+      dbPath: this.dbPath,
+      effortLimitMs: this.effortLimitMs
     });
   }
 

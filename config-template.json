@@ -120,6 +120,7 @@
       "enabled": false,
       "librarySource": "/absolute/path/to/library.yml",
       "cacheTimeout": 30,
+      "sqliteEffortLimitMs": 1000,
       "expansionCacheSize": 1000,
       "expansionCacheMemoryThreshold": 0,
       "endpoints": [
