@@ -1,0 +1,28 @@
+base:
+  url: https://storage.googleapis.com/tx-fhir-org
+
+sources:
+  - internal:lang
+  - internal:country
+  - internal:currency
+  - internal:areacode
+  - internal:mimetypes
+  - internal:usstates
+  - internal:hgvs
+  - ucum:tx/data/ucum-essence.xml
+  - loinc:loinc-2.77-a.db
+  - loinc!:loinc-2.81-b.db
+  - rxnorm:rxnorm_02032025-a.db
+  - ndc:ndc-20211101.db
+  - unii:unii_20240622.db
+  - snomed:sct_intl_20240201.cache
+  - snomed!:sct_intl_20250201.cache
+  - cpt:CodeSystem-cpt.db|cpt-2023-fragment-0.1.db
+  - omop:omop_v20250227.db
+  - npm:hl7.terminology
+  - npm:fhir.tx.support.r4
+  - npm:ihe.formatcode.fhir
+  - npm:fhir.dicom
+  - npm:hl7.fhir.us.core
+  - npm:us.cdc.phinvads
+  - npm:hl7.fhir.uv.sdc

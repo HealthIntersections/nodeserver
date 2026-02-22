@@ -506,8 +506,12 @@ class CodeSystemProvider {
     return false;
   }
 
+  /**
+   * @return true if the cs provider handles offset/count (paging) within its filter pipeline.
+   * If true, offset and count are passed to getPrepContext.
+   */
   handlesOffset() {
-
+    return false;
   }
   /**
    * gets a single context in which filters will be evaluated. The server doesn't doesn't make use of this context;
@@ -596,6 +600,16 @@ class CodeSystemProvider {
    * @param {String[]} code list of codes to exclude
    */
   async filterExcludeConcepts(filterContext, code) { throw new Error("Must override"); } // well, only if any filters are actually supported
+
+  /**
+   * Inform the CS provider about explicitly included concept codes from the value set compose.
+   * This allows the provider to include them in the same SQL query as filters, enabling
+   * correct offset/count handling and batch designation pre-fetch.
+   *
+   * @param {FilterExecutionContext} filterContext filtering context
+   * @param {String[]} codes list of codes to include
+   */
+  async includeConcepts(filterContext, codes) { /* no-op by default */ }
 
   /**
    * called once all the filters have been handled, and iteration is about to happen.

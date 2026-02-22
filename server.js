@@ -502,6 +502,25 @@ app.get('/health', async (req, res) => {
   res.json(healthStatus);
 });
 
+// Debug/diagnostics endpoints — counters are no-op by default (must POST /enable first).
+// Safe to expose: no sensitive data, useful for production perf diagnosis.
+app.get('/debug/perf-counters', (req, res) => {
+  const perfCounters = require('./tx/perf-counters');
+  res.json(perfCounters.snapshot());
+});
+
+app.post('/debug/perf-counters/reset', (req, res) => {
+  const perfCounters = require('./tx/perf-counters');
+  perfCounters.reset();
+  res.json({ ok: true });
+});
+
+app.post('/debug/perf-counters/enable', (req, res) => {
+  const perfCounters = require('./tx/perf-counters');
+  perfCounters.enable();
+  res.json({ ok: true });
+});
+
 /**
  * Get log directory statistics: file count, total size, and disk space info
  * @returns {string} HTML table row(s) with log stats

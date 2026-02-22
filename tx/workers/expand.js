@@ -13,16 +13,19 @@ const {TxParameters} = require("../params");
 const {Designations, SearchFilterText} = require("../library/designations");
 const {Extensions} = require("../library/extensions");
 const {getValuePrimitive, getValueName} = require("../../library/utilities");
+const perfCounters = require('../perf-counters');
 const {div} = require("../../library/html");
 const {Issue, OperationOutcome} = require("../library/operation-outcome");
 const crypto = require('crypto');
 const ValueSet = require("../library/valueset");
 const {VersionUtilities} = require("../../library/version-utilities");
 
-// Expansion limits (from Pascal constants)
-const UPPER_LIMIT_NO_TEXT = 1000;
-const UPPER_LIMIT_TEXT = 1000;
-const INTERNAL_LIMIT = 10000;
+// Expansion limits — raised to 1M to allow full code-system expansions
+// (e.g., SNOMED Clinical Findings ~124K codes). The v0 SQLite provider
+// handles large expansions efficiently via streaming pagination.
+const UPPER_LIMIT_NO_TEXT = 1000000;
+const UPPER_LIMIT_TEXT = 1000000;
+const INTERNAL_LIMIT = 1000000;
 const EXPANSION_DEAD_TIME_SECS = 30;
 const CACHE_WHEN_DEBUGGING = false;
 
@@ -226,7 +229,17 @@ class ValueSetExpander {
   }
 
   async listDisplaysFromProvider(displays, cs, context) {
-    await cs.designations(context, displays);
+    const langs = this.params.workingLanguages?.();
+    if (!this.params.includeDesignations && langs && cs.hasAnyDisplays(langs)) {
+      perfCounters.bump('display.fastPath');
+      const d = await cs.display(context);
+      if (d) {
+        displays.addDesignation(true, 'active', null, null, d);
+      }
+    } else {
+      perfCounters.bump('display.fullPath');
+      await cs.designations(context, displays);
+    }
     displays.source = cs;
   }
 
@@ -664,7 +677,7 @@ class ValueSetExpander {
     }
   }
 
-  async includeCodes(cset, path, vsSrc, compose, filter, expansion, excludeInactive, notClosed, vsInfo) {
+  async includeCodes(cset, path, vsSrc, filter, expansion, excludeInactive, notClosed, compose, vsInfo) {
     this.worker.deadCheck('processCodes#1');
     const valueSets = [];
 
@@ -756,32 +769,160 @@ class ValueSetExpander {
             }
             const prep = await cs.getPrepContext(true);
             const ctxt = await cs.searchFilter(prep, filter, false);
-            await cs.filterExclude(prep, )
             let set = await cs.executeFilters(prep);
             this.worker.opContext.log('iterate filters');
             while (await cs.filterMore(ctxt, set)) {
-              this.worker.deadCheck('processCodes#4');
               const c = await cs.filterConcept(ctxt, set);
+              this.worker.deadCheck('processCodes#4');
               if (await this.passesFilters(cs, c, prep, filters, 0)) {
                 const cds = new Designations(this.worker.i18n.languageDefinitions);
                 await this.listDisplaysFromProvider(cds, cs, c);
-                await this.includeCode(cs, null, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c), await cs.deprecated(c), await cs.getCodeStatus(c),
-                  cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.getExtensions(c), null, await cs.getProperties(c), null, excludeInactive, vsSrc.url);
+                await this.includeCode(cs, null, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c), await cs.deprecated(c), await cs.getStatus(c),
+                  cds, await cs.definition(c), await cs.itemWeight(c), expansion, valueSets, await cs.extensions(c), null, await this._propsIfRequested(cs, c), null, excludeInactive, vsSrc.url);
               }
             }
             this.worker.opContext.log('iterate filters done');
           }
         }
 
-        if (cset.concept) {
+        // --- Unified include: register all concepts + filters as intent, execute once ---
+        const hasConcepts = cset.concept && cset.concept.length > 0;
+        const hasFilters = cset.filter && cset.filter.length > 0;
+        const canUnify = hasConcepts && typeof cs.includeConcepts === 'function';
+
+        if (canUnify || hasFilters) {
+          this.worker.opContext.log('prepare filters');
+          // Per-CS LIMIT is safe: excludes are system-scoped, so excludes from
+          // other systems can't drain this CS's results. The worker's overall
+          // count management handles cross-system totals.
+          const prep = cs.handlesOffset()
+            ? await cs.getPrepContext(true, this.params, excludeInactive, this.offset, this.count)
+            : await cs.getPrepContext(true, this.params, excludeInactive);
+          if (!filter.isNull) {
+            await cs.searchFilter(prep, filter, true);
+          }
+
+          if (cs.specialEnumeration()) {
+            Extensions.addString(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", 'The code System "' + cs.system() + " has a grammar and so has infinite members. This extension is based on " + cs.specialEnumeration());
+            notClosed.value = true;
+          }
+
+          // Register include concepts
+          if (canUnify) {
+            await cs.includeConcepts(prep, cset.concept.map(c => c.code));
+          }
+
+          // Register include filters
+          if (hasFilters) {
+            const fcl = cset.filter;
+            for (let i = 0; i < fcl.length; i++) {
+              this.worker.deadCheck('processCodes#4a');
+              const fc = fcl[i];
+              if (!fc.value) {
+                throw new Issue('error', 'invalid', path+".filter["+i+"]", 'UNABLE_TO_HANDLE_SYSTEM_FILTER_WITH_NO_VALUE', this.worker.i18n.translate('UNABLE_TO_HANDLE_SYSTEM_FILTER_WITH_NO_VALUE', this.params.httpLanguages, [cs.system(), fc.property, fc.op]), 'vs-invalid', 400);
+              }
+              Extensions.checkNoModifiers(fc, 'ValueSetExpander.processCodes', 'filter');
+              await cs.filter(prep, fc.property, fc.op, fc.value);
+            }
+          }
+
+          // Register all excludes (concepts + filters) for this system
+          if (vsInfo && vsInfo.csDoExcludes && compose) {
+            for (const exc of compose.exclude || []) {
+              if (exc.system === cset.system) {
+                if (exc.concept && exc.concept.length > 0) {
+                  await cs.filterExcludeConcepts(prep, exc.concept.map(c => c.code));
+                }
+                const filterList = (exc.filter || []).map(f => ({ prop: f.property, op: f.op, value: f.value }));
+                if (filterList.length > 0) {
+                  await cs.filterExcludeFilters(prep, filterList);
+                }
+              }
+            }
+          }
+
+          // Execute — provider sees full picture: all concepts, filters, excludes
+          const fset = await cs.executeFilters(prep);
+          if (await cs.filtersNotClosed(prep)) {
+            notClosed.value = true;
+          }
+
+          // Build compose concept lookup for metadata merging
+          const conceptDefs = new Map();
+          if (hasConcepts) {
+            for (const cc of cset.concept) {
+              conceptDefs.set(cc.code, cc);
+            }
+          }
+
+          // Iterate concept-list results first (if unified): preserves compose ordering + metadata
+          if (canUnify) {
+            this.worker.opContext.log('iterate concepts');
+            const cds = new Designations(this.worker.i18n.languageDefinitions);
+            for (const cc of cset.concept) {
+              this.worker.deadCheck('processCodes#3');
+              cds.clear();
+              Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference');
+              const located = await cs.locate(cc.code);
+              const ctx = located?.context || null;
+              if (ctx && (!this.params.activeOnly || !await cs.isInactive(ctx))) {
+                await this.listDisplaysFromProvider(cds, cs, ctx);
+                this.listDisplaysFromIncludeConcept(cds, cc, vsSrc);
+                if (filter.passesDesignations(cds) || filter.passes(cc.code)) {
+                  let ov = Extensions.readString(cc, 'http://hl7.org/fhir/StructureDefinition/itemWeight');
+                  if (!ov) {
+                    ov = await cs.itemWeight(ctx);
+                  }
+                  let added = await this.includeCode(cs, null, cs.system(), cs.version(), cc.code, await cs.isAbstract(ctx), await cs.isInactive(ctx), await cs.isDeprecated(ctx), await cs.getStatus(ctx), cds,
+                    await cs.definition(ctx), ov, expansion, valueSets, await cs.extensions(ctx), cc.extension, await this._propsIfRequested(cs, ctx), null, excludeInactive, vsSrc.url);
+                  if (added) {
+                    this.addToTotal();
+                  }
+                }
+              }
+            }
+            this.worker.opContext.log('iterate concepts done');
+          }
+
+          // Iterate filter results (if any filters were registered)
+          if (hasFilters && fset.length > 0) {
+            this.worker.opContext.log('iterate filters');
+            while (await cs.filterMore(prep, fset[0])) {
+              const c = await cs.filterConcept(prep, fset[0]);
+              this.worker.deadCheck('processCodes#5');
+              // Skip codes already emitted from concept list
+              if (canUnify && conceptDefs.has(await cs.code(c))) continue;
+              const ok = (!this.params.activeOnly || !await cs.isInactive(c)) && (await this.passesFilters(cs, c, prep, fset, 1));
+              if (ok) {
+                const cds = new Designations(this.worker.i18n.languageDefinitions);
+                if (this.passesImports(valueSets, cs.system(), await cs.code(c), 0)) {
+                  await this.listDisplaysFromProvider(cds, cs, c);
+                  let parent = null;
+                  if (cs.hasParents()) {
+                    parent = this.map.get(this.keyS(cs.system(), cs.version(), await cs.parent(c)));
+                  } else {
+                    this.canBeHierarchy = false;
+                  }
+                  let added = await this.includeCode(cs, parent, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
+                    await cs.isDeprecated(c), await cs.getStatus(c), cds, await cs.definition(c), await cs.itemWeight(c),
+                    expansion, null, await cs.extensions(c), null, await this._propsIfRequested(cs, c), null, excludeInactive, vsSrc.url);
+                  if (added) {
+                    this.addToTotal();
+                  }
+                }
+              }
+            }
+            this.worker.opContext.log('iterate filters done');
+          }
+        } else if (hasConcepts) {
+          // Fallback for providers without includeConcepts (non-v0)
           this.worker.opContext.log('iterate concepts');
           const cds = new Designations(this.worker.i18n.languageDefinitions);
-
           for (const cc of cset.concept) {
             this.worker.deadCheck('processCodes#3');
             cds.clear();
             Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference');
-            const cctxt = await cs.locate(cc.code, this.allAltCodes);
+            let cctxt = await cs.locate(cc.code, this.allAltCodes);
             if (cctxt && cctxt.context && (!this.params.activeOnly || !await cs.isInactive(cctxt.context)) && await this.passesFilters(cs, cctxt.context, prep, filters, 0)) {
               await this.listDisplaysFromProvider(cds, cs, cctxt.context);
               this.listDisplaysFromIncludeConcept(cds, cc, vsSrc);
@@ -791,7 +932,7 @@ class ValueSetExpander {
                   ov = await cs.itemWeight(cctxt.context);
                 }
                 let added = await this.includeCode(cs, null, cs.system(), cs.version(), cc.code, await cs.isAbstract(cctxt.context), await cs.isInactive(cctxt.context), await cs.isDeprecated(cctxt.context), await cs.getStatus(cctxt.context), cds,
-                  await cs.definition(cctxt.context), ov, expansion, valueSets, await cs.extensions(cctxt.context), cc.extension, await cs.properties(cctxt.context), null, excludeInactive, vsSrc.url);
+                  await cs.definition(cctxt.context), ov, expansion, valueSets, await cs.extensions(cctxt.context), cc.extension, await this._propsIfRequested(cs, cctxt.context), null, excludeInactive, vsSrc.url);
                 if (added) {
                   this.addToTotal();
                 }
@@ -799,76 +940,6 @@ class ValueSetExpander {
             }
           }
           this.worker.opContext.log('iterate concepts done');
-        }
-
-        if (cset.filter) {
-          this.worker.opContext.log('prepare filters');
-          const fcl = cset.filter;
-          const prep = await cs.getPrepContext(true,
-            this.params, excludeInactive, vsInfo.csDoOffset ? this.offset : -1, cs.handlesOffset() && vsInfo.csDoExcludes ? this.count : -1);
-
-          if (!filter.isNull) {
-            await cs.searchFilter(filter, prep, true);
-          }
-          if (vsInfo.csDoExcludes) {
-            for (let exc of compose.exclude || []) {
-              if (exc.filter) {
-                await cs.filterExcludeFilters(prep, this.excludeFilterList(exc));
-              }
-              if (exc.concept) {
-                await cs.filterExcludeConcepts(prep, exc.concept.map(c => c.code));
-              }
-            }
-          }
-
-          if (cs.specialEnumeration()) {
-            Extensions.addString(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", 'The code System "' + cs.system() + " has a grammar and so has infinite members. This extension is based on " + cs.specialEnumeration());
-            notClosed.value = true;
-          }
-
-          for (let i = 0; i < fcl.length; i++) {
-            this.worker.deadCheck('processCodes#4a');
-            const fc = fcl[i];
-            if (!fc.value) {
-              throw new Issue('error', 'invalid', path+".filter["+i+"]", 'UNABLE_TO_HANDLE_SYSTEM_FILTER_WITH_NO_VALUE', this.worker.i18n.translate('UNABLE_TO_HANDLE_SYSTEM_FILTER_WITH_NO_VALUE', this.params.httpLanguages, [cs.system(), fc.property, fc.op]), 'vs-invalid', 400);
-            }
-            Extensions.checkNoModifiers(fc, 'ValueSetExpander.processCodes', 'filter');
-            await cs.filter(prep, fc.property, fc.op, fc.value);
-          }
-
-          const fset = await cs.executeFilters(prep);
-          if (await cs.filtersNotClosed(prep)) {
-            notClosed.value = true;
-          } else if (fset.length === 1 && !excludeInactive && !this.params.activeOnly) {
-            // this.addToTotal(await cs.filterSize(prep, fset[0]));
-          }
-
-          this.worker.opContext.log('iterate filters');
-          while (await cs.filterMore(prep, fset[0])) {
-            this.worker.deadCheck('processCodes#5');
-            const c = await cs.filterConcept(prep, fset[0]);
-            const ok = (!this.params.activeOnly || !await cs.isInactive(c)) && (await this.passesFilters(cs, c, prep, fset, 1));
-            if (ok) {
-              // count++;
-              const cds = new Designations(this.worker.i18n.languageDefinitions);
-              if (this.passesImports(valueSets, cs.system(), await cs.code(c), 0)) {
-                await this.listDisplaysFromProvider(cds, cs, c);
-                let parent = null;
-                if (cs.hasParents()) {
-                  parent = this.map.get(this.keyS(cs.system(), cs.version(), await cs.parent(c)));
-                } else {
-                  this.canBeHierarchy = false;
-                }
-                let added = await this.includeCode(cs, parent, await cs.system(), await cs.version(), await cs.code(c), await cs.isAbstract(c), await cs.isInactive(c),
-                  await cs.isDeprecated(c), await cs.getStatus(c), cds, await cs.definition(c), await cs.itemWeight(c),
-                  expansion, null, await cs.extensions(c), null, await cs.properties(c), null, excludeInactive, vsSrc.url);
-                if (added) {
-                  this.addToTotal();
-                }
-              }
-            }
-          }
-          this.worker.opContext.log('iterate filters done');
         }
       }
     }
@@ -895,6 +966,15 @@ class ValueSetExpander {
       // }
     }
     return true;
+  }
+
+  async _propsIfRequested(cs, context) {
+    if (this.params.properties.length) {
+      perfCounters.bump('props.loaded');
+      return await cs.properties(context);
+    }
+    perfCounters.bump('props.skipped');
+    return null;
   }
 
   async excludeCodes(cset, path, vsSrc, filter, expansion, excludeInactive, notClosed) {
@@ -979,7 +1059,7 @@ class ValueSetExpander {
             notClosed.value = true;
           }
           const prep = await cs.getPrepContext(true);
-          const ctxt = await cs.searchFilter(filter, prep, false);
+          const ctxt = await cs.searchFilter(prep, filter, false);
           await cs.prepare(prep);
           while (await cs.filterMore(ctxt)) {
             this.worker.deadCheck('processCodes#4');
@@ -1015,7 +1095,7 @@ class ValueSetExpander {
         this.worker.opContext.log('prep filters');
         const prep = await cs.getPrepContext(true);
         if (!filter.isNull) {
-          await cs.searchFilter(filter, prep, true);
+          await cs.searchFilter(prep, filter, true);
         }
 
         if (cs.specialEnumeration()) {
@@ -1070,7 +1150,7 @@ class ValueSetExpander {
       const cds = new Designations(this.worker.i18n.languageDefinitions);
       await this.listDisplaysFromProvider(cds, cs, context);
       const t = await this.includeCode(cs, parent, await cs.system(), await cs.version(), context.code, await cs.isAbstract(context), await cs.isInactive(context), await cs.isDeprecated(context), await cs.getStatus(context), cds, await cs.definition(context),
-        await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, await cs.properties(context), null, excludeInactive, srcUrl);
+        await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, await this._propsIfRequested(cs, context), null, excludeInactive, srcUrl);
       if (t != null) {
         result++;
       }
@@ -1123,15 +1203,18 @@ class ValueSetExpander {
     }
   }
 
-  async handleCompose(source, filter, expansion, notClosed, vsInfo) {
+  async handleCompose(source, filter, expansion, notClosed) {
     this.worker.opContext.log('compose #1');
 
+    const compose = source.jsonObj.compose;
+    const vsInfo = this.scanValueSet(compose);
+
     const ts = new Map();
-    for (const c of source.jsonObj.compose.include || []) {
+    for (const c of compose.include || []) {
       this.worker.deadCheck('handleCompose#2');
       await this.checkSource(c, expansion, filter, source.url, ts, vsInfo);
     }
-    for (const c of source.jsonObj.compose.exclude || []) {
+    for (const c of compose.exclude || []) {
       this.worker.deadCheck('handleCompose#3');
       this.hasExclusions = true;
       await this.checkSource(c, expansion, filter, source.url, ts, null);
@@ -1139,18 +1222,24 @@ class ValueSetExpander {
 
     this.worker.opContext.log('compose #2');
 
+    const excludeInactive = this.excludeInactives(source);
+
+    // Process excludes — only iterate when the provider does NOT handle excludes itself.
+    // When csDoExcludes is true, excludes are handled in SQL via filterExcludeFilters/executeFilters
+    // inside includeCodes, so iterating them here would be redundant work.
     if (!vsInfo.csDoExcludes) {
-      let i = 0;
-      for (const c of source.jsonObj.compose.exclude || []) {
+      let j = 0;
+      for (const c of compose.exclude || []) {
         this.worker.deadCheck('handleCompose#4');
-        await this.excludeCodes(c, "ValueSet.compose.exclude["+i+"]", source, source.jsonObj.compose, filter, expansion, this.excludeInactives(source), notClosed);
+        await this.excludeCodes(c, "ValueSet.compose.exclude["+j+"]", source, filter, expansion, excludeInactive, notClosed);
+        j++;
       }
     }
 
     let i = 0;
-    for (const c of source.jsonObj.compose.include || []) {
+    for (const c of compose.include || []) {
       this.worker.deadCheck('handleCompose#5');
-      await this.includeCodes(c, "ValueSet.compose.include["+i+"]", source, filter, expansion, this.excludeInactives(source), notClosed, vsInfo);
+      await this.includeCodes(c, "ValueSet.compose.include["+i+"]", source, filter, expansion, excludeInactive, notClosed, compose, vsInfo);
       i++;
     }
   }
@@ -1278,11 +1367,10 @@ class ValueSetExpander {
 
     let notClosed = { value :  false};
 
-    let vsInfo = this.scanValueSet(source.jsonObj.compose);
     try {
       if (source.jsonObj.compose && Extensions.checkNoModifiers(source.jsonObj.compose, 'ValueSetExpander.Expand', 'compose')
           && this.worker.checkNoLockedDate(source.url, source.jsonObj.compose)) {
-        await this.handleCompose(source, filter, exp, notClosed, vsInfo);
+        await this.handleCompose(source, filter, exp, notClosed);
       }
 
       const unused = new Set([...this.requiredSupplements].filter(s => !this.usedSupplements.has(s)));
@@ -1358,7 +1446,7 @@ class ValueSetExpander {
         const c = list[i];
         if (this.map.has(this.keyC(c))) {
           o++;
-          if ((vsInfo.csDoOffset) || (o > this.offset && (this.count < 0 || t < this.count))) {
+          if (o > this.offset && (this.count < 0 || t < this.count)) {
             t++;
             if (!exp.contains) {
               exp.contains = [];
@@ -1554,45 +1642,41 @@ class ValueSetExpander {
   }
 
   /**
-   * we have a look at the value set compose to see what we have.
-   * If it's all one code system(|version), and has no value set dependencies,
-   * then we call it simple - this will affect how it can be handled later
-   *
-   * @param compose
-   * @returns {undefined}
+   * Scan the ValueSet compose to determine if it's "simple" — all one code system
+   * with no value set dependencies. This affects whether excludes/offset can be
+   * pushed down to the CS provider.
    */
   scanValueSet(compose) {
-    let result = { isSimple : false, hasExcludes : true, csset : new Set(), csDoExcludes : false, csDoOffset : false};
+    const result = { isSimple: false, hasExcludes: false, csset: new Set(), csDoExcludes: false, csDoOffset: false };
     let simple = true;
-    for (let inc of compose.include) {
-      if (!this.isSimpleInclude(inc, result.csset, false)) {
+    for (const inc of compose.include || []) {
+      if (!this._isSimpleInclude(inc, result.csset, false)) {
         simple = false;
       }
     }
-    for (let exc of compose.exclude) {
-      if (!this.isSimpleInclude(exc, result.csset, true)) {
+    for (const exc of compose.exclude || []) {
+      if (!this._isSimpleInclude(exc, result.csset, true)) {
         simple = false;
       }
       result.hasExcludes = true;
     }
-    if (simple && result.csset.size == 1) {
+    if (simple && result.csset.size === 1) {
       result.isSimple = true;
     }
     return result;
   }
 
-  isSimpleInclude(inc, set, isExclude) {
-    set.add(inc.system+"|"+inc.version);
-    return (!inc.valueset || inc.valueset.length == 0) && ((inc.filter && inc.filter.length > 0) || (isExclude && inc.concept && inc.filter.concept > 0));
+  _isSimpleInclude(inc, set, isExclude) {
+    set.add(inc.system + '|' + (inc.version || ''));
+    return (!inc.valueSet || inc.valueSet.length === 0)
+      && ((inc.filter && inc.filter.length > 0) || (isExclude && inc.concept && inc.concept.length > 0));
   }
 
   excludeFilterList(exc) {
     const results = [];
-
     for (const f of exc.filter || []) {
       results.push({ prop: f.property, op: f.op, value: f.value });
     }
-
     return results;
   }
 }

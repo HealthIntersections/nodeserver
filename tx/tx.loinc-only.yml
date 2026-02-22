@@ -1,0 +1,5 @@
+base:
+  url: https://storage.googleapis.com/tx-fhir-org
+
+sources:
+  - loinc:loinc-2.77-a.db

@@ -1,0 +1,5 @@
+base:
+  url: https://storage.googleapis.com/tx-fhir-org
+
+sources:
+  - sqlite-v0:rxnorm_02022026.v0.db
