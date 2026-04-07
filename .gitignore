@@ -53,3 +53,7 @@ test-cases-summary.txt
 tx/data/CodeSystem-cpt.db
 
 coverage/
+/be
+docker-compose.override.yml
+/defaults/data/terminology-cache
+/defaults/data/logs

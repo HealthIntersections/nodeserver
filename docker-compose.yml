@@ -1,0 +1,15 @@
+services:
+  nodeserver:
+    build: .
+    image: ghcr.io/healthintersections/fhirsmith/fhirsmith:latest
+    volumes:
+      - ./defaults/config:/app/config
+      - ./defaults/data:/app/data
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12

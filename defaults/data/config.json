@@ -1,0 +1,36 @@
+{
+  "server": {
+    "port": 3000,
+    "cors": {
+      "origin": true,
+      "credentials": true
+    }
+  },
+  "modules": {
+    "shl": { "enabled": false },
+    "vcl": { "enabled": false },
+    "xig": { "enabled": false },
+    "packages": { "enabled": false },
+    "registry": { "enabled": false },
+    "publisher": { "enabled": false },
+    "npmprojector": { "enabled": false },
+    "token": { "enabled": false },
+    "tx": {
+      "enabled": true,
+      "librarySource": "/app/config/library.yml",
+      "cacheTimeout": 30,
+      "expansionCacheSize": 1000,
+      "expansionCacheMemoryThreshold": 0,
+      "endpoints": [
+        {
+          "path": "/tx/r4",
+          "fhirVersion": "4.0.1"
+        },
+        {
+          "path": "/tx/r5",
+          "fhirVersion": "5.0.0"
+        }
+      ]
+    }
+  }
+}
