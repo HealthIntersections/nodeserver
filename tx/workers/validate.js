@@ -12,19 +12,19 @@
 //
 
 const { TerminologyWorker } = require('./worker');
-const {Languages, Language} = require("../../library/languages");
-const {Extensions} = require("../library/extensions");
-const {validateParameter, isAbsoluteUrl, validateOptionalParameter, getValuePrimitive} = require("../../library/utilities");
-const {TxParameters} = require("../params");
-const {OperationOutcome, Issue} = require("../library/operation-outcome");
-const {Parameters} = require("../library/parameters");
-const {Designations, DisplayCheckingStyle, DisplayDifference, SearchFilterText} = require("../library/designations");
+const { Languages, Language } = require("../../library/languages");
+const { Extensions } = require("../library/extensions");
+const { validateParameter, isAbsoluteUrl, validateOptionalParameter, getValuePrimitive } = require("../../library/utilities");
+const { TxParameters } = require("../params");
+const { OperationOutcome, Issue } = require("../library/operation-outcome");
+const { Parameters } = require("../library/parameters");
+const { Designations, DisplayCheckingStyle, DisplayDifference, SearchFilterText } = require("../library/designations");
 const ValueSet = require("../library/valueset");
-const {ValueSetExpander} = require("./expand");
-const {FhirCodeSystemProvider} = require("../cs/cs-cs");
-const {CodeSystem} = require("../library/codesystem");
-const {VersionUtilities} = require("../../library/version-utilities");
-const {debugLog} = require("../operation-context");
+const { ValueSetExpander } = require("./expand");
+const { FhirCodeSystemProvider } = require("../cs/cs-cs");
+const { CodeSystem } = require("../library/codesystem");
+const { VersionUtilities } = require("../../library/version-utilities");
+const { debugLog } = require("../operation-context");
 
 const DEV_IGNORE_VALUESET = false; // todo: what's going on with this (ported from pascal)
 
@@ -175,7 +175,7 @@ class ValueSetChecker {
     } else {
       for (let vsi of this.valueSet.jsonObj.compose.include) {
         this.worker.deadCheck('determineSystem');
-        let cs = await this.worker.findCodeSystem(vsi.system, '', null, ['complete', 'fragment'], op,true, false, false, this.worker.requiredSupplements);
+        let cs = await this.worker.findCodeSystem(vsi.system, '', null, ['complete', 'fragment'], op, true, false, false, this.worker.requiredSupplements);
         if (cs === null) {
           return '';
         }
@@ -223,7 +223,7 @@ class ValueSetChecker {
 
 
     let result;
-    let csa = await this.worker.findCodeSystem(system, '', this.params, "*",  op,true, false, true, this.worker.requiredSupplements);
+    let csa = await this.worker.findCodeSystem(system, '', this.params, "*", op, true, false, true, this.worker.requiredSupplements);
 
     result = this.worker.determineVersionBase(system, versionVS, this.params);
 
@@ -242,7 +242,7 @@ class ValueSetChecker {
         }
       }
 
-      let cs = await this.worker.findCodeSystem(system, result, this.params, ['complete', 'fragment'], op,true, false, false, this.worker.requiredSupplements);
+      let cs = await this.worker.findCodeSystem(system, result, this.params, ['complete', 'fragment'], op, true, false, false, this.worker.requiredSupplements);
       if (cs !== null && cs.version() !== versionCoding && !cs.versionIsMoreDetailed(versionCoding, cs.version())) {
         let errLvl = 'error';
         let msg, mid;
@@ -325,12 +325,12 @@ class ValueSetChecker {
         this.worker.checkNoLockedDate(this.valueSet.vurl, this.valueSet.jsonObj.compose)
         let i = 0;
         for (let cc of this.valueSet.jsonObj.compose.include || []) {
-          await this.prepareConceptSet('include['+i+']', cc, this.valueSet);
+          await this.prepareConceptSet('include[' + i + ']', cc, this.valueSet);
           i++;
         }
         i = 0;
         for (let cc of this.valueSet.jsonObj.compose.exclude || []) {
-          await this.prepareConceptSet('exclude['+i+']', cc, this.valueSet);
+          await this.prepareConceptSet('exclude[' + i + ']', cc, this.valueSet);
           i++;
         }
       }
@@ -338,7 +338,7 @@ class ValueSetChecker {
 
     const unused = new Set([...this.worker.requiredSupplements].filter(s => !this.worker.usedSupplements.has(s)));
     if (unused.size > 0) {
-     throw new Issue('error', 'not-found', null, 'VALUESET_SUPPLEMENT_MISSING', this.worker.i18n.translatePlural(unused.size, 'VALUESET_SUPPLEMENT_MISSING', this.params.HTTPLanguages, [[...unused].join(',')]), 'not-found').handleAsOO(422);
+      throw new Issue('error', 'not-found', null, 'VALUESET_SUPPLEMENT_MISSING', this.worker.i18n.translatePlural(unused.size, 'VALUESET_SUPPLEMENT_MISSING', this.params.HTTPLanguages, [[...unused].join(',')]), 'not-found').handleAsOO(422);
     }
   }
 
@@ -376,12 +376,12 @@ class ValueSetChecker {
         this.worker.deadCheck('prepareConceptSet#2');
         Extensions.checkNoModifiers(ccf, 'ValueSetChecker.prepare', desc + '.filter', this.valueSet.vurl);
         if (!ccf.value) {
-          throw new Issue('error', 'invalid', "ValueSet.compose."+desc+".filter["+i+"]", 'UNABLE_TO_HANDLE_SYSTEM_FILTER_WITH_NO_VALUE',
+          throw new Issue('error', 'invalid', "ValueSet.compose." + desc + ".filter[" + i + "]", 'UNABLE_TO_HANDLE_SYSTEM_FILTER_WITH_NO_VALUE',
             this.worker.i18n.translate('UNABLE_TO_HANDLE_SYSTEM_FILTER_WITH_NO_VALUE', this.params.HTTPLanguages, [cs.system(), ccf.property, ccf.op]), "vs-invalid").handleAsOO(400);
         }
         if (!(ccf.property === 'concept' && ['is-a', 'descendent-of'].includes(ccf.op))) {
           if (!(await cs.doesFilter(ccf.property, ccf.op, ccf.value))) {
-            throw new Issue('error', 'not-supported', "ValueSet.compose."+desc+".filter["+i+"]", 'FILTER_NOT_UNDERSTOOD', this.worker.i18n.translate('FILTER_NOT_UNDERSTOOD', 
+            throw new Issue('error', 'not-supported', "ValueSet.compose." + desc + ".filter[" + i + "]", 'FILTER_NOT_UNDERSTOOD', this.worker.i18n.translate('FILTER_NOT_UNDERSTOOD',
               this.params.HTTPLanguages, [ccf.property, ccf.op, ccf.value, this.valueSet.url, cs.system()]), "vs-invalid").handleAsOO(400);
           }
         }
@@ -435,14 +435,14 @@ class ValueSetChecker {
     let unknownSystems = new Set();
     let ts = [];
     let msgs = [];
-    let ver = {value: ''};
-    let inactive = {value: false};
-    let normalForm = {value: ''};
-    let vstatus = {value: ''};
-    let it = {value: null};
-    let contentMode = {value: null};
-    let impliedSystem = {value: ''};
-    let defLang = {value: null};
+    let ver = { value: '' };
+    let inactive = { value: false };
+    let normalForm = { value: '' };
+    let vstatus = { value: '' };
+    let it = { value: null };
+    let contentMode = { value: null };
+    let impliedSystem = { value: '' };
+    let defLang = { value: null };
     return await this.check(issuePath, system, version, code, null, unknownSystems, ver, inactive, normalForm, vstatus, it, op, null, null, contentMode, impliedSystem, ts, msgs, defLang);
   }
 
@@ -466,7 +466,7 @@ class ValueSetChecker {
         op.addIssue(new Issue('warning', 'invalid', path, 'Coding_has_no_system__cannot_validate_NO_INFER', msg, 'invalid-data'));
         return false;
       }
-      let cs = await this.worker.findCodeSystem(system, version, this.params, ['complete', 'fragment'], op,true, false, false, this.worker.requiredSupplements);
+      let cs = await this.worker.findCodeSystem(system, version, this.params, ['complete', 'fragment'], op, true, false, false, this.worker.requiredSupplements);
       this.seeSourceProvider(cs, system);
       if (cs === null) {
         this.worker.opContext.addNote(this.valueSet, 'Didn\'t find CodeSystem "' + this.worker.renderer.displayCoded(system, version) + '"', this.indentCount);
@@ -480,7 +480,7 @@ class ValueSetChecker {
           op.addIssue(new Issue('error', 'invalid', addToPath(path, 'system'), 'Terminology_TX_System_ValueSet2', msg, 'invalid-data'));
           unknownSystems.add(system);
         } else {
-          let css = await this.worker.findCodeSystem(system, version, this.params, ['supplement'], op,true, false, false, this.worker.requiredSupplements);
+          let css = await this.worker.findCodeSystem(system, version, this.params, ['supplement'], op, true, false, false, this.worker.requiredSupplements);
           if (css !== null) {
             vss = null;
             let msg = this.worker.i18n.translate('CODESYSTEM_CS_NO_SUPPLEMENT', this.params.HTTPLanguages, [this.canonical(css.system(), css.version())]);
@@ -497,7 +497,7 @@ class ValueSetChecker {
               mid = 'UNKNOWN_CODESYSTEM_VERSION';
               vn = system + '|' + version;
             }
-            let msg = this.worker.i18n.translate(mid, this.params.HTTPLanguages, [system, version,  this.worker.presentVersionList(vl)]);
+            let msg = this.worker.i18n.translate(mid, this.params.HTTPLanguages, [system, version, this.worker.presentVersionList(vl)]);
             messages.push(msg);
             if (!unknownSystems.has(vn)) {
               op.addIssue(new Issue('error', 'not-found', addToPath(path, 'system'), mid, msg, 'not-found'));
@@ -591,7 +591,7 @@ class ValueSetChecker {
             mid = 'UNKNOWN_CODESYSTEM_VERSION';
             vn = system + '|' + version;
           }
-          let msg = this.worker.i18n.translate(mid, this.params.HTTPLanguages, [system, version,  this.worker.presentVersionList(vl)]);
+          let msg = this.worker.i18n.translate(mid, this.params.HTTPLanguages, [system, version, this.worker.presentVersionList(vl)]);
           messages.push(msg);
           if (!unknownSystems.has(vn)) {
             op.addIssue(new Issue('error', 'not-found', addToPath(path, 'system'), mid, msg, 'not-found'));
@@ -702,7 +702,7 @@ class ValueSetChecker {
             result = true;
           } else if ((cc.system === system || system === '%%null%%') && (!determinedVersion || cc.version == determinedVersion) && this.useThisVersion(cc, version)) {
             let v = await this.determineVersion(path, cc.system, cc.version, version, op, unknownSystems, messages);
-            let cs = await this.worker.findCodeSystem(system, v, this.params, ["complete", "fragment"], op,true, true, false, this.worker.requiredSupplements);
+            let cs = await this.worker.findCodeSystem(system, v, this.params, ["complete", "fragment"], op, true, true, false, this.worker.requiredSupplements);
             if (cs === null) {
               this.worker.opContext.addNote(this.valueSet, 'CodeSystem not found: ' + this.worker.renderer.displayCoded(cc.system, v), this.indentCount);
               if (!this.params.membershipOnly) {
@@ -721,7 +721,7 @@ class ValueSetChecker {
                     mid = 'UNKNOWN_CODESYSTEM_VERSION';
                     vn = system + '|' + v;
                   }
-                  msg = this.worker.i18n.translate(mid, this.params.HTTPLanguages, [system, v,  this.worker.presentVersionList(vl)]);
+                  msg = this.worker.i18n.translate(mid, this.params.HTTPLanguages, [system, v, this.worker.presentVersionList(vl)]);
                   bAdd = !unknownSystems.has(vn);
                   if (bAdd) {
                     unknownSystems.add(vn);
@@ -779,7 +779,7 @@ class ValueSetChecker {
             if (!cc.system) {
               excluded = true;
             } else {
-              let cs = await this.worker.findCodeSystem(cc.system, cc.version, this.params, ['complete', 'fragment'], op,true, true, false, this.worker.requiredSupplements);
+              let cs = await this.worker.findCodeSystem(cc.system, cc.version, this.params, ['complete', 'fragment'], op, true, true, false, this.worker.requiredSupplements);
               if (cs === null) {
                 throw new Issue('error', 'unknown', null, null, 'No Match for ' + cc.system + '|' + cc.version);
               }
@@ -847,7 +847,7 @@ class ValueSetChecker {
                     mid = 'UNKNOWN_CODESYSTEM_VERSION';
                     vn = system + '|' + v;
                   }
-                  msg = this.worker.i18n.translate(mid, this.params.HTTPLanguages, [system, v,  this.worker.presentVersionList(vl)]);
+                  msg = this.worker.i18n.translate(mid, this.params.HTTPLanguages, [system, v, this.worker.presentVersionList(vl)]);
                   unknownSystems.add(vn);
                 }
               }
@@ -900,14 +900,14 @@ class ValueSetChecker {
     let op = new OperationOutcome();
     this.checkCanonicalStatus(path, op, this.valueSet, this.valueSet);
     let list = new Designations(this.worker.languages);
-    let ver = {value: ''};
-    inactive = {value: false};
-    let normalForm = {value: ''};
-    let vstatus = {value: ''};
-    let cause = {value: null};
-    let contentMode = {value: null};
-    let impliedSystem = {value: ''};
-    let defLang = {value: null};
+    let ver = { value: '' };
+    inactive = { value: false };
+    let normalForm = { value: '' };
+    let vstatus = { value: '' };
+    let cause = { value: null };
+    let contentMode = { value: null };
+    let impliedSystem = { value: '' };
+    let defLang = { value: null };
 
     let ok = await this.check(path, coding.system, coding.version, coding.code, list, unknownSystems, ver, inactive, normalForm, vstatus, cause, op, null, result, contentMode, impliedSystem, unkCodes, messages, defLang);
     if (ok === true) {
@@ -990,7 +990,7 @@ class ValueSetChecker {
   async checkSupplementsExist(vs) {
     for (let inc of vs.jsonObj.compose.include) {
       if (inc.system) {
-        let cs = await this.worker.findCodeSystem(inc.system, inc.version, this.params, ['complete', 'fragment'], null,true, false, false, this.worker.requiredSupplements);
+        let cs = await this.worker.findCodeSystem(inc.system, inc.version, this.params, ['complete', 'fragment'], null, true, false, false, this.worker.requiredSupplements);
         if (cs !== null) {
           await this.worker.checkSupplements(cs, null, this.worker.requiredSupplements, this.worker.usedSupplements);
         }
@@ -1017,8 +1017,8 @@ class ValueSetChecker {
     let pver;
 
 
-    let vstatus = {value: ''};
-    let normalForm = {value: ''};
+    let vstatus = { value: '' };
+    let normalForm = { value: '' };
     let mt = [];
     let ts = [];
     let tsys = '';
@@ -1152,7 +1152,7 @@ class ValueSetChecker {
           mt.push(m);
           op.addIssue(new Issue('error', 'invalid', p, 'Terminology_TX_System_Relative', m, 'invalid-data'));
         }
-        let prov = await this.worker.findCodeSystem(ws, c.version, this.params, ['complete', 'fragment'],  op,true, true, false, this.worker.requiredSupplements);
+        let prov = await this.worker.findCodeSystem(ws, c.version, this.params, ['complete', 'fragment'], op, true, true, false, this.worker.requiredSupplements);
         if (prov === null) {
           let vss = await this.worker.findValueSet(ws, '', null);
           if (vss !== null) {
@@ -1162,7 +1162,7 @@ class ValueSetChecker {
             op.addIssue(new Issue('error', 'invalid', addToPath(path, 'system'), 'Terminology_TX_System_ValueSet2', m, 'invalid-data'));
             cause.value = 'invalid';
           } else {
-            let provS = await this.worker.findCodeSystem(ws, c.version, this.params, ['supplement'], op,true, true, false, this.worker.requiredSupplements);
+            let provS = await this.worker.findCodeSystem(ws, c.version, this.params, ['supplement'], op, true, true, false, this.worker.requiredSupplements);
             if (provS !== null) {
               vss = null;
               let m = this.worker.i18n.translate('CODESYSTEM_CS_NO_SUPPLEMENT', this.params.HTTPLanguages, [provS.vurl()]);
@@ -1170,7 +1170,7 @@ class ValueSetChecker {
               op.addIssue(new Issue('error', 'invalid', addToPath(path, 'system'), 'CODESYSTEM_CS_NO_SUPPLEMENT', m, 'invalid-data'));
               cause.value = 'invalid';
             } else {
-              let prov2 = await this.worker.findCodeSystem(ws, '', this.params, ['complete', 'fragment'], op,true, true, false, this.worker.requiredSupplements);
+              let prov2 = await this.worker.findCodeSystem(ws, '', this.params, ['complete', 'fragment'], op, true, true, false, this.worker.requiredSupplements);
               let bAdd = true;
               let m, mid, vn;
               if (prov2 === null && !c.version) {
@@ -1189,7 +1189,7 @@ class ValueSetChecker {
                   mid = 'UNKNOWN_CODESYSTEM_VERSION';
                   vn = ws + '|' + c.version;
                 }
-                m = this.worker.i18n.translate(mid, this.params.HTTPLanguages, [ws, c.version,  this.worker.presentVersionList(vl)]);
+                m = this.worker.i18n.translate(mid, this.params.HTTPLanguages, [ws, c.version, this.worker.presentVersionList(vl)]);
                 bAdd = !unknownSystems.has(vn);
                 if (bAdd) {
                   unknownSystems.add(vn);
@@ -1478,14 +1478,14 @@ class ValueSetChecker {
     let op = new OperationOutcome();
     this.checkCanonicalStatus(issuePath, op, this.valueSet, this.valueSet);
     let list = new Designations(this.worker.languages);
-    let ver = {value: ''};
-    let inactive = {value: false};
-    let normalForm = {value: ''};
-    let vstatus = {value: ''};
-    let cause = {value: null};
-    let contentMode = {value: null};
-    let impliedSystem = {value: ''};
-    let defLang = {value: null};
+    let ver = { value: '' };
+    let inactive = { value: false };
+    let normalForm = { value: '' };
+    let vstatus = { value: '' };
+    let cause = { value: null };
+    let contentMode = { value: null };
+    let impliedSystem = { value: '' };
+    let defLang = { value: null };
 
     let ok = await this.check(issuePath, system, version, code, true, list, unknownSystems, ver, inactive, normalForm, vstatus, cause, op, null, result, contentMode, impliedSystem, unkCodes, messages, defLang);
     if (ok === true) {
@@ -1543,7 +1543,7 @@ class ValueSetChecker {
       let loc = await cs.locate(code);
       result = false;
       if (loc.context == null) {
-        this.worker.opContext.addNote(this.valueSet, 'Code "' + code + '" not found in ' + this.worker.renderer.displayCoded(cs)+": "+loc.mesage, this.indentCount);
+        this.worker.opContext.addNote(this.valueSet, 'Code "' + code + '" not found in ' + this.worker.renderer.displayCoded(cs) + ": " + loc.mesage, this.indentCount);
         if (!this.params.membershipOnly && role !== 'not in') {
           if (cs.contentMode() !== 'complete') {
             op.addIssue(new Issue('warning', 'code-invalid', addToPath(path, 'code'), 'UNKNOWN_CODE_IN_FRAGMENT', this.worker.i18n.translate('UNKNOWN_CODE_IN_FRAGMENT', this.params.HTTPLanguages, [code, cs.system(), cs.version()]), 'invalid-code'));
@@ -1651,13 +1651,13 @@ class ValueSetChecker {
             }
           } else {
             if (vcc !== null) {
-              if (!vcc.coding)  {vcc.coding = [];}
-              vcc.coding.push({system: cs.system(), version: cs.version(), code: await cs.code(loc), display: displays.preferredDisplay(this.params.workingLanguages())});
+              if (!vcc.coding) { vcc.coding = []; }
+              vcc.coding.push({ system: cs.system(), version: cs.version(), code: await cs.code(loc), display: displays.preferredDisplay(this.params.workingLanguages()) });
             }
             let sstatus = Extensions.readString(cc, 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status');
             if (['withdrawn', 'deprecated'].includes(sstatus)) {
               op.addIssue(new Issue('warning', 'business-rule', addToPath(path, 'code'), 'CONCEPT_DEPRECATED_IN_VALUESET', this.worker.i18n.translate('CONCEPT_DEPRECATED_IN_VALUESET', this.params.HTTPLanguages, [cs.system(), code, sstatus, vs.vurl]), 'code-comment'));
-            } else if (Extensions.has(cc,'http://hl7.org/fhir/StructureDefinition/valueset-deprecated')) {
+            } else if (Extensions.has(cc, 'http://hl7.org/fhir/StructureDefinition/valueset-deprecated')) {
               op.addIssue(new Issue('warning', 'business-rule', addToPath(path, 'code'), 'CONCEPT_DEPRECATED_IN_VALUESET', this.worker.i18n.translate('CONCEPT_DEPRECATED_IN_VALUESET', this.params.HTTPLanguages, [cs.system(), code, 'deprecated', vs.vurl]), 'code-comment'));
             }
             inactive.value = await cs.isInactive(loc);
@@ -1667,7 +1667,7 @@ class ValueSetChecker {
             return result;
           }
         } else {
-          this.worker.opContext.addNote(this.valueSet, 'Code "' + code + '" in concept list, but not found in ' + this.worker.renderer.displayCoded(cs)+": "+loc.message, this.indentCount);
+          this.worker.opContext.addNote(this.valueSet, 'Code "' + code + '" in concept list, but not found in ' + this.worker.renderer.displayCoded(cs) + ": " + loc.message, this.indentCount);
         }
       }
     }
@@ -1716,14 +1716,14 @@ class ValueSetChecker {
         } else {
           this.worker.opContext.addNote(this.valueSet, 'Filter ' + this.filterSummary(cset) + ': Code "' + code + '" found in ' + this.worker.renderer.displayCoded(cs), this.indentCount);
           if (vcc !== null) {
-            if (!vcc.coding) { vcc.coding = []}
-            vcc.coding.push( { system : cs.system(), version: cs.version(), code: await cs.code(loc), display: displays.preferredDisplay(this.params.workingLanguages())});
+            if (!vcc.coding) { vcc.coding = [] }
+            vcc.coding.push({ system: cs.system(), version: cs.version(), code: await cs.code(loc), display: displays.preferredDisplay(this.params.workingLanguages()) });
           }
           result = true;
           return result;
         }
       } else if (loc != null) {
-        this.worker.opContext.addNote(this.valueSet, 'Filter ' + this.filterSummary(cset) + ': Code "' + code + '" not found in ' + this.worker.renderer.displayCoded(cs)+ ": "+loc, this.indentCount);
+        this.worker.opContext.addNote(this.valueSet, 'Filter ' + this.filterSummary(cset) + ': Code "' + code + '" not found in ' + this.worker.renderer.displayCoded(cs) + ": " + loc, this.indentCount);
         messages.push(loc);
       } else {
         this.worker.opContext.addNote(this.valueSet, 'Filter ' + this.filterSummary(cset) + ': Code "' + code + '" not found in ' + this.worker.renderer.displayCoded(cs), this.indentCount);
@@ -1765,7 +1765,7 @@ class ValueSetChecker {
     let list = [];
     for (let filter of cset.filter) {
       let s = cset.filter.length > 1 ? "(" : "";
-      s = filter.property+" "+filter.op+" "+filter.value;
+      s = filter.property + " " + filter.op + " " + filter.value;
       s = s + (cset.filter.length > 1 ? ")" : "");
       list.push(s)
     }
@@ -1878,6 +1878,7 @@ function SCTVersion(url, ver) {
       else if (s[4] === '554471000005108') result = 'Danish Edition';
       else if (s[4] === '11000181102') result = 'Estonian Edition';
       else if (s[4] === '11000229106') result = 'Finnish Edition';
+      else if (s[4] === '11000315107') result = 'French Edition';
       else if (s[4] === '11000274103') result = 'German Edition';
       else if (s[4] === '1121000189102') result = 'Indian Edition';
       else if (s[4] === '827022005') result = 'IPS Terminology';
@@ -1985,7 +1986,7 @@ class ValidateWorker extends TerminologyWorker {
     try {
 
       // Extract coded value
-      mode = {mode: null};
+      mode = { mode: null };
       coded = this.extractCodedValue(params, true, mode);
       if (!coded) {
         throw new Issue('error', 'invalid', null, null, 'Unable to find code to validate (looked for coding | codeableConcept | code in parameters)', null, 400).handleAsOO(400);
@@ -2038,7 +2039,7 @@ class ValidateWorker extends TerminologyWorker {
    */
   async handleCodeSystemInstance(req, res) {
     try {
-      const {id} = req.params;
+      const { id } = req.params;
       const params = this.buildParameters(req);
       this.log.debug(`CodeSystem/${id}/$validate-code with params:`, params);
 
@@ -2058,7 +2059,7 @@ class ValidateWorker extends TerminologyWorker {
       const csp = new FhirCodeSystemProvider(this.opContext, new CodeSystem(codeSystem), []);
 
       // Extract coded value
-      let mode = { mode : null }
+      let mode = { mode: null }
       const coded = this.extractCodedValue(params, true, mode);
       if (!coded) {
         return res.status(400).json(this.operationOutcome('error', 'invalid',
@@ -2120,7 +2121,7 @@ class ValidateWorker extends TerminologyWorker {
     }
     // Extract coded value
 
-    let mode = { mode : null };
+    let mode = { mode: null };
     const coded = this.extractCodedValue(params, false, mode);
     if (!coded) {
       throw new Issue("error", "invalid", null, null, 'Unable to find code to validate (looked for coding | codeableConcept | code+system | code+inferSystem in parameters', null, 422);
@@ -2139,7 +2140,7 @@ class ValidateWorker extends TerminologyWorker {
    */
   async handleValueSetInstance(req, res) {
     try {
-      const {id} = req.params;
+      const { id } = req.params;
       const params = this.buildParameters(req);
       this.log.debug(`ValueSet/${id}/$validate-code with params:`, params);
 
@@ -2159,7 +2160,7 @@ class ValidateWorker extends TerminologyWorker {
       }
 
       // Extract coded value
-      let mode = { mode : null };
+      let mode = { mode: null };
       const coded = this.extractCodedValue(params, false, mode);
       if (!coded) {
         return res.status(400).json(this.operationOutcome('error', 'invalid',
@@ -2168,7 +2169,7 @@ class ValidateWorker extends TerminologyWorker {
 
       // Perform validation
       const result = await this.doValidationVS(coded, valueSet, txp, mode.mode, mode.issuePath);
-      req.logInfo = this.usedSources.join("|")+txp.logInfo();
+      req.logInfo = this.usedSources.join("|") + txp.logInfo();
       return res.json(result);
 
     } catch (error) {
@@ -2193,7 +2194,7 @@ class ValidateWorker extends TerminologyWorker {
     if (csResource) {
       return new FhirCodeSystemProvider(this.opContext, new CodeSystem(csResource), []); // todo: supplements
     }
-    let path = coded == null ? null : mode.issuePath+".system";
+    let path = coded == null ? null : mode.issuePath + ".system";
     let fromCoded = false;
     // Check for url parameter
     let url = this.getStringParam(params, 'url');
@@ -2275,7 +2276,7 @@ class ValidateWorker extends TerminologyWorker {
       let vs = await this.provider.findValueSet(this.opContext, url, version);
       this.seeSourceVS(vs, url);
       if (vs == null) {
-        throw new Issue('error', 'not-found', null, 'Unable_to_resolve_value_Set_', this.i18n.translate('Unable_to_resolve_value_Set_', params.HTTPLanguages, [url+(version ? "|"+version : "")]), 'not-found', 422);
+        throw new Issue('error', 'not-found', null, 'Unable_to_resolve_value_Set_', this.i18n.translate('Unable_to_resolve_value_Set_', params.HTTPLanguages, [url + (version ? "|" + version : "")]), 'not-found', 422);
       } else {
         return vs;
       }
@@ -2306,7 +2307,7 @@ class ValidateWorker extends TerminologyWorker {
     if (coding) {
       mode.mode = 'coding';
       mode.issuePath = "Coding";
-      return {coding: [coding]};
+      return { coding: [coding] };
     }
 
     // Priority 3: individual parameters (code required)
@@ -2333,12 +2334,12 @@ class ValidateWorker extends TerminologyWorker {
       if (!system && !this.getStringParam(params, 'inferSystem')) {
         return null;
       }
-      const codingObj = {code};
+      const codingObj = { code };
       if (system) codingObj.system = system;
       if (version) codingObj.version = version;
       if (display) codingObj.display = display;
 
-      return {coding: [codingObj]};
+      return { coding: [codingObj] };
     }
 
     return null;
@@ -2367,7 +2368,7 @@ class ValidateWorker extends TerminologyWorker {
 
     // Add diagnostics if requested
     if (params.diagnostics) {
-      result.jsonObj.parameter.push({name: 'diagnostics', valueString: this.opContext.diagnostics()});
+      result.jsonObj.parameter.push({ name: 'diagnostics', valueString: this.opContext.diagnostics() });
     }
 
     return result.jsonObj;
@@ -2376,11 +2377,11 @@ class ValidateWorker extends TerminologyWorker {
   makeVsForCS(codeSystem) {
     let vs = {
       resourceType: "ValueSet",
-      internallyDefined : true,
+      internallyDefined: true,
       status: 'active',
-      url : codeSystem.valueSet() ? codeSystem.valueSet() : codeSystem.system()+"/vs",
-      compose : {
-        "include" : [{
+      url: codeSystem.valueSet() ? codeSystem.valueSet() : codeSystem.system() + "/vs",
+      compose: {
+        "include": [{
           system: codeSystem.system()
         }]
       }
@@ -2426,7 +2427,7 @@ class ValidateWorker extends TerminologyWorker {
 
     // Add diagnostics if requested
     if (params.diagnostics) {
-      result.jsonObj.parameter.push({name: 'diagnostics', valueString: this.opContext.diagnostics()});
+      result.jsonObj.parameter.push({ name: 'diagnostics', valueString: this.opContext.diagnostics() });
     }
 
     return result.jsonObj;
@@ -2483,29 +2484,29 @@ class ValidateWorker extends TerminologyWorker {
     const parameters = {
       resourceType: 'Parameters',
       parameter: [
-        {name: 'result', valueBoolean: result}
+        { name: 'result', valueBoolean: result }
       ]
     };
 
     if (message) {
-      parameters.parameter.push({name: 'message', valueString: message});
+      parameters.parameter.push({ name: 'message', valueString: message });
     }
 
     if (display && result) {
-      parameters.parameter.push({name: 'display', valueString: display});
+      parameters.parameter.push({ name: 'display', valueString: display });
     }
 
     // Include the code that was validated
     if (coded.coding && coded.coding.length > 0) {
       const coding = coded.coding[0];
       if (coding.code) {
-        parameters.parameter.push({name: 'code', valueCode: coding.code});
+        parameters.parameter.push({ name: 'code', valueCode: coding.code });
       }
       if (coding.system) {
-        parameters.parameter.push({name: 'system', valueUri: coding.system});
+        parameters.parameter.push({ name: 'system', valueUri: coding.system });
       }
       if (coding.version) {
-        parameters.parameter.push({name: 'version', valueString: coding.version});
+        parameters.parameter.push({ name: 'version', valueString: coding.version });
       }
     }
 

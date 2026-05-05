@@ -1,4 +1,4 @@
-const { CodeSystemContentMode, CodeSystemFactoryProvider} = require('./cs-api');
+const { CodeSystemContentMode, CodeSystemFactoryProvider } = require('./cs-api');
 const {
   SnomedStrings, SnomedWords, SnomedStems, SnomedReferences,
   SnomedDescriptions, SnomedDescriptionIndex, SnomedConceptList,
@@ -9,13 +9,13 @@ const {
   SnomedExpressionServices, SnomedExpression, SnomedConcept,
   SnomedExpressionParser, NO_REFERENCE, SnomedServicesRenderOption
 } = require('../sct/expressions');
-const {DesignationUse} = require("../library/designations");
-const {BaseCSServices} = require("./cs-base");
-const {formatDateMMDDYYYY} = require("../../library/utilities");
-const {ConceptMap} = require("../library/conceptmap");
-const {ECLLexer, ECLParser, ECLNodeType, ECLTokenType} = require("../sct/ecl");
-const {Issue} = require("../library/operation-outcome");
-const {debugLog} = require("../operation-context");
+const { DesignationUse } = require("../library/designations");
+const { BaseCSServices } = require("./cs-base");
+const { formatDateMMDDYYYY } = require("../../library/utilities");
+const { ConceptMap } = require("../library/conceptmap");
+const { ECLLexer, ECLParser, ECLNodeType, ECLTokenType } = require("../sct/ecl");
+const { Issue } = require("../library/operation-outcome");
+const { debugLog } = require("../operation-context");
 
 // Context kinds matching Pascal enum
 const SnomedProviderContextKind = {
@@ -60,15 +60,15 @@ class SnomedExpressionContext {
 
   getReference() {
     return this.expression && this.expression.concepts.length > 0
-        ? this.expression.concepts[0].reference
-        : NO_REFERENCE;
+      ? this.expression.concepts[0].reference
+      : NO_REFERENCE;
   }
 
   getCode() {
     if (this.source) return this.source;
     return this.expression && this.expression.concepts.length > 0
-        ? this.expression.concepts[0].code
-        : '';
+      ? this.expression.concepts[0].code
+      : '';
   }
 }
 
@@ -558,10 +558,10 @@ class SnomedServices {
         // Could be a bare concept reference or wildcard passed in directly
         // (e.g. when a parenthesised expression resolves to one of these).
         if (node.type === ECLNodeType.CONCEPT_REFERENCE ||
-            node.type === ECLNodeType.WILDCARD ||
-            node.type === ECLNodeType.MEMBER_OF) {
+          node.type === ECLNodeType.WILDCARD ||
+          node.type === ECLNodeType.MEMBER_OF) {
           // Wrap it as if it came from a no-operator SubExpressionConstraint
-          return this._evalSubExpression({type: ECLNodeType.SUB_EXPRESSION_CONSTRAINT, operator: null, focus: node});
+          return this._evalSubExpression({ type: ECLNodeType.SUB_EXPRESSION_CONSTRAINT, operator: null, focus: node });
         }
         throw new Error(`Unsupported ECL node type: ${node.type}`);
     }
@@ -614,7 +614,7 @@ class SnomedServices {
       case undefined:
         return this.filterEquals(conceptId);
 
-        // ── Descendants ────────────────────────────────────────────────────────
+      // ── Descendants ────────────────────────────────────────────────────────
       case ECLTokenType.DESCENDANT_OR_SELF_OF: { // <<   self + all transitive descendants
         return this.filterIsA(conceptId, true);
       }
@@ -638,7 +638,7 @@ class SnomedServices {
         return this.filterChildOf(conceptId);
       }
 
-        // ── Ancestors ──────────────────────────────────────────────────────────
+      // ── Ancestors ──────────────────────────────────────────────────────────
       case ECLTokenType.ANCESTOR_OR_SELF_OF: {   // >>   self + all transitive ancestors
         const result = this.filterGeneralizes(conceptId);
         const self = this.concepts.findConcept(conceptId);
@@ -704,7 +704,7 @@ class SnomedServices {
     return result;
   };
 
-// ── Dotted expressions ───────────────────────────────────────────────────────
+  // ── Dotted expressions ───────────────────────────────────────────────────────
 
   /**
    * Evaluate a dotted expression: `<baseConstraint> . attrA . attrB`.
@@ -745,7 +745,7 @@ class SnomedServices {
     return result;
   };
 
-// ── Refinements ──────────────────────────────────────────────────────────────
+  // ── Refinements ──────────────────────────────────────────────────────────────
 
   /**
    * Evaluate a refined expression: `<baseConstraint> : <refinement>`.
@@ -916,7 +916,7 @@ class SnomedServices {
     return false;
   };
 
-// ── Set operation helpers ────────────────────────────────────────────────────
+  // ── Set operation helpers ────────────────────────────────────────────────────
 
   /**
    * Flatten a SnomedFilterContext to a plain array of concept indexes,
@@ -1225,7 +1225,7 @@ class SnomedProvider extends BaseCSServices {
               const kind = this.sct.concepts.getConcept(description.kind);
               const kid = String(kind.identity);
               const kdesc = this.sct.getDisplayName(description.kind);
-              let use = { system: 'http://snomed.info/sct', code: kid, display : kdesc};
+              let use = { system: 'http://snomed.info/sct', code: kid, display: kdesc };
 
               displays.addDesignation(false, description.active ? 'active' : 'inactive', langCode, use, term);
             }
@@ -1234,7 +1234,7 @@ class SnomedProvider extends BaseCSServices {
           // Add basic designation if we can't read detailed descriptions
           const display = this.sct.getDisplayName(ctxt.getReference());
           if (display) {
-            displays.addDesignation(true, 'active','en-US', null, display);
+            displays.addDesignation(true, 'active', 'en-US', null, display);
           }
         }
 
@@ -1422,7 +1422,7 @@ class SnomedProvider extends BaseCSServices {
             if (!set.has(relType + ":" + code)) {
               set.add(relType + ":" + code);
               let p = this._addCodeProperty(params, 'property', relType, code, null, description);
-              p.part.push({name: 'code-display', valueString: relTypeD});
+              p.part.push({ name: 'code-display', valueString: relTypeD });
             }
           }
         }
@@ -1434,7 +1434,7 @@ class SnomedProvider extends BaseCSServices {
           const codeB = refinement.value.describe();
           const description = await this.display(codeB);
           let p = this._addCodeProperty(params, 'property', codeA, codeB, null, description);
-          p.part.push({name: 'code-display', valueString: await this.display(codeA)});
+          p.part.push({ name: 'code-display', valueString: await this.display(codeA) });
         }
         for (const refinementGroup of ctxt.expression.refinementGroups) {
           for (const refinement of refinementGroup.refinements) {
@@ -1442,7 +1442,7 @@ class SnomedProvider extends BaseCSServices {
             const codeB = refinement.value.describe();
             const description = await this.display(codeB);
             let p = this._addCodeProperty(params, 'property', codeA, codeB, null, description);
-            p.part.push({name: 'code-display', valueString: await this.display(codeA)});
+            p.part.push({ name: 'code-display', valueString: await this.display(codeA) });
           }
         }
       }
@@ -1859,7 +1859,7 @@ class SnomedProvider extends BaseCSServices {
 
   isDisplay(cd) {
     return cd.use.system === this.system() &&
-        (cd.use.code === '900000000000013009' || cd.use.code === '900000000000003001');
+      (cd.use.code === '900000000000013009' || cd.use.code === '900000000000003001');
   }
 
   async getTranslations(map, coding, target, reverse) {
@@ -1906,7 +1906,7 @@ class SnomedProvider extends BaseCSServices {
               map: map.vurl,
               code: tgtId,
               system: this.system(),
-              version : this.version(),
+              version: this.version(),
               display: await this.display(tgtId),
               relationship: map.jsonObj.relationship
             }
@@ -1990,8 +1990,8 @@ class SnomedServicesFactory extends CodeSystemFactoryProvider {
     }
 
     if (url.startsWith('http://snomed.info/sct?fhir_vs') ||
-        url.startsWith(`http://snomed.info/sct/${this.edition}?fhir_vs`) ||
-        url.startsWith(`http://snomed.info/sct/${this.edition}/version/${this.version}?fhir_vs`)) {
+      url.startsWith(`http://snomed.info/sct/${this.edition}?fhir_vs`) ||
+      url.startsWith(`http://snomed.info/sct/${this.edition}/version/${this.version}?fhir_vs`)) {
       id = url.substring(qIdx);
     } else {
       return null;
@@ -2004,7 +2004,7 @@ class SnomedServicesFactory extends CodeSystemFactoryProvider {
       const concepts = [];
       for (let i = 0; i < this.refSetIndex.count; i++) {
         const code = this.refSetIndex.getReferenceSetCode(i);
-        concepts.push({code: this.getConceptId(code)});
+        concepts.push({ code: this.getConceptId(code) });
       }
       return {
         resourceType: 'ValueSet',
@@ -2153,10 +2153,10 @@ class SnomedServicesFactory extends CodeSystemFactoryProvider {
     if (!match) {
       match = this.version().match(/^http:\/\/snomed\.info\/xsct\/(\d+)(?:\/version\/(\d{8}))?$/);
       if (match) {
-        match = "x"+match;
+        match = "x" + match;
       }
     }
-    return match && match[1] && match[2] ? "SCT-"+match[1]+"-"+match[2] : null;
+    return match && match[1] && match[2] ? "SCT-" + match[1] + "-" + match[2] : null;
   }
 
   describeVersion(version) {
@@ -2173,10 +2173,10 @@ class SnomedServicesFactory extends CodeSystemFactoryProvider {
     if (version && (version !== this.version())) {
       return null;
     }
-    if (!url || !url.startsWith(this.system()+"?fhir_cm=")) {
+    if (!url || !url.startsWith(this.system() + "?fhir_cm=")) {
       return null;
     }
-    let id = url.substring(url.indexOf("=")+1);
+    let id = url.substring(url.indexOf("=") + 1);
     if (['900000000000523009', '900000000000526001', '900000000000527005', '900000000000530003'].includes(id)) {
       let name = '';
       let relationship = '';
@@ -2200,9 +2200,9 @@ class SnomedServicesFactory extends CodeSystemFactoryProvider {
       }
       let cm = {
         resourceType: 'ConceptMap',
-        internalSource : this,
+        internalSource: this,
         relationship: relationship,
-        id : id,
+        id: id,
         url: `${this.system()}?fhir_cm=${id}`,
         version: this.version(),
         name: `SNOMED CT ${name} Concept Map`,
@@ -2242,6 +2242,7 @@ function getEditionName(edition) {
     '11000279109': 'Czech Edition',
     '11000181102': 'Estonian Edition',
     '11000229106': 'Finnish Edition',
+    '11000315107': 'French Edition',
     '11000274103': 'German Edition',
     '1121000189102': 'Indian Edition',
     '827022005': 'IPS Terminology',
@@ -2278,6 +2279,7 @@ function getEditionCode(edition) {
     '11000279109': 'CZ',
     '11000181102': 'ES',
     '11000229106': 'FI',
+    '11000315107': 'FR-fr',
     '11000274103': 'DE',
     '1121000189102': 'IN',
     '827022005': 'IPS',

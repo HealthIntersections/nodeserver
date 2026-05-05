@@ -11,7 +11,7 @@ const {
   SnomedDescriptions, SnomedDescriptionIndex, SnomedConceptList,
   SnomedRelationshipList, SnomedReferenceSetMembers, SnomedReferenceSetIndex
 } = require('../sct/structures');
-const {SnomedExpressionServices} = require("../sct/expressions");
+const { SnomedExpressionServices } = require("../sct/expressions");
 
 class SnomedModule extends BaseTerminologyModule {
 
@@ -48,37 +48,37 @@ class SnomedModule extends BaseTerminologyModule {
   registerCommands(terminologyCommand, globalOptions) {
     // Import command
     terminologyCommand
-        .command('import')
-        .description('Import SNOMED CT data from RF2 source directory')
-        .option('-s, --source <directory>', 'Source directory containing RF2 files')
-        .option('-b, --base <directory>', 'Base edition directory (for extensions)')
-        .option('-d, --dest <file>', 'Destination cache file')
-        .option('-e, --edition <code>', 'Edition code (e.g., 900000000000207008 for International)')
-        .option('-v, --version <version>', 'Version in YYYYMMDD format (e.g., 20250801)')
-        .option('-u, --uri <uri>', 'Version URI (overrides edition/version if provided)')
-        .option('-l, --language <code>', 'Default language code (overrides edition default if provided)')
-        .option('-y, --yes', 'Skip confirmations')
-        .action(async (options) => {
-          await this.handleImportCommand({...globalOptions, ...options});
-        });
+      .command('import')
+      .description('Import SNOMED CT data from RF2 source directory')
+      .option('-s, --source <directory>', 'Source directory containing RF2 files')
+      .option('-b, --base <directory>', 'Base edition directory (for extensions)')
+      .option('-d, --dest <file>', 'Destination cache file')
+      .option('-e, --edition <code>', 'Edition code (e.g., 900000000000207008 for International)')
+      .option('-v, --version <version>', 'Version in YYYYMMDD format (e.g., 20250801)')
+      .option('-u, --uri <uri>', 'Version URI (overrides edition/version if provided)')
+      .option('-l, --language <code>', 'Default language code (overrides edition default if provided)')
+      .option('-y, --yes', 'Skip confirmations')
+      .action(async (options) => {
+        await this.handleImportCommand({ ...globalOptions, ...options });
+      });
 
     // Validate command
     terminologyCommand
-        .command('validate')
-        .description('Validate SNOMED CT RF2 directory structure')
-        .option('-s, --source <directory>', 'Source directory to validate')
-        .action(async (options) => {
-          await this.handleValidateCommand({...globalOptions, ...options});
-        });
+      .command('validate')
+      .description('Validate SNOMED CT RF2 directory structure')
+      .option('-s, --source <directory>', 'Source directory to validate')
+      .action(async (options) => {
+        await this.handleValidateCommand({ ...globalOptions, ...options });
+      });
 
     // Status command
     terminologyCommand
-        .command('status')
-        .description('Show status of SNOMED CT cache')
-        .option('-d, --dest <file>', 'Cache file to check')
-        .action(async (options) => {
-          await this.handleStatusCommand({...globalOptions, ...options});
-        });
+      .command('status')
+      .description('Show status of SNOMED CT cache')
+      .option('-d, --dest <file>', 'Cache file to check')
+      .action(async (options) => {
+        await this.handleStatusCommand({ ...globalOptions, ...options });
+      });
   }
 
   async handleImportCommand(options) {
@@ -184,6 +184,7 @@ class SnomedModule extends BaseTerminologyModule {
       "20611000087101": "Canadian Edition (French)",
       "11000181102": "Estonian Edition",
       "11000229106": "Finnish Edition",
+      "11000315107": "French Edition",
       "11000274103": "German Edition",
       "1121000189102": "Indian Edition",
       "11000220105": "Irish Edition",
@@ -210,6 +211,7 @@ class SnomedModule extends BaseTerminologyModule {
       'DK': '554471000005108',
       'NO': '51000202101',
       'FI': '11000229106',
+      'FR': '11000315107',
       'DE': '11000274103',
       'AT': '11000234105',
       'CH': '2011000195101',
@@ -435,6 +437,7 @@ class SnomedModule extends BaseTerminologyModule {
       "20621000087109": { name: "Canadian Edition (English)", needsBase: true, lang: "en-CA" },
       "20611000087101": { name: "Canadian Edition (French)", needsBase: true, lang: "fr-CA" },
       "11000181102": { name: "Estonian Edition", needsBase: true, lang: "et-EE" },
+      "11000315107": { name: "French Edition", needsBase: true, lang: "fr-FR" },
       "11000229106": { name: "Finnish Edition", needsBase: true, lang: "fi-FI" },
       "11000274103": { name: "German Edition", needsBase: true, lang: "de-DE" },
       "1121000189102": { name: "Indian Edition", needsBase: true, lang: "en-IN" },
@@ -633,7 +636,7 @@ class SnomedModule extends BaseTerminologyModule {
     }
 
     const additionalAnswers = additionalQuestions.length > 0 ?
-        await inquirer.prompt(additionalQuestions) : {};
+      await inquirer.prompt(additionalQuestions) : {};
 
     // Build the final configuration
     const config = {
@@ -774,7 +777,7 @@ class SnomedModule extends BaseTerminologyModule {
       } else if (firstLine.startsWith('id\teffectiveTime\tactive\tmoduleId\tconceptId\tlanguageCode\ttypeId\tterm\tcaseSignificanceId')) {
         files.descriptions.push(filePath);
       } else if (firstLine.startsWith('id\teffectiveTime\tactive\tmoduleId\tsourceId\tdestinationId\trelationshipGroup\ttypeId\tcharacteristicTypeId\tmodifierId') &&
-          !filePath.includes('StatedRelationship')) {
+        !filePath.includes('StatedRelationship')) {
         files.relationships.push(filePath);
       }
     } catch (error) {
@@ -1213,7 +1216,7 @@ class SnomedImporter {
       } else if (firstLine.startsWith('id\teffectiveTime\tactive\tmoduleId\tconceptId\tlanguageCode\ttypeId\tterm\tcaseSignificanceId')) {
         files.descriptions.push(filePath);
       } else if (firstLine.startsWith('id\teffectiveTime\tactive\tmoduleId\tsourceId\tdestinationId\trelationshipGroup\ttypeId\tcharacteristicTypeId\tmodifierId') &&
-          !filePath.includes('StatedRelationship')) {
+        !filePath.includes('StatedRelationship')) {
         files.relationships.push(filePath);
       }
     } catch (error) {
@@ -1466,8 +1469,8 @@ class SnomedImporter {
         const caps = this.conceptMap.get(desc.caseSignificanceId);
 
         const descOffset = this.descriptions.addDescription(
-            termOffset, desc.id, effectiveTime, concept.index,
-            module.index, kind.index, caps.index, desc.active, lang
+          termOffset, desc.id, effectiveTime, concept.index,
+          module.index, kind.index, caps.index, desc.active, lang
         );
 
         // Track description on concept
@@ -1813,12 +1816,12 @@ class SnomedImporter {
 
         // Check if this is a defining relationship
         const defining = rel.characteristicTypeId === RF2_MAGIC_RELN_DEFINING ||
-            rel.characteristicTypeId === RF2_MAGIC_RELN_STATED ||
-            rel.characteristicTypeId === RF2_MAGIC_RELN_INFERRED;
+          rel.characteristicTypeId === RF2_MAGIC_RELN_STATED ||
+          rel.characteristicTypeId === RF2_MAGIC_RELN_INFERRED;
 
         const relationshipIndex = this.relationships.addRelationship(
-            rel.id, source.index, destination.index, type.index,
-            0, 0, 0, effectiveTime, rel.active, defining, rel.relationshipGroup
+          rel.id, source.index, destination.index, type.index,
+          0, 0, 0, effectiveTime, rel.active, defining, rel.relationshipGroup
         );
 
         // Track parent/child relationships for is-a relationships
@@ -1882,9 +1885,9 @@ class SnomedImporter {
         // Set parents if concept has any
         if (tracker.activeParents.length > 0 || tracker.inactiveParents.length > 0) {
           const activeParentsRef = tracker.activeParents.length > 0 ?
-              this.refs.addReferences(tracker.activeParents) : 0;
+            this.refs.addReferences(tracker.activeParents) : 0;
           const inactiveParentsRef = tracker.inactiveParents.length > 0 ?
-              this.refs.addReferences(tracker.inactiveParents) : 0;
+            this.refs.addReferences(tracker.inactiveParents) : 0;
 
           this.concepts.setParents(concept.index, activeParentsRef, inactiveParentsRef);
         } else {
@@ -2186,14 +2189,14 @@ class SnomedImporter {
     // NOTE: This calls addString() so it must happen AFTER strings.reopen()
     for (const refSet of refSetsArray) {
       this.refsetIndex.addReferenceSet(
-          this.addString(refSet.title),    // This needs strings builder to be active
-          refSet.filename,
-          refSet.index,
-          refSet.membersByRef,
-          refSet.membersByName,
-          refSet.fieldTypes,
-          refSet.fieldNames,
-          refSet.langs
+        this.addString(refSet.title),    // This needs strings builder to be active
+        refSet.filename,
+        refSet.index,
+        refSet.membersByRef,
+        refSet.membersByName,
+        refSet.fieldTypes,
+        refSet.fieldNames,
+        refSet.langs
       );
     }
   }
@@ -2665,8 +2668,8 @@ class SnomedImporter {
     };
 
     const services = new SnomedExpressionServices(
-        snomedStructures,
-        this.isAIndex
+      snomedStructures,
+      this.isAIndex
     );
 
     // Set building flag to true so services will generate normal forms dynamically

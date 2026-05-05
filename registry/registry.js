@@ -159,14 +159,14 @@ class RegistryModule {
 
       // Get metadata
       const metadata = this.crawler.getMetadata();
-      this.logger.info(`Crawl completed in ${(elapsed/1000).toFixed(1)}s. ` +
+      this.logger.info(`Crawl completed in ${(elapsed / 1000).toFixed(1)}s. ` +
         `Found ${newData.registries.length} registries, ` +
         `${metadata.errors.length} errors, ` +
         `downloaded ${this.crawler.formatBytes(metadata.totalBytes)}`);
       this.stats.taskDone('TxRegistry', 'Crawling Finished');
     } catch (error) {
       this.logger.error('Crawl failed:', error);
-      this.stats.taskError('TxRegistry', 'Crawling Error: '+error.message);
+      this.stats.taskError('TxRegistry', 'Crawling Error: ' + error.message);
     } finally {
       this.crawlInProgress = false;
     }
@@ -476,7 +476,7 @@ class RegistryModule {
       const lastRunDate = new Date(stats.lastRun);
       lastUpdatedText = `Last Updated: ${lastRunDate.toLocaleString()}`;
     }
-    html += `<p>${lastUpdatedText}. <a href="https://github.com/FHIR/ig-registry/blob/master/tx-registry-doco.md">Register your own server</a>`+
+    html += `<p>${lastUpdatedText}. <a href="https://github.com/FHIR/ig-registry/blob/master/tx-registry-doco.md">Register your own server</a>` +
       ` - see <a href="https://build.fhir.org/ig/HL7/fhir-tx-ecosystem-ig/ecosystem.html">Documentation</a></p>`;
 
     html += '<table class="grid">';
@@ -718,7 +718,7 @@ class RegistryModule {
 
     // For wildcards, just return as is
     if (url.endsWith('*')) {
-      url = url.substring(0, url.length-1);
+      url = url.substring(0, url.length - 1);
     }
 
     const parts = url.split('/');
@@ -750,6 +750,7 @@ class RegistryModule {
       case '20611000087101': edition = 'CA'; break;
       case '11000181102': edition = 'EE'; break;
       case '11000229106': edition = 'FI'; break;
+      case '11000315107': edition = 'FR-FR'; break;
       case '11000274103': edition = 'DE'; break;
       case '1121000189102': edition = 'IN'; break;
       case '11000220105': edition = 'IE'; break;
@@ -976,7 +977,7 @@ class RegistryModule {
 
       try {
         const params = this._normalizeQueryParams(req.query);
-        const {fhirVersion, url, valueSet, usage} = params;
+        const { fhirVersion, url, valueSet, usage } = params;
 
         // Convert authoritativeOnly to boolean
         const authoritativeOnly = params.authoritativeOnly === 'true';
@@ -986,11 +987,11 @@ class RegistryModule {
 
         // Validate URL parameters if provided
         if (cleanUrl && !this._isValidUrl(cleanUrl)) {
-          return res.status(400).json({error: 'Invalid code system URL format'});
+          return res.status(400).json({ error: 'Invalid code system URL format' });
         }
 
         if (valueSet && !this._isValidUrl(cleanVS)) {
-          return res.status(400).json({error: 'Invalid value set URL format'});
+          return res.status(400).json({ error: 'Invalid value set URL format' });
         }
 
         // Check if this is a browser request (based on Accept header)
@@ -1033,11 +1034,11 @@ class RegistryModule {
 
         // Validate required parameters
         if (!fhirVersion) {
-          return res.status(400).json({error: 'A FHIR version is required'});
+          return res.status(400).json({ error: 'A FHIR version is required' });
         }
 
         if (!url && !valueSet) {
-          return res.status(400).json({error: 'Either url or valueSet parameter is required'});
+          return res.status(400).json({ error: 'Either url or valueSet parameter is required' });
         }
 
         if (valueSet) {
@@ -1089,7 +1090,7 @@ class RegistryModule {
         res.json(result);
       } catch (error) {
         this.logger.error('Error in resolve endpoint:', error);
-        res.status(400).json({error: error.message});
+        res.status(400).json({ error: error.message });
       }
     } finally {
       this.stats.countRequest('resolve', Date.now() - start);
@@ -1198,7 +1199,7 @@ class RegistryModule {
     return html;
   }
 
-// Add this helper method to render security tags
+  // Add this helper method to render security tags
 
   renderSecurityTags(server) {
     const tags = [];
@@ -1338,7 +1339,7 @@ class RegistryModule {
         }
       } catch (error) {
         this.logger.error('Error in log endpoint:', error);
-        res.status(500).json({error: error.message});
+        res.status(500).json({ error: error.message });
       }
     } finally {
       this.stats.countRequest('log', Date.now() - start);
