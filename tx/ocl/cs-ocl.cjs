@@ -12,7 +12,7 @@ const { computeCodeSystemFingerprint } = require('./fingerprint/fingerprint');
 const { OCLBackgroundJobQueue } = require('./jobs/background-queue');
 const { OCLConceptFilterContext } = require('./model/concept-filter-context');
 const { toConceptContext } = require('./mappers/concept-mapper');
-const { patchSearchWorkerForOCLCodeFiltering } = require('./shared/patches');
+const { patchSearchWorkerForOCLCodeFiltering, patchProviderForOCLFactorySync } = require('./shared/patches');
 const regexUtilities = require("../../library/regex-utilities");
 
 patchSearchWorkerForOCLCodeFiltering();
@@ -149,6 +149,15 @@ class OCLCodeSystemProvider extends AbstractCodeSystemProvider {
         const nextSnapshot = this.#buildSourceSnapshot(sources);
         const changes = this.#diffSnapshots(this._sourceStateByCanonical, nextSnapshot);
         this.#applySnapshot(nextSnapshot);
+        for (const cs of changes.added || []) {
+          const entry = nextSnapshot.get(cs.url);
+          if (entry?.meta && !OCLSourceCodeSystemFactory.hasFactory(cs.url, cs.version || null)) {
+            const factory = OCLSourceCodeSystemFactory.createForDiscoveredSource(this.httpClient, entry.meta);
+            if (factory) {
+              console.log(`[OCL] Factory created for newly discovered source: ${cs.url}`);
+            }
+          }
+        }
         this._pendingChanges = changes;
       } catch (error) {
         console.error('[OCL] Incremental source refresh failed:', error.message);
@@ -1251,6 +1260,14 @@ class OCLSourceCodeSystemProvider extends CodeSystemProvider {
 
 class OCLSourceCodeSystemFactory extends CodeSystemFactoryProvider {
   static factoriesByKey = new Map();
+  static #sharedI18n = null;
+
+  static createForDiscoveredSource(httpClient, meta) {
+    if (!OCLSourceCodeSystemFactory.#sharedI18n) {
+      return null;
+    }
+    return new OCLSourceCodeSystemFactory(OCLSourceCodeSystemFactory.#sharedI18n, httpClient, meta);
+  }
 
   static #normalizeSystem(system) {
     return normalizeCanonicalSystem(system);
@@ -1319,6 +1336,9 @@ class OCLSourceCodeSystemFactory extends CodeSystemFactoryProvider {
 
   constructor(i18n, client, meta) {
     super(i18n);
+    if (!OCLSourceCodeSystemFactory.#sharedI18n) {
+      OCLSourceCodeSystemFactory.#sharedI18n = i18n;
+    }
     this.httpClient = client;
     this.meta = meta;
     this.sharedConceptCache = new Map();
@@ -1823,6 +1843,8 @@ class OCLSourceCodeSystemFactory extends CodeSystemFactoryProvider {
     return true;
   }
 }
+
+patchProviderForOCLFactorySync(() => OCLSourceCodeSystemFactory.factoriesByKey);
 
 module.exports = {
   OCLCodeSystemProvider,
