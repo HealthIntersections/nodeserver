@@ -25,13 +25,6 @@ class PublisherModule {
     this.config = config;
     this.logger = require('../library/logger').getInstance().child({ module: 'publisher' });
 
-    const { isLineBuffered } = require('./spawn-java');
-    if (isLineBuffered()) {
-      this.logger.info('IG Publisher output will be line-buffered via stdbuf (prompt log updates)');
-    } else {
-      this.logger.warn('stdbuf not available - IG Publisher stdout will be block-buffered, log may appear to stall during long phases');
-    }
-
     // Initialize database first
     await this.initializeDatabase();
 
@@ -610,12 +603,12 @@ class PublisherModule {
   }
 
   async runIGPublisher(publisherJar, draftDir, logFile, taskId) {
-    const { spawnJava } = require('./spawn-java');
+    const { spawn } = require('child_process');
 
     await this.logTaskMessage(taskId, 'info', 'Running FHIR IG Publisher...');
 
     return new Promise((resolve, reject) => {
-      const java = spawnJava([
+      const java = spawn('java', [
         '-jar',
         '-Xmx20000m',
         publisherJar,
@@ -629,13 +622,37 @@ class PublisherModule {
       // Create log file stream
       const logStream = fs.createWriteStream(logFile);
 
+      const buildStart = Date.now();
+      let lastDataAt = Date.now();
+
       java.stdout.on('data', (data) => {
+        lastDataAt = Date.now();
         logStream.write(data);
       });
 
       java.stderr.on('data', (data) => {
+        lastDataAt = Date.now();
         logStream.write(data);
       });
+
+      // Heartbeat: emit a status line every 60s regardless of stdout activity,
+      // so silent phases of the Publisher (e.g. "Validating Resources") still
+      // surface a signal-of-life in the task log.
+      const heartbeat = setInterval(async () => {
+        const elapsedMs = Date.now() - buildStart;
+        const sinceDataMs = Date.now() - lastDataAt;
+        let logKb = 0;
+        try { logKb = Math.round(fs.statSync(logFile).size / 1024); } catch (_) {}
+        const elapsedMin = Math.floor(elapsedMs / 60000);
+        const elapsedSec = Math.floor(elapsedMs / 1000) % 60;
+        const idleSec = Math.floor(sinceDataMs / 1000);
+        await this.logTaskMessage(
+          taskId,
+          'info',
+          'IG Publisher heartbeat: elapsed ' + elapsedMin + 'm' + elapsedSec + 's, ' +
+          'log ' + logKb + ' KB, last output ' + idleSec + 's ago'
+        );
+      }, 60 * 1000);
 
       java.on('close', async (code) => {
         logStream.end();
@@ -667,6 +684,7 @@ class PublisherModule {
 
       java.on('close', () => {
         clearTimeout(timeout);
+        clearInterval(heartbeat);
       });
     });
   }
@@ -813,7 +831,7 @@ class PublisherModule {
   }
 
   async runPublisherGoPublish(taskId, publisherJar, sourceDir, webDir, registryDir, historyDir, templatesDir, zipsDir, logFile) {
-    const { spawnJava } = require('./spawn-java');
+    const { spawn } = require('child_process');
 
     const registryFile = path.join(registryDir, 'fhir-ig-list.json');
 
@@ -831,19 +849,42 @@ class PublisherModule {
     await this.logTaskMessage(taskId, 'info', 'java ' + args.join(' '));
 
     return new Promise((resolve, reject) => {
-      const java = spawnJava(args, {
+      const java = spawn('java', args, {
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
       const logStream = fs.createWriteStream(logFile);
 
+      const buildStart = Date.now();
+      let lastDataAt = Date.now();
+
       java.stdout.on('data', (data) => {
+        lastDataAt = Date.now();
         logStream.write(data);
       });
 
       java.stderr.on('data', (data) => {
+        lastDataAt = Date.now();
         logStream.write(data);
       });
+
+      // Heartbeat: emit a status line every 60s regardless of stdout activity,
+      // so silent phases of the Publisher still surface a signal-of-life.
+      const heartbeat = setInterval(async () => {
+        const elapsedMs = Date.now() - buildStart;
+        const sinceDataMs = Date.now() - lastDataAt;
+        let logKb = 0;
+        try { logKb = Math.round(fs.statSync(logFile).size / 1024); } catch (_) {}
+        const elapsedMin = Math.floor(elapsedMs / 60000);
+        const elapsedSec = Math.floor(elapsedMs / 1000) % 60;
+        const idleSec = Math.floor(sinceDataMs / 1000);
+        await this.logTaskMessage(
+          taskId,
+          'info',
+          'IG Publisher go-publish heartbeat: elapsed ' + elapsedMin + 'm' + elapsedSec + 's, ' +
+          'log ' + logKb + ' KB, last output ' + idleSec + 's ago'
+        );
+      }, 60 * 1000);
 
       java.on('close', async (code) => {
         logStream.end();
@@ -863,16 +904,18 @@ class PublisherModule {
         reject(error);
       });
 
-      // Timeout after 60 minutes for publication (longer than draft build)
+      // Timeout configurable via publisher.igPublisherTimeoutMinutes (default: 60 minutes)
+      const timeoutMinutes = this.config.igPublisherTimeoutMinutes || 60;
       const timeout = setTimeout(async () => {
         java.kill();
         logStream.end();
-        await this.logTaskMessage(taskId, 'error', 'IG Publisher go-publish timed out after 60 minutes');
+        await this.logTaskMessage(taskId, 'error', 'IG Publisher go-publish timed out after ' + timeoutMinutes + ' minutes');
         reject(new Error('IG Publisher go-publish timed out'));
-      }, 60 * 60 * 1000);
+      }, timeoutMinutes * 60 * 1000);
 
       java.on('close', () => {
         clearTimeout(timeout);
+        clearInterval(heartbeat);
       });
     });
   }
