@@ -615,13 +615,12 @@ class PackageManager {
             const finalName = `${packageId}#${version}`;
             const finalPath = path.join(this.cacheFolder, finalName);
 
-            // If it already exists, the same package is already loaded - that's a config error
+            // If it already exists in cache, reuse it (already downloaded previously)
             try {
                 await fs.access(finalPath);
                 await fs.rm(tempFullPath, { recursive: true, force: true });
-                throw new Error(`Package ${finalName} already exists in cache. Check library config for duplicates (url: ${url})`);
+                return finalName;
             } catch (e) {
-                if (e.message.includes('already exists')) throw e;
                 // Doesn't exist yet, rename temp to final
                 await fs.rename(tempFullPath, finalPath);
             }

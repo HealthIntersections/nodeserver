@@ -67,6 +67,7 @@
     "tar": "^7.5.7",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^4.7.1",
+    "xlsx": "^0.18.5",
     "yaml": "^2.8.2"
   },
   "devDependencies": {

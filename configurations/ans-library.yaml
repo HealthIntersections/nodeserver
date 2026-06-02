@@ -1,0 +1,19 @@
+base:
+  # Serveur ANS hébergeant les fichiers terminologiques volumineux (SNOMED, LOINC, package enrichi)
+  # Ces fichiers sont téléchargés automatiquement au démarrage si absents du cache local
+  url: http://interop.esante.gouv.fr/tx/data
+
+sources:
+
+  - internal:lang
+  - internal:country
+  - internal:currency
+  - internal:mimetypes
+  - ucum:tx/data/ucum-essence.xml
+  - npm:hl7.terminology.r4#7.1.0
+  - url:http://interop.esante.gouv.fr/tx/data/ans.fr.terminologies-1.9.1-enriched.tgz
+  - npm/cs:hl7.fhir.uv.ips#1.1.0
+
+  - npm/cs:ihe.formatcode.fhir
+  - snomed:snomed-fr.cache
+  - loinc:loinc.db

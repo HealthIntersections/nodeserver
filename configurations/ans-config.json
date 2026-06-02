@@ -1,0 +1,36 @@
+{
+  "server": {
+    "port": 3000,
+    "cors": {
+      "origin": "*",
+      "credentials": true
+    }
+  },
+  "modules": {
+    "tx": {
+      "enabled": true,
+      "librarySource": "./data/library.yaml",
+      "cacheTimeout": 30,
+      "internalLimit": 1000000,
+      "externalLimit": 1000000,
+      "expansionCacheSize": 1000,
+      "expansionCacheMemoryThreshold": 0,
+      "endpoints": [
+        {
+          "path": "/tx/r4",
+          "fhirVersion": "4.0",
+          "context": null
+        }
+      ]
+    },
+    "logging": {
+      "level": "info",
+      "console": true,
+      "consoleErrors": false,
+      "maxFiles": 14,
+      "maxSize": "50m",
+      "flushInterval": 2000,
+      "flushSize": 200
+    }
+  }
+}

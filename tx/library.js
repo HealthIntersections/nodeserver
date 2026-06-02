@@ -655,8 +655,7 @@ class Library {
         continue;
       }
       cs.sourcePackage = contentLoader.pid();
-      cp.codeSystems.set(cs.url, cs);
-      cp.codeSystems.set(cs.vurl, cs);
+      cp.codeSystems.push(cs);
       csc++;
     }
     this.codeSystemProviders.push(cp);
