@@ -1,7 +1,9 @@
 const fs = require('fs').promises;
 const path = require('path');
+const crypto = require('crypto');
 const yaml = require('yaml'); // npm install yaml
 const { PackageManager, PackageContentLoader } = require('../library/package-manager');
+const { FolderContentLoader } = require('../library/folder-content-loader');
 const { CodeSystem } = require("./library/codesystem");
 const {CountryCodeFactoryProvider} = require("./cs/cs-country");
 const {Iso4217FactoryProvider} = require("./cs/cs-currency");
@@ -293,6 +295,10 @@ class Library {
 
       case 'ocl':
         await this.loadOcl(details, isDefault, mode);
+        break;
+
+      case 'folder':
+        await this.loadFolder(details, isDefault, mode);
         break;
 
       default:
@@ -671,6 +677,66 @@ class Library {
     }
 
     this.#logPackage(contentLoader.id(), contentLoader.version(), csc, vs ? vs.valueSetMap.size : 0);
+  }
+
+  /**
+   * Loads CodeSystem / ValueSet / ConceptMap resources from any *.json file in a folder.
+   * The folder is scanned (top level only); each JSON file is read and routed to the
+   * appropriate provider based on its resourceType. Files that fail to parse or whose
+   * resourceType isn't one of the three terminology types are silently skipped.
+   *
+   * Relative paths are resolved against the project root (same convention as loadUcum etc.).
+   *
+   * @param {string} details - The folder to scan
+   * @param {boolean} isDefault - Unused; folder sources don't register factories
+   * @param {string} mode - One of "fetch", "cs", "npm"
+   */
+  // eslint-disable-next-line no-unused-vars
+  async loadFolder(details, isDefault, mode) {
+    if (mode === "fetch" || mode === "cs") {
+      return;
+    }
+
+    const folderPath = path.isAbsolute(details)
+      ? details
+      : path.resolve(path.join(__dirname, '..', details));
+
+    // Park the Package*Provider SQLite caches under the terminology cache rather
+    // than polluting the user's source folder, and wipe between runs so edits to
+    // the source folder are reliably picked up.
+    const hash = crypto.createHash('sha1').update(folderPath).digest('hex').substring(0, 16);
+    const cacheSubdir = path.join(this.cacheFolder, 'folder-source-' + hash);
+    await fs.rm(cacheSubdir, { recursive: true, force: true });
+    await fs.mkdir(cacheSubdir, { recursive: true });
+
+    const contentLoader = new FolderContentLoader(folderPath, cacheSubdir);
+    await contentLoader.initialize();
+
+    this.packageSources.push(contentLoader.id() + "#" + contentLoader.version());
+
+    const cp = new ListCodeSystemProvider();
+    const csEntries = await contentLoader.getResourcesByType("CodeSystem");
+    let csc = 0;
+    for (const entry of csEntries) {
+      const cs = new CodeSystem(await contentLoader.loadFile(entry, contentLoader.fhirVersion()));
+      if (this.#isIgnored(cs.url, cs.version)) {
+        this.log.info(`Ignoring CodeSystem ${cs.url}${cs.version ? '#' + cs.version : ''} (excluded by config)`);
+        continue;
+      }
+      cs.sourcePackage = contentLoader.pid();
+      cp.codeSystems.push(cs);
+      csc++;
+    }
+    this.codeSystemProviders.push(cp);
+
+    const vs = new PackageValueSetProvider(contentLoader);
+    await vs.initialize();
+    this.valueSetProviders.push(vs);
+    const cm = new PackageConceptMapProvider(contentLoader);
+    await cm.initialize();
+    this.conceptMapProviders.push(cm);
+
+    this.#logPackage(contentLoader.id(), contentLoader.version(), csc, vs.valueSetMap.size);
   }
 
   /**
