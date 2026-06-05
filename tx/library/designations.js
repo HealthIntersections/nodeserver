@@ -610,35 +610,42 @@ class Designations {
 
       const matchTypes = [LangMatchType.FULL, LangMatchType.LANG_REGION, LangMatchType.LANG];
 
-      for (const matchType of matchTypes) {
-        for (const cd of this.designations) {
-          if (this._langMatches(lang, cd.language, matchType) && this.isDisplay(cd)) {
-            if (supplements && cd.source) {
-              supplements.add(cd.source);
+      for (const activeOnly of [true, false]) {
+        for (const matchType of matchTypes) {
+          for (const cd of this.designations) {
+            if (this._langMatches(lang, cd.language, matchType) && this.isDisplay(cd) && (!activeOnly || cd.isActive())) {
+              if (supplements && cd.source) {
+                supplements.add(cd.source);
+              }
+              return cd;
             }
-            return cd;
           }
-        }
-        for (const cd of this.designations) {
-          if (this._langMatches(lang, cd.language, matchType) && this._isPreferred(cd)) {
-            if (supplements && cd.source) {
-              supplements.add(cd.source);
+          for (const cd of this.designations) {
+            if (this._langMatches(lang, cd.language, matchType) && this._isPreferred(cd)&& (!activeOnly || cd.isActive())) {
+              if (supplements && cd.source) {
+                supplements.add(cd.source);
+              }
+              return cd;
             }
-            return cd;
           }
-        }
-        for (const cd of this.designations) {
-          if (this._langMatches(lang, cd.language, matchType)) {
-            if (supplements && cd.source) {
-              supplements.add(cd.source);
+          for (const cd of this.designations) {
+            if (this._langMatches(lang, cd.language, matchType) && (!activeOnly || cd.isActive())) {
+              if (supplements && cd.source) {
+                supplements.add(cd.source);
+              }
+              return cd;
             }
-            return cd;
           }
         }
       }
     }
     for (const cd of this.designations) {
-      if (!cd.language && this.isDisplay(cd)) {
+      if (!cd.language && this.isDisplay(cd) && cd.isActive()) {
+        if (supplements && cd.source) {
+          supplements.add(cd.source);
+        }
+        return cd;
+      } if (!cd.language && this.isDisplay(cd)) {
         if (supplements && cd.source) {
           supplements.add(cd.source);
         }

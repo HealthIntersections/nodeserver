@@ -165,6 +165,7 @@ describe('Designations', () => {
 
     test('should respect quality values', () => {
       const langList = Languages.fromAcceptLanguage('fr;q=0.1,en;q=0.9');
+      designations.designations[0].status = 'active';
       const preferred = designations.preferredDesignation(langList);
 
       // Should prefer English due to higher quality
@@ -289,6 +290,8 @@ describe('Designations', () => {
 
     test('should prefer base over display for exact match', () => {
       const langList = Languages.fromAcceptLanguage('en-US');
+      designations.designations[0].status = 'active';
+      designations.designations[2].status = 'active';
       const preferred = designations.preferredDesignation(langList);
 
       expect(preferred.display).toBe('Base US English');
@@ -297,6 +300,7 @@ describe('Designations', () => {
 
     test('should fall back to language-region match', () => {
       const langList = Languages.fromAcceptLanguage('en-AU'); // Australian English not in designations
+      designations.designations[0].status = 'active';
       const preferred = designations.preferredDesignation(langList);
 
       // Should fall back to base English
