@@ -1350,14 +1350,18 @@ class ValueSetChecker {
       if (vstatus.value && vstatus.value !== 'inactive') {
         result.addParamCode('status', vstatus.value);
       }
+      let mpath = inactive.path;
+      if (!mpath) {
+        mpath = 'code';
+      }
       if (!['inactive', 'DISCOURAGED'].includes(vstatus.value)) {
         let m = this.worker.i18n.translate('INACTIVE_CONCEPT_FOUND', this.params.HTTPLanguages, ['inactive', tcode]);
         msg(m);
-        op.addIssue(new Issue('warning', 'business-rule', inactive.path, 'INACTIVE_CONCEPT_FOUND', m, 'code-comment'));
+        op.addIssue(new Issue('warning', 'business-rule', mpath, 'INACTIVE_CONCEPT_FOUND', m, 'code-comment'));
       }
       let m = this.worker.i18n.translate('INACTIVE_CONCEPT_FOUND', this.params.HTTPLanguages, [vstatus.value, tcode]);
       msg(m);
-      op.addIssue(new Issue('warning', 'business-rule', inactive.path, 'INACTIVE_CONCEPT_FOUND', m, 'code-comment'));
+      op.addIssue(new Issue('warning', 'business-rule', mpath, 'INACTIVE_CONCEPT_FOUND', m, 'code-comment'));
     } else if (vstatus.value && vstatus.value.toLowerCase() === 'deprecated') {
       result.addParamCode('status', 'deprecated');
       let m = this.worker.i18n.translate('DEPRECATED_CONCEPT_FOUND', this.params.HTTPLanguages, [vstatus.value, tcode]);
