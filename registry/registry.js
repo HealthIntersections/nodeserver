@@ -758,7 +758,7 @@ class RegistryModule {
       case '11000267109': edition = 'KR'; break;
       case '900000001000122104': edition = 'ES-ES'; break;
       case '2011000195101': edition = 'CH'; break;
-      case '11000279109': edition = 'CX'; break;
+      case '11000279109': edition = 'CZ'; break;
       case '999000021000000109': edition = 'UK+Clinical'; break;
       case '5631000179106': edition = 'UY'; break;
       case '21000325107': edition = 'CL'; break;
@@ -1233,7 +1233,7 @@ class RegistryModule {
     // FHIR Version field
     html += '<p>';
     html += '<label for="fhirVersion" class="form-label fw-bold">FHIR Version <span class="text-danger">*</span></label>';
-    html += `<input type="text" class="form-control" id="fhirVersion" name="fhirVersion" size="8" 
+    html += `<input type="text" class="form-control" id="fhirVersion" name="fhirVersion" size="8"
            value="${escape(fhirVersion)}" required>`;
     html += '</p>';
     html += '<p class="text-muted small">Examples: R4, 4.0.1, 5.0.0, etc.</p>';
@@ -1241,7 +1241,7 @@ class RegistryModule {
     html += '<div class="alert alert-info">Either Code System URL or Value Set URL must be provided:</div>';
     html += '<p>';
     html += '<label for="url" class="form-label fw-bold">Code System URL</label>';
-    html += `<input type="url" class="form-control" id="url" name="url" 
+    html += `<input type="url" class="form-control" id="url" name="url"
            value="${escape(url)}">`;
     html += '</p>';
     html += '<p class="text-muted small">Example: http://loinc.org</p>';
@@ -1249,7 +1249,7 @@ class RegistryModule {
     // ValueSet URL field - now vertical
     html += '<p>';
     html += '<label for="valueSet" class="form-label fw-bold">Value Set URL</label>';
-    html += `<input type="url" class="form-control" id="valueSet" name="valueSet" 
+    html += `<input type="url" class="form-control" id="valueSet" name="valueSet"
            value="${escape(valueSet)}">`;
     html += '</p>';
     html += '<p class="text-muted small">Example: http://hl7.org/fhir/ValueSet/observation-codes</p>';
@@ -1257,7 +1257,7 @@ class RegistryModule {
 
     // Authoritative Only checkbox
     html += '<p>';
-    html += `<input type="checkbox" class="form-check-input" id="authoritativeOnly" 
+    html += `<input type="checkbox" class="form-check-input" id="authoritativeOnly"
            name="authoritativeOnly" value="true" ${authoritativeOnly ? 'checked' : ''}>`;
     html += '<label class="form-check-label" for="authoritativeOnly">&nbsp;Show only authoritative servers</label>';
     html += '</p>';
@@ -1276,7 +1276,7 @@ class RegistryModule {
     document.querySelector('form').addEventListener('submit', function(e) {
       const url = document.getElementById('url').value.trim();
       const valueSet = document.getElementById('valueSet').value.trim();
-      
+
       if (!url && !valueSet) {
         e.preventDefault();
         alert('You must provide either a Code System URL or a Value Set URL');
