@@ -374,6 +374,12 @@ class LookupWorker extends TerminologyWorker {
             });
           }
 
+          if (designation.status && designation.status !== 'active') {
+            designationParts.push({
+              name: 'status',
+              valueCode: designation.status
+            });
+          }
           designationParts.push({
             name: 'value',
             valueString: designation.value
