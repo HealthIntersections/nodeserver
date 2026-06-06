@@ -647,11 +647,11 @@ class ValueSetExpander {
           } else if (cs.contentMode() === 'supplement') {
             throw new Issue('error', 'business-rule', null, null, 'The code system definition for ' + cset.system + ' defines a supplement, so this expansion cannot be performed', 'invalid');
           } else if (cs.contentMode() === 'fragment') {
-            this.addParamUri(exp, 'used-fragment', cs.system() + '|' + cs.version());
+            this.addParamUri(exp, 'used-fragment', cs.system()+ (cs.version() ?  '|' + cs.version(): ""));
             Extensions.addBoolean(exp, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
             Extensions.addString(exp, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason","This extension is based on a fragment of the code system " + cset.system);
           } else {
-            this.addParamUri(exp, cs.contentMode(), cs.system() + '|' + cs.version());
+            this.addParamUri(exp, cs.contentMode(), cs.system() + cs.system()+ (cs.version() ?  '|' + cs.version(): ""));
             Extensions.addBoolean(exp, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
             Extensions.addString(exp, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason","This extension is based on a fragment of the code system " + cset.system);
           }
