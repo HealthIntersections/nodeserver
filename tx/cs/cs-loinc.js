@@ -947,6 +947,7 @@ class LoincServices extends BaseCSServices {
           reject(err);
         } else {
           for (const row of rows) {
+            if (this.opContext) this.opContext.deadCheck('loinc:findRegexMatches');
             if (regex.test(row[valueColumn])) {
               matchingKeys.push(row[keyColumn]);
             }

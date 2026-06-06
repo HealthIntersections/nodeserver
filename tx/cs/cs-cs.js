@@ -1140,6 +1140,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
     const allConcepts = this.codeSystem.getAllConcepts();
 
     for (const concept of allConcepts) {
+      this.opContext.deadCheck('cs:searchFilter');
       const rating = this._calculateSearchRating(concept, searchTerm);
       if (rating > 0) {
         results.add(concept, rating);
@@ -1285,6 +1286,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
       const allCodes = this.codeSystem.getAllCodes();
       for (const code of allCodes) {
+        this.opContext.deadCheck('cs:conceptFilter:is-not-a');
         if (!excludeSet.has(code)) {
           const concept = this.codeSystem.getConceptByCode(code);
           if (concept) {
@@ -1316,6 +1318,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
         const regex = regexUtilities.compile('^' + value + '$');
         const allCodes = this.codeSystem.getAllCodes();
         for (const code of allCodes) {
+          this.opContext.deadCheck('cs:conceptFilter:regex');
           if (regex.test(code)) {
             const concept = this.codeSystem.getConceptByCode(code);
             if (concept) {
@@ -1349,6 +1352,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
       }
       const descendants = this.codeSystem.getDescendants(ancestorCode);
       for (const code of descendants) {
+        this.opContext.deadCheck('cs:addDescendants');
         if (code !== ancestorCode) {
           const concept = this.codeSystem.getConceptByCode(code);
           if (concept) {
@@ -1370,6 +1374,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
     if (concept) {
       const descendants = this.codeSystem.getChildren(parentCode);
       for (const code of descendants) {
+        this.opContext.deadCheck('cs:addChildren');
         if (code !== parentCode) { // should not be
           const concept = this.codeSystem.getConceptByCode(code);
           if (concept) {
@@ -1393,6 +1398,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
 
     const allCodes = this.codeSystem.getAllCodes();
     for (const code of allCodes) {
+      this.opContext.deadCheck('cs:childExistsFilter');
       const hasChildren = this.codeSystem.getChildren(code).length > 0;
       if (hasChildren === wantChildren) {
         const concept = this.codeSystem.getConceptByCode(code);
@@ -1419,6 +1425,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
     const allConcepts = this.codeSystem.getAllConcepts();
 
     for (const concept of allConcepts) {
+      this.opContext.deadCheck('cs:propertyFilter');
       if (this._conceptMatchesPropertyFilter(concept, propertyDef, op, value)) {
         results.add(concept, 0);
       }
@@ -1498,6 +1505,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
     const allConcepts = this.codeSystem.getAllConcepts();
 
     for (const concept of allConcepts) {
+      this.opContext.deadCheck('cs:knownPropertyFilter');
       let matches = false;
 
       if (prop === 'notSelectable') {
