@@ -14,10 +14,10 @@ function valueSetToR5(jsonObj, sourceVersion) {
   if (VersionUtilities.isR5Ver(sourceVersion)) {
     return jsonObj; // No conversion needed
   }
-  for (const inc of jsonObj.compose.include || []) {
+  for (const inc of jsonObj.compose?.include || []) {
     valueSetIncludeToR5(inc);
   }
-  for (const inc of jsonObj.compose.exclude || []) {
+  for (const inc of jsonObj.compose?.exclude || []) {
     valueSetIncludeToR5(inc);
   }
   if (VersionUtilities.isR4Ver(sourceVersion)) {
