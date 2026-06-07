@@ -90,7 +90,7 @@ function valueSetR5ToR4(r5Obj) {
       if (include.filter && Array.isArray(include.filter)) {
         include.filter = include.filter.map(filter => {
           if (filter.op && isR5OnlyFilterOperator(filter.op)) {
-            filter._op = { "extension": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op", "valueCode": filter.op}
+            filter._op = { "extension": [{ url: "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op", "valueCode": filter.op}]};
             delete filter.op;
           }
           return filter;
@@ -105,7 +105,7 @@ function valueSetR5ToR4(r5Obj) {
       if (exclude.filter && Array.isArray(exclude.filter)) {
         exclude.filter = exclude.filter.map(filter => {
           if (filter.op && isR5OnlyFilterOperator(filter.op)) {
-            filter._op = { "extension": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op", "valueCode": filter.op}
+            filter._op = { "extension": [{ url: "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op", "valueCode": filter.op}]};
             delete filter.op;
           }
           return filter;
@@ -155,7 +155,7 @@ function valueSetR5ToR3(r5Obj) {
       if (include.filter && Array.isArray(include.filter)) {
         include.filter = include.filter.map(filter => {
           if (filter.op && !isR3CompatibleFilterOperator(filter.op)) {
-            filter._op = { "extension": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op", "valueCode": filter.op}
+            filter._op = { "extension": [{ url: "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op", "valueCode": filter.op}]};
             delete filter.op;
           }
           return filter;
@@ -170,7 +170,7 @@ function valueSetR5ToR3(r5Obj) {
       if (exclude.filter && Array.isArray(exclude.filter)) {
         exclude.filter = exclude.filter.map(filter => {
           if (filter.op && !isR3CompatibleFilterOperator(filter.op)) {
-            filter._op = { "extension": "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op", "valueCode": filter.op}
+            filter._op = { "extension": [{ url: "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op", "valueCode": filter.op}]};
             delete filter.op;
           }
           return filter;

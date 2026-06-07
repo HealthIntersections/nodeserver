@@ -46,7 +46,50 @@ describe('xversion — ValueSet without compose (the reported bug)', () => {
     const filter = out.compose.include[0].filter[0];
     expect(filter.op).toBeUndefined();
     expect(filter._op).toBeDefined();
-    expect(filter._op.valueCode).toBe('child-of');
+    // _op is a FHIR primitive-element extension: { extension: [ { url, valueCode } ] }
+    expect(Array.isArray(filter._op.extension)).toBe(true);
+    expect(filter._op.extension[0].url).toBe('http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op');
+    expect(filter._op.extension[0].valueCode).toBe('child-of');
+  });
+});
+
+describe('xversion — filter op _op extension is a well-formed primitive extension', () => {
+  const OP_EXT_URL = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.include.filter.op';
+
+  // Assert the FHIR-correct shape: { extension: [ { url, valueCode } ] }
+  function expectWellFormedOp(filter, expectedCode) {
+    expect(filter.op).toBeUndefined();
+    expect(filter._op).toBeDefined();
+    expect(Array.isArray(filter._op.extension)).toBe(true);
+    expect(filter._op.extension).toHaveLength(1);
+    expect(filter._op.extension[0].url).toBe(OP_EXT_URL);
+    expect(filter._op.extension[0].valueCode).toBe(expectedCode);
+    // the URL must NOT be sitting directly on _op (the original bug)
+    expect(typeof filter._op.extension).not.toBe('string');
+  }
+
+  test('R5 -> R4 include filter (R5-only op)', () => {
+    const vs = { resourceType: 'ValueSet', compose: { include: [{ system: 's', filter: [{ property: 'p', op: 'child-of', value: 'v' }] }] } };
+    const out = convertResourceFromR5(vs, '4.0');
+    expectWellFormedOp(out.compose.include[0].filter[0], 'child-of');
+  });
+
+  test('R5 -> R4 exclude filter (R5-only op)', () => {
+    const vs = { resourceType: 'ValueSet', compose: { exclude: [{ system: 's', filter: [{ property: 'p', op: 'child-of', value: 'v' }] }] } };
+    const out = convertResourceFromR5(vs, '4.0');
+    expectWellFormedOp(out.compose.exclude[0].filter[0], 'child-of');
+  });
+
+  test('R5 -> R3 include filter (op not R3-compatible)', () => {
+    const vs = { resourceType: 'ValueSet', compose: { include: [{ system: 's', filter: [{ property: 'p', op: 'generalizes', value: 'v' }] }] } };
+    const out = convertResourceFromR5(vs, '3.0');
+    expectWellFormedOp(out.compose.include[0].filter[0], 'generalizes');
+  });
+
+  test('R5 -> R3 exclude filter (op not R3-compatible)', () => {
+    const vs = { resourceType: 'ValueSet', compose: { exclude: [{ system: 's', filter: [{ property: 'p', op: 'generalizes', value: 'v' }] }] } };
+    const out = convertResourceFromR5(vs, '3.0');
+    expectWellFormedOp(out.compose.exclude[0].filter[0], 'generalizes');
   });
 });
 
