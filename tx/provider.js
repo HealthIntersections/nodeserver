@@ -1,7 +1,8 @@
 const { CodeSystem } = require("./library/codesystem");
 const {VersionUtilities} = require("../library/version-utilities");
 const { FhirCodeSystemProvider} = require("./cs/cs-cs");
-const {OperationContext, TerminologyError} = require("./operation-context");
+const {OperationContext} = require("./operation-context");
+const {TerminologyError} = require("./library/errors");
 const {validateParameter, validateOptionalParameter, validateArrayParameter} = require("../library/utilities");
 const path = require("path");
 const {PackageContentLoader} = require("../library/package-manager");
