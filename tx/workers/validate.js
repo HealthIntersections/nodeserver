@@ -563,7 +563,7 @@ class ValueSetChecker {
             }
             let msg = await cs.incompleteValidationMessage(ctxt.context, this.params.HTTPLanguages);
             if (msg) {
-              op.addIssueNoId('information', 'informational', addToPath(path, 'code'), msg, 'process-note');
+              op.addIssue(new Issue('information', 'informational', addToPath(path, 'code'), null, msg, 'process-note'));
             }
             inactive.value = await cs.isInactive(ctxt.context);
             inactive.path = path;
@@ -824,7 +824,7 @@ class ValueSetChecker {
           } else {
             let msg = 'The code system "' + ccc.system + '" version "' + ccc.version + '" in the ValueSet expansion is different to the one in the value ("' + version + '")';
             messages.push(msg);
-            op.addIssueNoId('error', 'not-found', addToPath(path, 'version'), msg, 'vs-invalid');
+            op.addIssue(new Issue('error', 'not-found', addToPath(path, 'version'), null, msg, 'vs-invalid'));
             return false;
           }
           let cs = await this.worker.findCodeSystem(system, v, this.params, ['complete', 'fragment'], op, true, true, false, this.worker.requiredSupplements);
@@ -1122,7 +1122,7 @@ class ValueSetChecker {
         if ((cause.value === 'not-found' && contentMode.value !== 'complete') || contentMode.value === 'example') {
           let m = 'The system ' + c.system + ' was found but did not contain enough information to properly validate the code "' + c.code + '" ("' + c.display + '") (mode = ' + contentMode.value + ')';
           msg(m);
-          op.addIssueNoId('warning', 'not-found', path, m, 'vs-invalid');
+          op.addIssue(new Issue('warning', 'not-found', path, null, m, 'vs-invalid'));
         } else if (c.display && list.designations.length > 0) {
           await this.checkDisplays(list, defLang, c, msg, op, path);
         }
@@ -1522,14 +1522,14 @@ class ValueSetChecker {
     } else if (ok === null) {
       result.AddParamBool('result', false);
       result.addParamStr('message', 'The system "' + system + '" is unknown so the /"' + code + '" cannot be confirmed to be in the value set ' + this.valueSet.name);
-      op.addIssueNoId('error', cause.value, 'code', 'The system "' + system + '" is unknown so the /"' + code + '" cannot be confirmed to be in the value set ' + this.valueSet.name, 'not-found');
+      op.addIssue(new Issue('error', cause.value, 'code', null, 'The system "' + system + '" is unknown so the /"' + code + '" cannot be confirmed to be in the value set ' + this.valueSet.name, 'not-found'));
       for (let us of unknownSystems) {
         result.addParamCanonical('x-caused-by-unknown-system', us);
       }
     } else {
       result.AddParamBool('result', false);
       result.addParamStr('message', 'The system/code "' + system + '"/"' + code + '" is not in the value set ' + this.valueSet.name);
-      op.addIssueNoId('error', cause.value, 'code', 'The system/code "' + system + '"/"' + code + '" is not in the value set ' + this.valueSet.name, 'not-in-vs');
+      op.addIssue(new Issue('error', cause.value, 'code', null, 'The system/code "' + system + '"/"' + code + '" is not in the value set ' + this.valueSet.name, 'not-in-vs'));
       if (cause.value) {
         result.AddParamCode('cause', cause.value);
       }
