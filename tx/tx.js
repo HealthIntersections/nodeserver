@@ -1131,8 +1131,9 @@ class TXModule {
 
   convertResourceToXml(res) {
     switch (res.resourceType) {
-      case "CodeSystem" : return CodeSystemXML._jsonToXml(res);
+      case "CodeSystem" : return CodeSystemXML.toXml(res);
       case "ValueSet" : return ValueSetXML.toXml(res);
+      case "ConceptMap" : return ConceptMapXML.toXml(res);
       case "Bundle" : return BundleXML.toXml(res, this.fhirVersion);
       case "CapabilityStatement" : return CapabilityStatementXML.toXml(res, "R5");
       case "TerminologyCapabilities" : return TerminologyCapabilitiesXML.toXml(res, "R5");
