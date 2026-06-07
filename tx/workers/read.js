@@ -179,7 +179,7 @@ class ReadWorker extends TerminologyWorker {
       issue: [{
         severity: 'error',
         code: 'not-found',
-        diagnostics: `ValueSet/${id} not found`
+        diagnostics: `ConceptMap/${id} not found`
       }]
     });
   }

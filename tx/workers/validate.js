@@ -124,7 +124,7 @@ class ValueSetChecker {
         }
       }
     } catch (error) {
-      this.log.error(error);
+      this.worker.log.error(error);
       debugLog(error);
       throw new Error('Exception expanding value set in order to infer system: ' + error.message);
     }

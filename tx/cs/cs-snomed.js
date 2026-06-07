@@ -374,7 +374,7 @@ class SnomedServices {
   }
 
 
-  filterGeneralizes(id = true) {
+  filterGeneralizes(id = true, opContext = null) {
     const result = new SnomedFilterContext();
     const conceptResult = this.concepts.findConcept(id);
 
@@ -386,6 +386,7 @@ class SnomedServices {
     let parents = this.getConceptParents(conceptResult.index);
     let isNew = true;
     while (isNew) {
+      if (opContext) opContext.deadCheck('ecl:filterGeneralizes');
       isNew = false;
       let np = [];
       for (let parent of parents) {
@@ -485,7 +486,7 @@ class SnomedServices {
     }
     let result;
     try {
-      result = this._evalECLNode(ast);
+      result = this._evalECLNode(ast, opContext);
     } catch (err) {
       debugLog(err);
       throw new Issue('error', 'invalid', null, 'UNSUPPORTED_ECL', opContext.i18n.translate('UNSUPPORTED_ECL', opContext.langs, [eclExpression, err.message]), 'vs-invalid').handleAsOO(400);
@@ -495,7 +496,7 @@ class SnomedServices {
     // we actually need the full concept list, otherwise filterSize returns 0
     // and the iteration yields nothing. Materialise active concepts now.
     if (forIteration && result.eclWildcard && (!result.descendants || result.descendants.length === 0)) {
-      result.descendants = this._eclEnumerateActiveConcepts();
+      result.descendants = this._eclEnumerateActiveConcepts(opContext);
       delete result.eclWildcard;
     }
     return result;
@@ -506,10 +507,11 @@ class SnomedServices {
    * when the filter needs to be iterated over (e.g. $expand).
    * @returns {number[]}
    */
-  _eclEnumerateActiveConcepts = function () {
+  _eclEnumerateActiveConcepts = function (opContext) {
     const all = [];
     const n = this.concepts.count();
     for (let i = 0; i < n; i++) {
+      if (opContext) opContext.deadCheck('ecl:enumerateActiveConcepts');
       const concept = this.concepts.getConceptByCount(i);
       if ((concept.flags & 0x0F) === 0) { // active
         all.push(concept.index);
@@ -523,36 +525,37 @@ class SnomedServices {
    * @param {object} node
    * @returns {SnomedFilterContext}
    */
-  _evalECLNode = function (node) {
+  _evalECLNode = function (node, opContext) {
     if (!node) {
       throw new Error('ECL evaluation error: null AST node');
     }
+    if (opContext) opContext.deadCheck('ecl:evalNode');
 
     switch (node.type) {
 
       case ECLNodeType.SUB_EXPRESSION_CONSTRAINT:
-        return this._evalSubExpression(node);
+        return this._evalSubExpression(node, opContext);
 
       case ECLNodeType.COMPOUND_EXPRESSION_CONSTRAINT: {
-        const left = this._evalECLNode(node.left);
-        const right = this._evalECLNode(node.right);
+        const left = this._evalECLNode(node.left, opContext);
+        const right = this._evalECLNode(node.right, opContext);
         switch (node.operator) {
           case ECLNodeType.CONJUNCTION:
-            return this._eclIntersect(left, right);
+            return this._eclIntersect(left, right, opContext);
           case ECLNodeType.DISJUNCTION:
-            return this._eclUnion(left, right);
+            return this._eclUnion(left, right, opContext);
           case ECLNodeType.EXCLUSION:
-            return this._eclMinus(left, right);
+            return this._eclMinus(left, right, opContext);
           default:
             throw new Error(`Unsupported ECL compound operator: ${node.operator}`);
         }
       }
 
       case ECLNodeType.REFINED_EXPRESSION_CONSTRAINT:
-        return this._evalRefined(node);
+        return this._evalRefined(node, opContext);
 
       case ECLNodeType.DOTTED_EXPRESSION_CONSTRAINT:
-        return this._evalDotted(node);
+        return this._evalDotted(node, opContext);
 
       default:
         // Could be a bare concept reference or wildcard passed in directly
@@ -561,7 +564,7 @@ class SnomedServices {
             node.type === ECLNodeType.WILDCARD ||
             node.type === ECLNodeType.MEMBER_OF) {
           // Wrap it as if it came from a no-operator SubExpressionConstraint
-          return this._evalSubExpression({type: ECLNodeType.SUB_EXPRESSION_CONSTRAINT, operator: null, focus: node});
+          return this._evalSubExpression({type: ECLNodeType.SUB_EXPRESSION_CONSTRAINT, operator: null, focus: node}, opContext);
         }
         throw new Error(`Unsupported ECL node type: ${node.type}`);
     }
@@ -573,7 +576,7 @@ class SnomedServices {
    * @param {object} node
    * @returns {SnomedFilterContext}
    */
-  _evalSubExpression = function (node) {
+  _evalSubExpression = function (node, opContext) {
     const operator = node.operator; // an ECLTokenType string, or null
     const focus = node.focus;
 
@@ -595,11 +598,11 @@ class SnomedServices {
 
     // Plain concept reference
     if (focus.type === ECLNodeType.CONCEPT_REFERENCE) {
-      return this._evalConceptWithOperator(focus.conceptId, operator);
+      return this._evalConceptWithOperator(focus.conceptId, operator, opContext);
     }
 
     // Parenthesised sub-expression: focus is itself a full constraint node
-    return this._evalECLNode(focus);
+    return this._evalECLNode(focus, opContext);
   };
 
   /**
@@ -608,7 +611,7 @@ class SnomedServices {
    * @param {string|null} operator  ECLTokenType constant
    * @returns {SnomedFilterContext}
    */
-  _evalConceptWithOperator = function (conceptId, operator) {
+  _evalConceptWithOperator = function (conceptId, operator, opContext) {
     switch (operator) {
       case null:
       case undefined:
@@ -640,7 +643,7 @@ class SnomedServices {
 
         // ── Ancestors ──────────────────────────────────────────────────────────
       case ECLTokenType.ANCESTOR_OR_SELF_OF: {   // >>   self + all transitive ancestors
-        const result = this.filterGeneralizes(conceptId);
+        const result = this.filterGeneralizes(conceptId, opContext);
         const self = this.concepts.findConcept(conceptId);
         if (self.found && !result.descendants.includes(self.index)) {
           result.descendants.push(self.index);
@@ -649,7 +652,7 @@ class SnomedServices {
       }
 
       case ECLTokenType.ANCESTOR_OF: {           // >    all transitive ancestors, no self
-        return this.filterGeneralizes(conceptId);
+        return this.filterGeneralizes(conceptId, opContext);
       }
 
       case ECLTokenType.PARENT_OR_SELF_OF: {     // >>!  self + direct parents only
@@ -714,8 +717,8 @@ class SnomedServices {
    * @param {object} node
    * @returns {SnomedFilterContext}
    */
-  _evalDotted = function (node) {
-    let current = this._eclResolveSet(this._evalECLNode(node.base));
+  _evalDotted = function (node, opContext) {
+    let current = this._eclResolveSet(this._evalECLNode(node.base, opContext), opContext);
 
     for (const attr of node.attributes || []) {
       if (attr.type !== ECLNodeType.CONCEPT_REFERENCE) {
@@ -729,6 +732,7 @@ class SnomedServices {
 
       const next = new Set();
       for (const conceptIdx of current) {
+        if (opContext) opContext.deadCheck('ecl:dotted');
         const relIdxs = this.getConceptRelationships(conceptIdx);
         for (const relIdx of relIdxs) {
           const rel = this.relationships.getRelationship(relIdx);
@@ -758,11 +762,12 @@ class SnomedServices {
    * @param {object} node
    * @returns {SnomedFilterContext}
    */
-  _evalRefined = function (node) {
-    const baseSet = this._eclResolveSet(this._evalECLNode(node.base));
+  _evalRefined = function (node, opContext) {
+    const baseSet = this._eclResolveSet(this._evalECLNode(node.base, opContext), opContext);
     const matching = [];
     for (const conceptIdx of baseSet) {
-      if (this._refinementMatches(conceptIdx, node.refinement)) {
+      if (opContext) opContext.deadCheck('ecl:refined');
+      if (this._refinementMatches(conceptIdx, node.refinement, opContext)) {
         matching.push(conceptIdx);
       }
     }
@@ -778,17 +783,17 @@ class SnomedServices {
    * @param {object} refinement
    * @returns {boolean}
    */
-  _refinementMatches = function (conceptIdx, refinement) {
+  _refinementMatches = function (conceptIdx, refinement, opContext) {
     switch (refinement.type) {
       case ECLNodeType.ATTRIBUTE:
-        return this._attributeMatches(conceptIdx, refinement, null);
+        return this._attributeMatches(conceptIdx, refinement, null, opContext);
       case ECLNodeType.ATTRIBUTE_SET:
         for (const a of refinement.attributes) {
-          if (!this._refinementMatches(conceptIdx, a)) return false;
+          if (!this._refinementMatches(conceptIdx, a, opContext)) return false;
         }
         return true;
       case ECLNodeType.ATTRIBUTE_GROUP:
-        return this._attributeGroupMatches(conceptIdx, refinement);
+        return this._attributeGroupMatches(conceptIdx, refinement, opContext);
       default:
         throw new Error(`Unsupported refinement node type: ${refinement.type}`);
     }
@@ -804,7 +809,7 @@ class SnomedServices {
    * @param {number|null} groupFilter
    * @returns {boolean}
    */
-  _attributeMatches = function (conceptIdx, attr, groupFilter) {
+  _attributeMatches = function (conceptIdx, attr, groupFilter, opContext) {
     if (attr.reverse) {
       throw new Error('ECL reverse attributes (R) are not yet supported');
     }
@@ -821,7 +826,7 @@ class SnomedServices {
       throw new Error('ECL refinements only support plain concept-reference attribute names');
     }
 
-    const count = this._countAttributeMatches(conceptIdx, attr, groupFilter);
+    const count = this._countAttributeMatches(conceptIdx, attr, groupFilter, opContext);
 
     if (attr.cardinality) {
       return this._cardinalityAccepts(attr.cardinality, count);
@@ -838,18 +843,19 @@ class SnomedServices {
    * @param {number|null} groupFilter
    * @returns {number}
    */
-  _countAttributeMatches = function (conceptIdx, attr, groupFilter) {
+  _countAttributeMatches = function (conceptIdx, attr, groupFilter, opContext) {
     const attrResult = this.concepts.findConcept(attr.name.conceptId);
     if (!attrResult.found) {
       throw new Error(`The SNOMED CT Concept ${attr.name.conceptId} is not known`);
     }
     const attrTypeIdx = attrResult.index;
 
-    const valueSet = new Set(this._eclResolveSet(this._evalECLNode(attr.comparison.value)));
+    const valueSet = new Set(this._eclResolveSet(this._evalECLNode(attr.comparison.value, opContext), opContext));
 
     const relIdxs = this.getConceptRelationships(conceptIdx);
     let count = 0;
     for (const relIdx of relIdxs) {
+      if (opContext) opContext.deadCheck('ecl:countAttributeMatches');
       const rel = this.relationships.getRelationship(relIdx);
       if (!rel.active) continue;
       if (rel.relType !== attrTypeIdx) continue;
@@ -884,7 +890,7 @@ class SnomedServices {
    * @param {object} group
    * @returns {boolean}
    */
-  _attributeGroupMatches = function (conceptIdx, group) {
+  _attributeGroupMatches = function (conceptIdx, group, opContext) {
     const relIdxs = this.getConceptRelationships(conceptIdx);
     const groupNumbers = new Set();
     for (const relIdx of relIdxs) {
@@ -896,9 +902,10 @@ class SnomedServices {
 
     let matchingGroupCount = 0;
     for (const g of groupNumbers) {
+      if (opContext) opContext.deadCheck('ecl:attributeGroup');
       let allMatch = true;
       for (const attr of group.attributes) {
-        if (!this._attributeMatches(conceptIdx, attr, g)) {
+        if (!this._attributeMatches(conceptIdx, attr, g, opContext)) {
           allMatch = false;
           break;
         }
@@ -939,9 +946,9 @@ class SnomedServices {
    * @param {SnomedFilterContext} ctx
    * @returns {number[]}
    */
-  _eclResolveSet = function (ctx) {
+  _eclResolveSet = function (ctx, opContext) {
     if (ctx.eclWildcard && (!ctx.descendants || ctx.descendants.length === 0)) {
-      return this._eclEnumerateActiveConcepts();
+      return this._eclEnumerateActiveConcepts(opContext);
     }
     return this._eclToIndexArray(ctx);
   };
@@ -949,20 +956,24 @@ class SnomedServices {
   /**
    * AND: concepts present in both sets.
    */
-  _eclIntersect = function (left, right) {
+  _eclIntersect = function (left, right, opContext) {
     if (left.eclWildcard) return right;
     if (right.eclWildcard) return left;
     const leftSet = new Set(this._eclToIndexArray(left));
     const result = new SnomedFilterContext();
-    result.descendants = this._eclToIndexArray(right).filter(idx => leftSet.has(idx));
+    result.descendants = this._eclToIndexArray(right).filter(idx => {
+      if (opContext) opContext.deadCheck('ecl:intersect');
+      return leftSet.has(idx);
+    });
     return result;
   };
 
   /**
    * OR: concepts present in either set.
    */
-  _eclUnion = function (left, right) {
+  _eclUnion = function (left, right, opContext) {
     if (left.eclWildcard || right.eclWildcard) return this._eclWildcard();
+    if (opContext) opContext.deadCheck('ecl:union');
     const combined = new Set([
       ...this._eclToIndexArray(left),
       ...this._eclToIndexArray(right)
@@ -975,7 +986,7 @@ class SnomedServices {
   /**
    * MINUS: concepts in left that are not in right.
    */
-  _eclMinus = function (left, right) {
+  _eclMinus = function (left, right, opContext) {
     const result = new SnomedFilterContext();
 
     if (right.eclWildcard) {
@@ -989,6 +1000,7 @@ class SnomedServices {
       // Enumerate all active concepts minus the right set
       const all = [];
       for (let i = 0; i < this.concepts.count(); i++) {
+        if (opContext) opContext.deadCheck('ecl:minus');
         const concept = this.concepts.getConceptByCount(i);
         if (this.isActive(concept.index) && !rightSet.has(concept.index)) {
           all.push(concept.index);
@@ -998,7 +1010,10 @@ class SnomedServices {
       return result;
     }
 
-    result.descendants = this._eclToIndexArray(left).filter(idx => !rightSet.has(idx));
+    result.descendants = this._eclToIndexArray(left).filter(idx => {
+      if (opContext) opContext.deadCheck('ecl:minus');
+      return !rightSet.has(idx);
+    });
     return result;
   };
 

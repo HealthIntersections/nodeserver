@@ -647,11 +647,11 @@ class ValueSetExpander {
           } else if (cs.contentMode() === 'supplement') {
             throw new Issue('error', 'business-rule', null, null, 'The code system definition for ' + cset.system + ' defines a supplement, so this expansion cannot be performed', 'invalid');
           } else if (cs.contentMode() === 'fragment') {
-            this.addParamUri(exp, 'used-fragment', cs.system() + '|' + cs.version());
+            this.addParamUri(exp, 'used-fragment', cs.system()+ (cs.version() ?  '|' + cs.version(): ""));
             Extensions.addBoolean(exp, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
             Extensions.addString(exp, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason","This extension is based on a fragment of the code system " + cset.system);
           } else {
-            this.addParamUri(exp, cs.contentMode(), cs.system() + '|' + cs.version());
+            this.addParamUri(exp, cs.contentMode(), cs.system() + cs.system()+ (cs.version() ?  '|' + cs.version(): ""));
             Extensions.addBoolean(exp, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
             Extensions.addString(exp, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason","This extension is based on a fragment of the code system " + cset.system);
           }
@@ -948,7 +948,7 @@ class ValueSetExpander {
           let vs = await this.worker.findValueSet(s, '', vsSrc);
           const ivs = new ImportedValueSet(await this.expandValueSet(s, '',  vs, filter, notClosed));
           this.checkResourceCanonicalStatus(expansion, ivs.valueSet, this.valueSet);
-          if (!vs.isContained) {
+          if (!vs.isContained && ivs.valueSet.vurl) {
             this.addParamUri(expansion, 'used-valueset', ivs.valueSet.vurl);
           }
           valueSets.push(ivs);
@@ -961,124 +961,128 @@ class ValueSetExpander {
       const cs = await this.worker.findCodeSystem(cset.system, cset.version, this.params, ['complete', 'fragment'], false,
         true, true, null, this.requiredSupplements);
 
-      this.worker.checkSupplements(cs, cset, this.requiredSupplements, this.usedSupplements);
-      this.checkResourceCanonicalStatus(expansion, cs, this.valueSet);
-      const sv = this.canonical(await cs.system(), await cs.version());
-      this.addParamUri(expansion, 'used-codesystem', sv);
+      if (cs == null) {
+        // nothing?
+      } else {
+        this.worker.checkSupplements(cs, cset, this.requiredSupplements, this.usedSupplements);
+        this.checkResourceCanonicalStatus(expansion, cs, this.valueSet);
+        const sv = this.canonical(await cs.system(), await cs.version());
+        this.addParamUri(expansion, 'used-codesystem', sv);
 
-      for (const u of cset.valueSet || []) {
-        this.worker.deadCheck('processCodes#3');
-        const s = this.worker.pinValueSet(u);
-        this.worker.opContext.log('import value set ' + s);
-        let vs = await this.worker.findValueSet(s, '', vsSrc);
-        const ivs = new ImportedValueSet(await this.expandValueSet(s, '', vs, filter, notClosed));
-        this.checkResourceCanonicalStatus(expansion, ivs.valueSet, this.valueSet);
-        if (!vs.isContained) {
-          this.addParamUri(expansion, 'used-valueset', this.worker.makeVurl(ivs.valueSet));
+        for (const u of cset.valueSet || []) {
+          this.worker.deadCheck('processCodes#3');
+          const s = this.worker.pinValueSet(u);
+          this.worker.opContext.log('import value set ' + s);
+          let vs = await this.worker.findValueSet(s, '', vsSrc);
+          const ivs = new ImportedValueSet(await this.expandValueSet(s, '', vs, filter, notClosed));
+          this.checkResourceCanonicalStatus(expansion, ivs.valueSet, this.valueSet);
+          if (!vs.isContained) {
+            this.addParamUri(expansion, 'used-valueset', this.worker.makeVurl(ivs.valueSet));
+          }
+          valueSets.push(ivs);
         }
-        valueSets.push(ivs);
-      }
 
-      if (!cset.concept && !cset.filter) {
-        this.worker.opContext.log('handle system');
-        if (!cset.valueSet) {
-          if (!this.excludeSpecialCase) {
-            // excluding a whole system - we don't list the codes in this case
-            this.excludedSystems.add(cset.system + (this.doingVersion && cset.version ? '|' + cset.version : ''));
+        if (!cset.concept && !cset.filter) {
+          this.worker.opContext.log('handle system');
+          if (!cset.valueSet) {
+            if (!this.excludeSpecialCase) {
+              // excluding a whole system - we don't list the codes in this case
+              this.excludedSystems.add(cset.system + (this.doingVersion && cset.version ? '|' + cset.version : ''));
+            } else {
+              const iter = await cs.iteratorAll();
+              if (iter) {
+                let c = await cs.nextContext(iter);
+                while (c) {
+                  this.worker.deadCheck('processCodes#3aa');
+                  this.excludeCode(cs, cs.system(), cs.version(), await cs.code(c), expansion, valueSets, vsSrc.url);
+                  c = await cs.nextContext(iter);
+                }
+              }
+            }
           } else {
+            if (cs.isNotClosed(filter)) {
+              if (cs.specialEnumeration()) {
+                Extensions.addBoolean(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
+                Extensions.addString(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason", 'The code System "' + cs.system() + " has a grammar and so has infinite members. This extension is based on " + cs.specialEnumeration());
+              } else {
+                throw new Issue("error", "too-costly", null, null, 'The code System "' + cs.system() + '" has a grammar, and cannot be enumerated directly', null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+              }
+            }
+
             const iter = await cs.iteratorAll();
             if (iter) {
               let c = await cs.nextContext(iter);
               while (c) {
-                this.worker.deadCheck('processCodes#3aa');
-                this.excludeCode(cs, cs.system(), cs.version(), await cs.code(c), expansion, valueSets, vsSrc.url);
+                this.worker.deadCheck('processCodes#3a');
+                if (await this.passesFilters(cs, c, prep, filters, 0)) {
+                  this.excludeCode(cs, cs.system(), cs.version(), await cs.code(c), expansion, valueSets, vsSrc.url);
+                }
                 c = await cs.nextContext(iter);
               }
             }
           }
-        } else {
-          if (cs.isNotClosed(filter)) {
-            if (cs.specialEnumeration()) {
-              Extensions.addBoolean(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
-              Extensions.addString(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason", 'The code System "' + cs.system() + " has a grammar and so has infinite members. This extension is based on " + cs.specialEnumeration());
-            } else {
-              throw new Issue("error", "too-costly", null, null, 'The code System "' + cs.system() + '" has a grammar, and cannot be enumerated directly', null, 422).withDiagnostics(this.worker.opContext.diagnostics());
-            }
-          }
+        }
 
-          const iter = await cs.iteratorAll();
-          if (iter) {
-            let c = await cs.nextContext(iter);
-            while (c) {
-              this.worker.deadCheck('processCodes#3a');
-              if (await this.passesFilters(cs, c, prep, filters, 0)) {
-                this.excludeCode(cs, cs.system(), cs.version(), await cs.code(c), expansion, valueSets, vsSrc.url);
+        if (cset.concept) {
+          this.worker.opContext.log('iterate concepts');
+          const cds = new Designations(this.worker.i18n.languageDefinitions);
+          for (const cc of cset.concept) {
+            this.worker.deadCheck('processCodes#3');
+            cds.clear();
+            Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference', vsSrc.vurl);
+            const cctxt = await cs.locate(cc.code, this.allAltCodes);
+            if (cctxt && cctxt.context && (!this.params.activeOnly || !await cs.isInactive(cctxt.context)) && await this.passesFilters(cs, cctxt.context, prep, filters, 0)) {
+              if (filter.passesDesignations(cds) || filter.passes(cc.code)) {
+                let ov = Extensions.readString(cc, 'http://hl7.org/fhir/StructureDefinition/itemWeight');
+                if (!ov) {
+                  ov = await cs.itemWeight(cctxt.context);
+                }
+                this.excludeCode(cs, await cs.system(), await cs.version(), cc.code, expansion, valueSets, vsSrc.url);
               }
-              c = await cs.nextContext(iter);
             }
           }
         }
-      }
 
-      if (cset.concept) {
-        this.worker.opContext.log('iterate concepts');
-        const cds = new Designations(this.worker.i18n.languageDefinitions);
-        for (const cc of cset.concept) {
-          this.worker.deadCheck('processCodes#3');
-          cds.clear();
-          Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference', vsSrc.vurl);
-          const cctxt = await cs.locate(cc.code, this.allAltCodes);
-          if (cctxt && cctxt.context && (!this.params.activeOnly || !await cs.isInactive(cctxt.context)) && await this.passesFilters(cs, cctxt.context, prep, filters, 0)) {
-            if (filter.passesDesignations(cds) || filter.passes(cc.code)) {
-              let ov = Extensions.readString(cc, 'http://hl7.org/fhir/StructureDefinition/itemWeight');
-              if (!ov) {
-                ov = await cs.itemWeight(cctxt.context);
+        if (cset.filter) {
+          this.worker.opContext.log('prep filters');
+          const prep = await cs.getPrepContext(true);
+          if (!filter.isNull) {
+            await cs.searchFilter(filter, prep, true);
+          }
+
+          if (cs.specialEnumeration()) {
+            await cs.specialFilter(prep, true);
+            Extensions.addBoolean(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
+            Extensions.addString(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason", 'The code System "' + cs.system() + " has a grammar and so has infinite members. This extension is based on " + cs.specialEnumeration());
+          }
+
+          let first = true;
+          for (let fc of cset.filter) {
+            this.worker.deadCheck('processCodes#4a');
+            Extensions.checkNoModifiers(fc, 'ValueSetExpander.processCodes', 'filter', vsSrc.vurl);
+            await cs.filter(prep, first, fc.property, fc.op, fc.value);
+            first = false;
+          }
+
+          this.worker.opContext.log('iterate filters');
+          const fset = await cs.executeFilters(prep);
+          if (await cs.filtersNotClosed(prep)) {
+            notClosed.value = true;
+          }
+          //let count = 0;
+          while (await cs.filterMore(prep, fset[0])) {
+            this.worker.deadCheck('processCodes#5');
+            const c = await cs.filterConcept(prep, fset[0]);
+            const ok = (!this.params.activeOnly || !await cs.isInactive(c)) && (await this.passesFilters(cs, c, prep, fset, 1));
+            if (ok) {
+              //count++;
+              if (this.passesImports(valueSets, await cs.system(), await cs.code(c), 0)) {
+                this.excludeCode(cs, await cs.system(), await cs.version(), await cs.code(c), expansion, null, vsSrc.url);
               }
-              this.excludeCode(cs, await cs.system(), await cs.version(), cc.code, expansion, valueSets, vsSrc.url);
             }
           }
+          this.worker.opContext.log('iterate filters finished');
         }
-      }
-
-      if (cset.filter) {
-        this.worker.opContext.log('prep filters');
-        const prep = await cs.getPrepContext(true);
-        if (!filter.isNull) {
-          await cs.searchFilter(filter, prep, true);
-        }
-
-        if (cs.specialEnumeration()) {
-          await cs.specialFilter(prep, true);
-          Extensions.addBoolean(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
-          Extensions.addString(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason", 'The code System "' + cs.system() + " has a grammar and so has infinite members. This extension is based on " + cs.specialEnumeration());
-        }
-
-        let first = true;
-        for (let fc of cset.filter) {
-          this.worker.deadCheck('processCodes#4a');
-          Extensions.checkNoModifiers(fc, 'ValueSetExpander.processCodes', 'filter', vsSrc.vurl);
-          await cs.filter(prep, first, fc.property, fc.op, fc.value);
-          first = false;
-        }
-
-        this.worker.opContext.log('iterate filters');
-        const fset = await cs.executeFilters(prep);
-        if (await cs.filtersNotClosed(prep)) {
-          notClosed.value = true;
-        }
-        //let count = 0;
-        while (await cs.filterMore(prep, fset[0])) {
-          this.worker.deadCheck('processCodes#5');
-          const c = await cs.filterConcept(prep, fset[0]);
-          const ok = (!this.params.activeOnly || !await cs.isInactive(c)) && (await this.passesFilters(cs, c, prep, fset, 1));
-          if (ok) {
-            //count++;
-            if (this.passesImports(valueSets, await cs.system(), await cs.code(c), 0)) {
-              this.excludeCode(cs, await cs.system(), await cs.version(), await cs.code(c), expansion, null, vsSrc.url);
-            }
-          }
-        }
-        this.worker.opContext.log('iterate filters finished');
       }
     }
   }
