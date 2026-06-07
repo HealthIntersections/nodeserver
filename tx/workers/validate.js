@@ -467,7 +467,7 @@ class ValueSetChecker {
         return false;
       }
       let cs = await this.worker.findCodeSystem(system, version, this.params, ['complete', 'fragment'], op,true, false, false, this.worker.requiredSupplements);
-      this.seeSourceProvider(cs, system);
+      this.worker.seeSourceProvider(cs, system);
       if (cs === null) {
         this.worker.opContext.addNote(this.valueSet, 'Didn\'t find CodeSystem "' + this.worker.renderer.displayCoded(system, version) + '"', this.indentCount);
         result = null;

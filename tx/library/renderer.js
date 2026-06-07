@@ -673,7 +673,7 @@ class Renderer {
       p.tx(" ");
       p.startCommaList("and");
       for (let ext of supplements) {
-        this.renderLinkComma(p, ext);
+        this.renderLinkComma(p, getValuePrimitive(ext));
       }
       p.stopCommaList();
       p.tx(".");
