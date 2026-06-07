@@ -948,7 +948,7 @@ class ValueSetExpander {
           let vs = await this.worker.findValueSet(s, '', vsSrc);
           const ivs = new ImportedValueSet(await this.expandValueSet(s, '',  vs, filter, notClosed));
           this.checkResourceCanonicalStatus(expansion, ivs.valueSet, this.valueSet);
-          if (!vs.isContained) {
+          if (!vs.isContained && ivs.valueSet.vurl) {
             this.addParamUri(expansion, 'used-valueset', ivs.valueSet.vurl);
           }
           valueSets.push(ivs);
