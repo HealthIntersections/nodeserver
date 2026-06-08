@@ -139,7 +139,10 @@ class TxParameters {
           break;
         }
         case 'no-cache': {
-          if (getValuePrimitive(p) === 'true') this.uid = crypto.randomUUID();
+          // Write FUid (the field the cache key reads via hashSource); writing
+          // `this.uid` was a no-op so no-cache=true never busted the cache.
+          // Accept both the string ('true') and boolean (valueBoolean) forms.
+          if (strToBool(getValuePrimitive(p), false)) this.FUid = crypto.randomUUID();
           break;
         }
         case '_incomplete':
