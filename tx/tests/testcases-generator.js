@@ -61,7 +61,9 @@ module.exports = { txTestVersion };
                             test: test.name
                         }
 
-                        const escapedName = test.name.replace(/'/g, "\\'");
+                        // Escape backslashes first, then single quotes, so the
+                        // name is a safe single-quoted JS string literal.
+                        const escapedName = test.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                         const hasR5 = (!test.version || test.version.startsWith("5.0"));
                         const hasR4 = (!test.version || test.version.startsWith("4.0"));
                         const emitR5 = () => {
