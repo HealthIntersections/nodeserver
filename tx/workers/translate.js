@@ -205,10 +205,8 @@ class TranslateWorker extends TerminologyWorker {
         targetSystem = params.get('targetSystem');
       }
     }
-    let explicit = true;
     // If no explicit concept map, we need to find one based on source/target
     if (conceptMaps.length == 0) {
-      explicit = false;
       if (reverse) {
         await this.findConceptMapsInAdditionalResources(conceptMaps,targetSystem, targetScope, sourceScope, coding.system);
         await this.provider.findConceptMapForTranslation(this.opContext, conceptMaps, targetSystem, targetScope, sourceScope, coding.system, coding.code);
@@ -222,7 +220,7 @@ class TranslateWorker extends TerminologyWorker {
     }
 
     // Perform the translation
-    const result = await this.doTranslate(conceptMaps, coding, targetScope, targetSystem, txp, reverse, explicit);
+    const result = await this.doTranslate(conceptMaps, coding, targetScope, targetSystem, txp, reverse);
     return res.status(200).json(result);
   }
 
@@ -322,7 +320,7 @@ class TranslateWorker extends TerminologyWorker {
     return result;
   }
 
-  translateUsingGroupsForwards(cm, coding, targetScope, targetSystem, params, output, explicit) {
+  translateUsingGroupsForwards(cm, coding, targetScope, targetSystem, params, output) {
     let result = false;
     const matches = cm.listTranslations(coding, targetScope, targetSystem);
     if (matches.length > 0) {
@@ -385,12 +383,10 @@ class TranslateWorker extends TerminologyWorker {
                   part: productParts
                 });
               }
-              if (!explicit) {
-                matchParts.push({
-                  name: 'originMap',
-                  valueCanonical: cm.vurl
-                });
-              }
+              matchParts.push({
+                name: 'originMap',
+                valueCanonical: cm.vurl
+              });
               output.push({
                 name: 'match',
                 part: matchParts
@@ -403,7 +399,7 @@ class TranslateWorker extends TerminologyWorker {
     return result;
   }
 
-  translateUsingGroupsReverse(cm, coding, targetScope, targetSystem, params, output, explicit) {
+  translateUsingGroupsReverse(cm, coding, targetScope, targetSystem, params, output) {
     let result = false;
     const matches = cm.listTranslationsReverse(coding, targetScope, targetSystem);
     if (matches.length > 0) {
@@ -474,12 +470,10 @@ class TranslateWorker extends TerminologyWorker {
                 part: productParts
               });
             }
-            if (!explicit) {
-              matchParts.push({
-                name: 'originMap',
-                valueCanonical: cm.vurl
-              });
-            }
+            matchParts.push({
+              name: 'originMap',
+              valueCanonical: cm.vurl
+            });
             output.push({
               name: 'match',
               part: matchParts
@@ -491,7 +485,7 @@ class TranslateWorker extends TerminologyWorker {
     return result;
   }
 
-  async translateUsingCodeSystem(cm, coding, target, params, output, reverse, explicit) {
+  async translateUsingCodeSystem(cm, coding, target, params, output, reverse) {
     let result = false;
     const factory = cm.jsonObj.internalSource;
     let prov = await factory.build(this.opContext, []);
@@ -537,12 +531,10 @@ class TranslateWorker extends TerminologyWorker {
             valueString: t.message
           });
         }
-        if (!explicit) {
-          matchParts.push({
-            name: 'originMap',
-            valueCanonical: cm.vurl
-          });
-        }
+        matchParts.push({
+          name: 'originMap',
+          valueCanonical: cm.vurl
+        });
         output.push({
           name: 'match',
           part: matchParts
@@ -560,10 +552,9 @@ class TranslateWorker extends TerminologyWorker {
    * @param {string} targetSystem - Target code system (optional)
    * @param {Parameters} params - Full parameters object
    * @param {boolean} reverse - Full parameters object*
-   * @param {boolean} explicit - If the concept map was named explicitly
    * @returns {Object} Parameters resource with translate result
    */
-  async doTranslate(conceptMaps, coding, targetScope, targetSystem, params, reverse, explicit) {
+  async doTranslate(conceptMaps, coding, targetScope, targetSystem, params, reverse) {
     this.deadCheck('doTranslate');
 
     const result = [];
@@ -572,11 +563,11 @@ class TranslateWorker extends TerminologyWorker {
       let added = false;
       for (const cm of conceptMaps) {
         if (cm.jsonObj.internalSource) {
-          added = await this.translateUsingCodeSystem(cm, coding, targetSystem, params, result, reverse, explicit) || added;
+          added = await this.translateUsingCodeSystem(cm, coding, targetSystem, params, result, reverse) || added;
         } else if (reverse) {
-          added = this.translateUsingGroupsReverse(cm, coding, targetScope, targetSystem, params, result, reverse, explicit) || added;
+          added = this.translateUsingGroupsReverse(cm, coding, targetScope, targetSystem, params, result) || added;
         } else{
-          added = this.translateUsingGroupsForwards(cm, coding, targetScope, targetSystem, params, result, reverse, explicit) || added;
+          added = this.translateUsingGroupsForwards(cm, coding, targetScope, targetSystem, params, result) || added;
         }
       }
       result.push({
