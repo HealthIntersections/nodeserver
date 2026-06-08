@@ -378,22 +378,22 @@ class ExpansionCache {
   }
 
   /**
-   * Get cache statistics
+   * Get cache statistics.
+   * NB: named getStats(), not stats() — the `stats` field (the ServerStats
+   * passed to the constructor) would shadow a method called `stats`, making it
+   * unreachable.
    * @returns {Object} Stats object
    */
-  stats() {
+  getStats() {
     let totalHits = 0;
-    let totalDuration = 0;
     for (const entry of this.cache.values()) {
       totalHits += entry.hitCount;
-      totalDuration += entry.durationMs;
     }
     return {
       size: this.cache.size,
       maxSize: this.maxSize,
       memoryThresholdMB: this.memoryThresholdBytes > 0 ? this.memoryThresholdBytes / (1024 * 1024) : 0,
-      totalHits,
-      totalDurationSaved: totalHits > 0 ? totalDuration * totalHits : 0
+      totalHits
     };
   }
 

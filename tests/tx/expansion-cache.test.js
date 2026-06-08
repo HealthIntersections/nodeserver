@@ -56,3 +56,26 @@ describe('ExpansionCache.forceSet removed', () => {
     expect(new ExpansionCache(null).forceSet).toBeUndefined();
   });
 });
+
+describe('ExpansionCache.getStats (not shadowed by the stats field)', () => {
+  test('the stats field holds the ServerStats arg, not a method', () => {
+    const serverStats = { task() {}, taskDone() {} };
+    const c = new ExpansionCache(serverStats);
+    expect(c.stats).toBe(serverStats);   // field, not a function
+    expect(typeof c.getStats).toBe('function');
+  });
+
+  test('getStats reports size, maxSize and hit counts', () => {
+    const c = new ExpansionCache(null, 50);
+    c.forceCaching = true;
+    c.set('a', { v: 1 }, 0);
+    c.set('b', { v: 2 }, 0);
+    c.get('a');           // 1 hit
+    c.get('a');           // 2 hits
+    c.get('b');           // 1 hit
+    const s = c.getStats();
+    expect(s.size).toBe(2);
+    expect(s.maxSize).toBe(50);
+    expect(s.totalHits).toBe(3);
+  });
+});
