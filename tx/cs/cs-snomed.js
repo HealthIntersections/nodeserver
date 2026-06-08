@@ -844,13 +844,27 @@ class SnomedServices {
    * @returns {number}
    */
   _countAttributeMatches = function (conceptIdx, attr, groupFilter, opContext) {
-    const attrResult = this.concepts.findConcept(attr.name.conceptId);
-    if (!attrResult.found) {
-      throw new Error(`The SNOMED CT Concept ${attr.name.conceptId} is not known`);
+    // The attribute type and the value set depend only on the (static) AST node,
+    // not on the concept being tested, so resolve them once per refinement
+    // attribute and reuse across the whole base set. Without this memo the value
+    // expression is re-evaluated for every concept — and for a wildcard value
+    // (`= *`) the entire active-concept set is re-enumerated per concept —
+    // making refinement evaluation O(baseSet × valueExpr). The AST is parsed
+    // fresh per request, so memoising on the node is safe within a request.
+    let resolved = attr._eclResolved;
+    if (!resolved) {
+      const attrResult = this.concepts.findConcept(attr.name.conceptId);
+      if (!attrResult.found) {
+        throw new Error(`The SNOMED CT Concept ${attr.name.conceptId} is not known`);
+      }
+      resolved = {
+        attrTypeIdx: attrResult.index,
+        valueSet: new Set(this._eclResolveSet(this._evalECLNode(attr.comparison.value, opContext), opContext))
+      };
+      attr._eclResolved = resolved;
     }
-    const attrTypeIdx = attrResult.index;
-
-    const valueSet = new Set(this._eclResolveSet(this._evalECLNode(attr.comparison.value, opContext), opContext));
+    const attrTypeIdx = resolved.attrTypeIdx;
+    const valueSet = resolved.valueSet;
 
     const relIdxs = this.getConceptRelationships(conceptIdx);
     let count = 0;
