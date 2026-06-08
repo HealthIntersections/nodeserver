@@ -5,7 +5,8 @@ const { AbstractCodeSystemProvider } = require('./cs-provider-api');
  */
 class ListCodeSystemProvider extends AbstractCodeSystemProvider {
   /**
-   * {Map<String, CodeSystem>} A list of code system factories that contains all the preloaded native code systems
+   * {CodeSystem[]} The preloaded FHIR code systems in this list. This is an
+   * array — append with .push(), not Map-style .set().
    */
   codeSystems = [];
 
