@@ -139,9 +139,12 @@ function codeSystemR5ToR3(r5Obj) {
  * @private
  */
 function isR5OnlyFilterOperator(operator) {
+  // Operators added in R5 that are not valid in R4 or earlier.
+  // NOTE: 'generalizes' is NOT R5-only — it is a valid R4 operator
+  // (filter-operator value set, 4.0.1), so it must not be stripped here.
   const r5OnlyOperators = [
-    'generalizes',  // Added in R5
-    // Add other R5-only operators as they're identified
+    'child-of',        // Added in R5
+    'descendent-leaf', // Added in R5
   ];
   return r5OnlyOperators.includes(operator);
 }

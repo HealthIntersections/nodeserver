@@ -181,3 +181,72 @@ describe('xversion — dispatcher passthrough', () => {
     expect(convertResourceFromR5(vs, '5.0')).toBe(vs);
   });
 });
+
+describe('xversion — CodeSystem filter operator down-conversion (issue #251 part 1)', () => {
+  function cs(operators) {
+    return { resourceType: 'CodeSystem', url: 'http://x', status: 'active',
+      content: 'complete', filter: [{ code: 'concept', description: 'd', operator: operators, value: 'v' }] };
+  }
+
+  test('R5 -> R4 keeps generalizes (valid R4) and strips child-of / descendent-leaf (R5-only)', () => {
+    const out = convertResourceFromR5(cs(['is-a', 'generalizes', 'child-of', 'descendent-leaf']), '4.0');
+    expect(out.filter[0].operator).toEqual(['is-a', 'generalizes']);
+  });
+
+  test('R5 -> R4 leaves an all-valid-R4 filter untouched', () => {
+    const out = convertResourceFromR5(cs(['=', 'is-a', 'descendent-of', 'is-not-a', 'regex', 'in', 'not-in', 'generalizes', 'exists']), '4.0');
+    expect(out.filter[0].operator).toEqual(['=', 'is-a', 'descendent-of', 'is-not-a', 'regex', 'in', 'not-in', 'generalizes', 'exists']);
+  });
+
+  test('R5 -> R4 drops a filter whose operators are all R5-only', () => {
+    const out = convertResourceFromR5(cs(['child-of', 'descendent-leaf']), '4.0');
+    expect(out.filter || []).toHaveLength(0);
+  });
+
+  test('R5 -> R3 keeps only R3-compatible operators (generalizes is R4+, so dropped)', () => {
+    const out = convertResourceFromR5(cs(['is-a', 'regex', 'generalizes', 'child-of']), '3.0');
+    expect(out.filter[0].operator).toEqual(['is-a', 'regex']);
+  });
+});
+
+describe('xversion — TerminologyCapabilities codeSystem.content (issue #251 part 2)', () => {
+  const CONTENT_EXT = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-TerminologyCapabilities.codeSystem.content';
+
+  test('R5 -> R4 moves content into the content extension', () => {
+    const r5 = { resourceType: 'TerminologyCapabilities', status: 'active', codeSystem: [{ uri: 'http://x', content: 'complete' }] };
+    const out = convertResourceFromR5(r5, '4.0');
+    const c0 = out.codeSystem[0];
+    expect(c0.content).toBeUndefined();
+    expect(c0.extension.find(e => e.url === CONTENT_EXT).valueCode).toBe('complete');
+  });
+
+  test('R4 -> R5 lifts content from the extension and removes that extension', () => {
+    const r4 = { resourceType: 'TerminologyCapabilities', status: 'active',
+      codeSystem: [{ uri: 'http://x', extension: [{ url: CONTENT_EXT, valueCode: 'complete' }] }] };
+    const out = convertResourceToR5(r4, '4.0');
+    const c0 = out.codeSystem[0];
+    expect(c0.content).toBe('complete');
+    // the redundant content extension must be gone (the delete previously no-op'd)
+    expect((c0.extension || []).some(e => e.url === CONTENT_EXT)).toBe(false);
+  });
+
+  test('R4 -> R5 preserves unrelated extensions while removing only the content one', () => {
+    const r4 = { resourceType: 'TerminologyCapabilities', status: 'active',
+      codeSystem: [{ uri: 'http://x', extension: [
+        { url: 'http://other/ext', valueString: 'keep-me' },
+        { url: CONTENT_EXT, valueCode: 'fragment' }
+      ] }] };
+    const out = convertResourceToR5(r4, '4.0');
+    const c0 = out.codeSystem[0];
+    expect(c0.content).toBe('fragment');
+    expect(c0.extension).toEqual([{ url: 'http://other/ext', valueString: 'keep-me' }]);
+  });
+
+  test('round-trip R5 -> R4 -> R5 preserves codeSystem.content', () => {
+    const r5 = { resourceType: 'TerminologyCapabilities', status: 'active', codeSystem: [{ uri: 'http://x', content: 'complete' }] };
+    const r4 = convertResourceFromR5(JSON.parse(JSON.stringify(r5)), '4.0');
+    const back = convertResourceToR5(r4, '4.0');
+    expect(back.codeSystem[0].content).toBe('complete');
+    expect((back.codeSystem[0].extension || []).some(e => e.url === CONTENT_EXT)).toBe(false);
+  });
+});
