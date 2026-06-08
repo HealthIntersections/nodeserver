@@ -581,6 +581,12 @@ e
       // error), so it must be part of the cache key. Sort for determinism.
       s = s + '$' + [...this.supplements].sort().join(',') + '|';
     }
+    // Further result-affecting parameters that were previously omitted from the
+    // key: the text filter (changes which codes expand), limited/incomplete
+    // expansion handling, whether abstract codes are included, and diagnostics.
+    // filter is free text, so JSON.stringify it to avoid delimiter collisions.
+    s = s + 'f:' + JSON.stringify(this.filter || '') + '|' +
+      b(this.limitedExpansion) + b(this.incompleteOK) + b(this.abstractOk) + b(this.diagnostics);
     for (let t of this.FVersionRules) {
       s = s + t.asString() + '|';
     }
