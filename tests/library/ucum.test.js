@@ -44,6 +44,37 @@ describe('UCUM Library Tests', () => {
     });
   });
 
+  describe('Issue 252: special-unit handlers register under their real code (not undefined)', () => {
+    // CelsiusHandler/FahrenheitHandler override getCode() but never set a `.code`
+    // field; register() must key on getCode() so they don't both land under
+    // `undefined` (with Fahrenheit overwriting Celsius).
+    let registry;
+    beforeAll(() => { registry = new Registry(); });
+
+    test('Cel is registered under "Cel"', () => {
+      expect(registry.exists('Cel')).toBe(true);
+      expect(registry.get('Cel').getCode()).toBe('Cel');
+    });
+
+    test('[degF] is registered under "[degF]"', () => {
+      expect(registry.exists('[degF]')).toBe(true);
+      expect(registry.get('[degF]').getCode()).toBe('[degF]');
+    });
+
+    test('Celsius and Fahrenheit are distinct (no overwrite)', () => {
+      expect(registry.get('Cel')).not.toBe(registry.get('[degF]'));
+    });
+
+    test('nothing is registered under the undefined key', () => {
+      expect(registry.exists(undefined)).toBe(false);
+    });
+
+    test('offset-free special units (HoldingHandler) still register correctly', () => {
+      expect(registry.exists('[pH]')).toBe(true);
+      expect(registry.get('[pH]').getCode()).toBe('[pH]');
+    });
+  });
+
   describe('Decimal Class Tests', () => {
     describe('Integer Conversion', () => {
       test('should convert decimals to integers correctly', () => {
