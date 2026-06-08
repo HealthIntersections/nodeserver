@@ -53,6 +53,11 @@ class TxParameters {
 
     this.FHTTPLanguages = null;
     this.FDisplayLanguages = null;
+    // Whether languages were explicitly supplied by the request (vs a
+    // synthesised default). Consumed by hasHTTPLanguages/hasDisplayLanguages so
+    // the requested language folds into the expansion cache key.
+    this.FHasHTTPLanguages = false;
+    this.FHasDisplayLanguages = false;
     this.FValueSetVersionRules = null;
     this.FUid = '';
 
@@ -87,11 +92,15 @@ class TxParameters {
     if (!params.parameter) {
       return;
     }
-    if (!this.hasHTTPLanguages && this.hasParam(params, "__Content-Language")) {
-      this.HTTPLanguages = Languages.fromAcceptLanguage(this.paramstr(params, "__Content-Language"), this.languageDefinitions, !this.validating);
+    if (this.hasParam(params, "__Content-Language")) {
+      const lang = this.paramstr(params, "__Content-Language");
+      this.HTTPLanguages = Languages.fromAcceptLanguage(lang, this.languageDefinitions, !this.validating);
+      if (lang) this.FHasHTTPLanguages = true;
     }
-    if (!this.hasHTTPLanguages && this.hasParam(params, "__Accept-Language")) {
-      this.HTTPLanguages = Languages.fromAcceptLanguage(this.paramstr(params, "__Accept-Language"), this.languageDefinitions, !this.validating);
+    if (this.hasParam(params, "__Accept-Language")) {
+      const lang = this.paramstr(params, "__Accept-Language");
+      this.HTTPLanguages = Languages.fromAcceptLanguage(lang, this.languageDefinitions, !this.validating);
+      if (lang) this.FHasHTTPLanguages = true;
     }
 
     for (let p of params.parameter) {
@@ -124,7 +133,9 @@ class TxParameters {
 
         case 'displayLanguage': {
           try {
-            this.DisplayLanguages = Languages.fromAcceptLanguage(getValuePrimitive(p), this.languageDefinitions, !this.validating);
+            const lang = getValuePrimitive(p);
+            this.DisplayLanguages = Languages.fromAcceptLanguage(lang, this.languageDefinitions, !this.validating);
+            if (lang) this.FHasDisplayLanguages = true;
           } catch (error) {
             throw new Issue("error", "processing", null, 'INVALID_DISPLAY_NAME', this.i18n.translate('INVALID_DISPLAY_NAME', this.HTTPLanguages, [getValuePrimitive(p)]), "invalid-display").handleAsOO(400);
           }
@@ -295,11 +306,11 @@ class TxParameters {
   }
 
   get hasHTTPLanguages() {
-    return this.FHTTPLanguages && this.FHTTPLanguages.source;
+    return this.FHasHTTPLanguages;
   }
 
   get hasDisplayLanguages() {
-    return this.FDisplayLanguages && this.FDisplayLanguages.source;
+    return this.FHasDisplayLanguages;
   }
 
   get hasDesignations() {
@@ -425,6 +436,7 @@ e
     if (value) {
       if (name === 'displayLanguage' && (!this.FDisplayLanguages || overwrite)) {
         this.DisplayLanguages = Languages.fromAcceptLanguage(getValuePrimitive(value), this.languageDefinitions, !this.validating)
+        if (getValuePrimitive(value)) this.FHasDisplayLanguages = true;
       }
 
       if (name === 'designation') {
@@ -564,6 +576,11 @@ e
     if (this.hasDesignations) {
       s = s + this.FDesignations.join(',') + '|';
     }
+    if (this.supplements && this.supplements.size > 0) {
+      // useSupplement changes the expansion result (and a bad supplement must
+      // error), so it must be part of the cache key. Sort for determinism.
+      s = s + '$' + [...this.supplements].sort().join(',') + '|';
+    }
     for (let t of this.FVersionRules) {
       s = s + t.asString() + '|';
     }
@@ -626,9 +643,11 @@ e
 
     if (other.FHTTPLanguages) {
       this.FHTTPLanguages = other.FHTTPLanguages;
+      this.FHasHTTPLanguages = this.FHasHTTPLanguages || other.FHasHTTPLanguages;
     }
     if (other.FDisplayLanguages) {
       this.FDisplayLanguages = other.FDisplayLanguages;
+      this.FHasDisplayLanguages = this.FHasDisplayLanguages || other.FHasDisplayLanguages;
     }
   }
 

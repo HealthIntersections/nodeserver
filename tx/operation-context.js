@@ -204,6 +204,10 @@ class ExpansionCache {
     this.cache = new Map();
     this.maxSize = maxSize;
     this.memoryThresholdBytes = memoryThresholdMB * 1024 * 1024;
+    // When true, every expansion is cached regardless of how long it took
+    // (bypasses MIN_CACHE_TIME_MS). Used by the test runner to force the cache
+    // path so cache correctness (e.g. language in the key) is exercised.
+    this.forceCaching = false;
   }
 
   /**
@@ -284,8 +288,9 @@ class ExpansionCache {
    * @returns {boolean} True if cached, false if duration too short
    */
   set(key, expansion, durationMs) {
-    // Only cache if expansion took significant time
-    if (durationMs < ExpansionCache.MIN_CACHE_TIME_MS) {
+    // Only cache if expansion took significant time, unless forceCaching is on
+    // (in which case everything is cached regardless of duration).
+    if (!this.forceCaching && durationMs < ExpansionCache.MIN_CACHE_TIME_MS) {
       return false;
     }
 
@@ -355,21 +360,6 @@ class ExpansionCache {
       this.stats.taskDone('Expansion Cache', `Checked Memory Pressure - OK (${this.cache.size} entries)`);
     }
     return false;
-  }
-
-  /**
-   * Force-store an expansion regardless of duration (for testing)
-   * @param {string} key - Hash key
-   * @param {Object} expansion - The expanded ValueSet
-   */
-  forceSet(key, expansion) {
-    this.cache.set(key, {
-      expansion: expansion,
-      createdAt: Date.now(),
-      lastUsed: Date.now(),
-      durationMs: 0,
-      hitCount: 0
-    });
   }
 
   /**
