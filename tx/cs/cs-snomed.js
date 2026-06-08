@@ -730,10 +730,13 @@ class SnomedServices {
       }
       const memberList = this.refSetMembers.getMembers(membersRef);
       for (const m of memberList || []) {
-        // Only active concept referenced components (kind 0). Description/other
-        // members and inactive concepts are excluded — which also prevents the
-        // no-component sentinel (0xFFFFFFFF) from ever leaking into the result.
-        if (m.kind === 0 && this.isActive(m.ref)) {
+        // Concept referenced components only (kind 0). Description/other members
+        // are excluded, which also prevents the no-component sentinel (0xFFFFFFFF)
+        // from leaking in. The referenced concept may itself be INACTIVE and is
+        // still returned — "active" in the spec qualifies the membership row (and
+        // inactive rows are already dropped at import), not the referenced
+        // concept. The expansion marks/handles inactivity (e.g. activeOnly).
+        if (m.kind === 0) {
           members.add(m.ref);
         }
       }

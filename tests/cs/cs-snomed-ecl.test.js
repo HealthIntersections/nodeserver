@@ -60,6 +60,20 @@ describe('ECL Validator Test Suite', () => {
         expect(two.has(c)).toBe(false);
       }
     });
+
+    // Value-constrained form, matching the shape of the external case
+    // `< 64572001 : [1..1] 363698007 = << 10200004` whose count rose once
+    // distinct counting was applied. 192008 has Associated morphology 442021009
+    // in two raw rows but one distinct value, so it satisfies [1..1] (not [2..*])
+    // for that specific value.
+    test('value-constrained [1..1] includes a concept with one distinct value stated across rows', () => {
+      const one = expandCodes('* : [1..1] 116676008 = 442021009');
+      const atLeastOne = expandCodes('* : [1..*] 116676008 = 442021009');
+      const two = expandCodes('* : [2..*] 116676008 = 442021009');
+      expect(one.has('192008')).toBe(true);
+      expect(atLeastOne.has('192008')).toBe(true);
+      expect(two.has('192008')).toBe(false);
+    });
   });
 
   describe('ECL memberOf (issue #230 bugs 1 & 2)', () => {
@@ -77,16 +91,24 @@ describe('ECL Validator Test Suite', () => {
         .toThrow(/404684003 is not a reference set/);
     });
 
-    // Bug 1: never fabricate the 0xFFFFFFFF (4294967295) sentinel, never return
-    // the operand itself, and only return active concept members.
-    test('memberOf never emits the sentinel, the operand itself, or inactive/non-concepts', () => {
-      const idxs = expand('^192008');
-      const codes = idxs.map(i => snomedServices.concepts.getConceptId(i).toString());
+    // Bug 1: returns the refset's referenced-component concepts, including
+    // concepts that are themselves inactive (active refers to the membership row,
+    // not the referenced concept). 900000000000526001 (an association refset)
+    // has one member: the inactive concept 307530000.
+    test('memberOf returns referenced concepts, including inactive ones', () => {
+      const codes = codesOf('^900000000000526001');
+      expect(codes).toContain('307530000');
+      const idx = expand('^900000000000526001').find(
+        i => snomedServices.concepts.getConceptId(i).toString() === '307530000');
+      expect(snomedServices.isActive(idx)).toBe(false); // inactive concept, still returned
+    });
+
+    // Bug 1: never fabricate the 0xFFFFFFFF (4294967295) sentinel, and never
+    // return the operand concept itself.
+    test('memberOf never emits the sentinel or the operand itself', () => {
+      const codes = codesOf('^900000000000526001');
       expect(codes).not.toContain('4294967295');
-      expect(codes).not.toContain('192008');
-      for (const idx of idxs) {
-        expect(snomedServices.isActive(idx)).toBe(true);
-      }
+      expect(codes).not.toContain('900000000000526001');
     });
 
     // Bug 2: a wrapped/computed operand must be evaluated, not rejected as
