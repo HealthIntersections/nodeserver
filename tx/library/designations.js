@@ -46,7 +46,7 @@ class SearchFilterText {
     validateParameter(value, 'value', String);
     validateOptionalParameter(returnRating, 'returnRating', Boolean);
 
-    if (this.null) {
+    if (this.isNull) {
       return returnRating ? {passes: true, rating: 0} : true;
     }
 

@@ -19,6 +19,7 @@ const {TerminologyCapabilitiesXML} = require("./xml/terminologycapabilities-xml"
 const {ParametersXML} = require("./xml/parameters-xml");
 const {OperationOutcomeXML} = require("./xml/operationoutcome-xml");
 const {debugLog} = require("./operation-context");
+const {InvalidError} = require("./library/errors");
 
 const txHtmlLog = Logger.getInstance().child({ module: 'tx-html' });
 
@@ -311,6 +312,12 @@ class TxHtmlRenderer {
       return await this.buildHomePage(req);
     } else {
       try {
+        if (json === null || json === undefined || typeof json !== 'object' || Array.isArray(json)) {
+          throw new InvalidError(`Cannot render: expected a FHIR resource object but got ${json === null ? 'null' : (Array.isArray(json) ? 'an array' : typeof json)}`);
+        }
+        if (json.resourceType === undefined || json.resourceType === null || typeof json.resourceType !== 'string' || json.resourceType === '') {
+          throw new InvalidError(`Cannot render: resource has no resourceType (got ${json.resourceType === undefined ? 'undefined' : JSON.stringify(json.resourceType)})`);
+        }
         const _fmt = req?.query?._format || req?.query?.format || req?.body?._format;
         const op = req ? req.path.includes("$") : false;
         const resourceType = json.resourceType;

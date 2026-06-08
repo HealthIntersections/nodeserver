@@ -3,6 +3,27 @@ const {Extensions} = require("./extensions");
 const {div} = require("../../library/html");
 const {getValuePrimitive} = require("../../library/utilities");
 const {getValueName} = require("../../library/utilities");
+const {InvalidError} = require("./errors");
+
+// Valid FHIR value sets used when validating values before rendering, so that
+// illegal input produces an error that names the offending value rather than
+// being silently rendered or causing a generic crash downstream.
+const VALID_FILTER_OPS = new Set([
+  '=', 'is-a', 'descendent-of', 'is-not-a', 'regex', 'in', 'not-in',
+  'generalizes', 'child-of', 'descendent-leaf', 'exists'
+]);
+const VALID_CONCEPTMAP_RELATIONSHIPS = new Set([
+  'related-to', 'equivalent', 'source-is-narrower-than-target',
+  'source-is-broader-than-target', 'not-related-to'
+]);
+const VALID_CONCEPTMAP_EQUIVALENCES = new Set([
+  'relatedto', 'equivalent', 'equal', 'wider', 'subsumes', 'narrower',
+  'specializes', 'inexact', 'unmatched', 'disjoint'
+]);
+const VALID_CODESYSTEM_CONTENT = new Set([
+  'not-present', 'example', 'fragment', 'complete', 'supplement'
+]);
+const VALID_PUBLICATION_STATUS = new Set(['draft', 'active', 'retired', 'unknown']);
 
 /**
  * @typedef {Object} TerminologyLinkResolver
@@ -239,10 +260,12 @@ class Renderer {
   }
 
   renderMetadataLastUpdated(res, tbl) {
-    if (res.meta?.version) {
+    if (res.meta?.lastUpdated) {
+      this._requireValidDate(res.meta.lastUpdated, 'meta.lastUpdated');
       let tr = tbl.tr();
-      tr.td().b().tx(this.translate('RES_REND_UPDATED'));
-      tr.td().tx(this.displayDate(res.meta.version));
+      // RES_REND_UPDATED is "Last updated: {0}" — supply the formatted date as
+      // the {0} parameter so the placeholder is substituted.
+      tr.td().b().tx(this.translate('RES_REND_UPDATED', [this.displayDate(res.meta.lastUpdated)]));
     }
   }
 
@@ -318,7 +341,7 @@ class Renderer {
   }
 
   renderLinkComma(x, uri) {
-    let {desc, url} = this.linkResolver ? this.linkResolver.resolveURL(this.opContext, uri) : null;
+    let {desc, url} = (this.linkResolver ? this.linkResolver.resolveURL(this.opContext, uri) : null) || {};
     if (url) {
       x.commaItem(desc, url);
     } else {
@@ -328,10 +351,17 @@ class Renderer {
 
 
   async renderCoding(x, coding) {
+    if (coding === null || coding === undefined || typeof coding !== 'object') {
+      this._invalid('Coding', coding, 'invalid Coding');
+    }
+    if (coding.code !== undefined && coding.code !== null &&
+        (typeof coding.code !== 'string' || coding.code.trim() === '')) {
+      this._invalid('Coding.code', coding.code, 'invalid code');
+    }
     let {
       desc,
       url
-    } = this.linkResolver ? await this.linkResolver.resolveCode(this.opContext, coding.system, coding.version, coding.code) : null;
+    } = (this.linkResolver ? await this.linkResolver.resolveCode(this.opContext, coding.system, coding.version, coding.code) : null) || {};
     if (url) {
       x.ah(url).tx(desc);
     } else {
@@ -347,10 +377,254 @@ class Renderer {
     return this.opContext.i18n.formatPhrasePlural(msgId, this.opContext.langs, num,[]);
   }
 
-  async renderValueSet(vs) {
-    if (vs.json) {
-      vs = vs.json;
+  /**
+   * Determine the BCP-47 locale to use for formatting, derived from the user's
+   * requested languages (parsed from the Accept-Language header). The region
+   * subtag (e.g. US vs GB) is what selects day/month ordering and month names.
+   * Falls back to 'en-US' when no usable language is available.
+   * @returns {string} a BCP-47 locale tag accepted by Intl
+   * @private
+   */
+  _formatLocale() {
+    const langs = this.opContext && this.opContext.langs;
+    if (langs) {
+      for (const lang of langs) {
+        if (lang.language && lang.language !== '*') {
+          let tag = lang.language;
+          if (lang.script) tag += '-' + lang.script;
+          if (lang.region) tag += '-' + lang.region;
+          try {
+            if (Intl.DateTimeFormat.supportedLocalesOf(tag).length > 0) {
+              return tag;
+            }
+            // Locale is structurally valid but not supported by the runtime;
+            // Intl will still resolve it to a sensible fallback, so use it.
+            return tag;
+          } catch (_) {
+            // Structurally invalid tag — skip and try the next language.
+          }
+        }
+      }
     }
+    return 'en-US';
+  }
+
+  // ── Validation helpers ──────────────────────────────────────────────────────
+  // These exist so that illegal input is reported with an error that names the
+  // offending field and value, rather than being silently rendered or causing a
+  // generic "Cannot read properties of null" style crash further down.
+
+  /**
+   * Render a value for inclusion in an error message, distinguishing null,
+   * undefined, objects, and primitives, and truncating long values.
+   * @private
+   */
+  _showValue(value) {
+    if (value === undefined) return 'undefined';
+    if (value === null) return 'null';
+    if (typeof value === 'object') {
+      let s;
+      try { s = JSON.stringify(value); } catch (_) { s = Object.prototype.toString.call(value); }
+      return s.length > 80 ? s.slice(0, 77) + '...' : s;
+    }
+    const s = String(value);
+    return `'${s.length > 80 ? s.slice(0, 77) + '...' : s}'`;
+  }
+
+  /**
+   * Throw an InvalidError that identifies the offending value and its location.
+   * @param {string} path - dotted path to the offending element (e.g. "ConceptMap.group[0].target[0].relationship")
+   * @param {*} value - the offending value
+   * @param {string} what - short description of what is wrong (e.g. "invalid ConceptMap relationship")
+   * @private
+   */
+  _invalid(path, value, what) {
+    throw new InvalidError(`${what} at ${path}: ${this._showValue(value)}`);
+  }
+
+  /**
+   * Validate, unwrap, and type-check a resource before rendering. Accepts either
+   * a raw resource object or a wrapper exposing `.json`. Throws an InvalidError
+   * naming the problem when the input is missing, not an object, or of the wrong
+   * resourceType.
+   * @param {*} res - the resource (or wrapper) to render
+   * @param {string} expectedType - the FHIR resourceType this method renders
+   * @param {string} method - the calling method name, for the error message
+   * @returns {object} the unwrapped resource object
+   * @private
+   */
+  _resolveResource(res, expectedType, method) {
+    if (res === null || res === undefined) {
+      throw new InvalidError(`${method}: no resource supplied (got ${res === null ? 'null' : 'undefined'})`);
+    }
+    if (typeof res !== 'object' || Array.isArray(res)) {
+      throw new InvalidError(`${method}: expected a ${expectedType} resource object but got ${Array.isArray(res) ? 'an array' : typeof res}`);
+    }
+    const r = (res.json !== undefined && res.json !== null) ? res.json : res;
+    if (r === null || typeof r !== 'object' || Array.isArray(r)) {
+      throw new InvalidError(`${method}: expected a ${expectedType} resource object but got ${this._showValue(r)}`);
+    }
+    if (r.resourceType !== undefined && r.resourceType !== expectedType) {
+      throw new InvalidError(`${method}: expected resourceType '${expectedType}' but found ${this._showValue(r.resourceType)}`);
+    }
+    return r;
+  }
+
+  /**
+   * True when `value` is a syntactically valid FHIR date/dateTime/instant.
+   * Used both to validate (via _requireValidDate) and to drive display.
+   * @private
+   */
+  _isValidFhirDate(value) {
+    if (typeof value !== 'string') return false;
+    if (/^\d{4}$/.test(value)) return true;
+
+    let m = /^(\d{4})-(\d{2})$/.exec(value);
+    if (m) {
+      const y = Number(m[1]), mo = Number(m[2]);
+      const d = new Date(Date.UTC(y, mo - 1, 1));
+      return !isNaN(d.getTime()) && d.getUTCFullYear() === y && d.getUTCMonth() === mo - 1;
+    }
+
+    m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (m) {
+      const y = Number(m[1]), mo = Number(m[2]), da = Number(m[3]);
+      const d = new Date(Date.UTC(y, mo - 1, da));
+      return !isNaN(d.getTime()) && d.getUTCFullYear() === y &&
+             d.getUTCMonth() === mo - 1 && d.getUTCDate() === da;
+    }
+
+    if (value.includes('T')) {
+      const dt = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.exec(value);
+      if (!dt) return false;
+      if (isNaN(new Date(value).getTime())) return false;
+      const mo = Number(dt[2]), da = Number(dt[3]), hh = Number(dt[4]), mi = Number(dt[5]), ss = Number(dt[6]);
+      return mo >= 1 && mo <= 12 && da >= 1 && da <= 31 && hh <= 23 && mi <= 59 && ss <= 60;
+    }
+    return false;
+  }
+
+  /**
+   * Require a value (when present) to be a valid FHIR date; otherwise throw an
+   * error naming the field and value. Empty/absent values are allowed and
+   * returned unchanged.
+   * @private
+   */
+  _requireValidDate(value, path) {
+    if (value === null || value === undefined || value === '') return value;
+    if (!this._isValidFhirDate(value)) {
+      this._invalid(path, value, 'invalid date');
+    }
+    return value;
+  }
+
+  /**
+   * Require a value to be a non-empty string code; otherwise throw an error
+   * naming the field and value.
+   * @private
+   */
+  _requireValidCode(value, path) {
+    if (typeof value !== 'string' || value.trim() === '') {
+      this._invalid(path, value, 'invalid code');
+    }
+    return value;
+  }
+
+  /**
+   * Require a value (when present) to be a member of an allowed set; otherwise
+   * throw an error naming the field and value.
+   * @private
+   */
+  _requireAllowed(value, allowed, path, what) {
+    if (value === null || value === undefined) return value;
+    if (!allowed.has(value)) {
+      this._invalid(path, value, what);
+    }
+    return value;
+  }
+
+  /**
+   * Format a FHIR date / dateTime / instant value into a human-readable string
+   * using the user's locale. The output precision follows the input precision:
+   * a year stays a year, a year-month becomes "Month Year", a full date becomes
+   * a localised date, and a dateTime/instant becomes a localised date and time.
+   *
+   * Unparseable values are returned unchanged so the renderer never throws on
+   * unexpected input.
+   *
+   * @param {string} value - a FHIR date, dateTime, or instant (e.g. "2024",
+   *   "2024-03", "2024-03-15", "2024-03-15T10:30:00Z")
+   * @returns {string} the localised representation, or '' for empty input
+   */
+  displayDate(value) {
+    if (value === null || value === undefined || value === '') {
+      return '';
+    }
+    if (typeof value !== 'string') {
+      value = String(value);
+    }
+
+    const locale = this._formatLocale();
+
+    // Year only — nothing to localise.
+    if (/^\d{4}$/.test(value)) {
+      return value;
+    }
+
+    // Year-month → "Month Year".
+    let m = /^(\d{4})-(\d{2})$/.exec(value);
+    if (m) {
+      const year = Number(m[1]), month = Number(m[2]);
+      const d = new Date(Date.UTC(year, month - 1, 1));
+      // Reject values that Date silently rolled over (e.g. month 13).
+      if (isNaN(d.getTime()) || d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1) {
+        return value;
+      }
+      return new Intl.DateTimeFormat(locale, {
+        year: 'numeric', month: 'long', timeZone: 'UTC'
+      }).format(d);
+    }
+
+    // Full date → localised date.
+    m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (m) {
+      const year = Number(m[1]), month = Number(m[2]), day = Number(m[3]);
+      const d = new Date(Date.UTC(year, month - 1, day));
+      // Reject values that Date silently rolled over (e.g. 2024-02-30).
+      if (isNaN(d.getTime()) || d.getUTCFullYear() !== year ||
+          d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) {
+        return value;
+      }
+      return new Intl.DateTimeFormat(locale, {
+        year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'
+      }).format(d);
+    }
+
+    // dateTime / instant → localised date and time.
+    if (value.includes('T')) {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return value;
+      const hasTimezone = /(Z|[+-]\d{2}:\d{2})$/.test(value);
+      const opts = {
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      };
+      if (hasTimezone) {
+        // We don't know the user's timezone, so render the absolute instant in
+        // UTC and label it, rather than silently using the server's zone.
+        opts.timeZone = 'UTC';
+        opts.timeZoneName = 'short';
+      }
+      return new Intl.DateTimeFormat(locale, opts).format(d);
+    }
+
+    // Unrecognised format — return unchanged.
+    return value;
+  }
+
+  async renderValueSet(vs) {
+    vs = this._resolveResource(vs, 'ValueSet', 'renderValueSet');
+    this._requireAllowed(vs.status, VALID_PUBLICATION_STATUS, 'ValueSet.status', 'invalid status');
 
     let div_ = div();
     div_.h2().tx("Properties");
@@ -369,9 +643,9 @@ class Renderer {
   }
 
   async renderCodeSystem(cs, sourcePackage) {
-    if (cs.json) {
-      cs = cs.json;
-    }
+    cs = this._resolveResource(cs, 'CodeSystem', 'renderCodeSystem');
+    this._requireAllowed(cs.status, VALID_PUBLICATION_STATUS, 'CodeSystem.status', 'invalid status');
+    this._requireAllowed(cs.content, VALID_CODESYSTEM_CONTENT, 'CodeSystem.content', 'invalid CodeSystem content');
 
     let div_ = div();
 
@@ -399,7 +673,7 @@ class Renderer {
       p.tx(" ");
       p.startCommaList("and");
       for (let ext of supplements) {
-        this.renderLinkComma(p, ext);
+        this.renderLinkComma(p, getValuePrimitive(ext));
       }
       p.stopCommaList();
       p.tx(".");
@@ -447,6 +721,7 @@ class Renderer {
         li.tx(":");
         const ul = li.ul();
         for (let c of inc.concept) {
+          this._requireValidCode(c.code, 'ValueSet.compose.include.concept.code');
           const li = ul.li();
           const link = this.linkResolver ? await this.linkResolver.resolveCode(this.opContext, inc.system, inc.version, c.code) : null;
           if (link) {
@@ -467,6 +742,7 @@ class Renderer {
         li.startCommaList("and");
         for (let f of inc.filter) {
           let op = this.readFilterOp(f);
+          this._requireAllowed(op, VALID_FILTER_OPS, 'ValueSet.compose.include.filter.op', 'invalid filter operator');
           if (op == 'exists') {
             if (f.value == "true") {
               li.commaItem(f.property+" "+ this.translate('VALUE_SET_EXISTS'));
@@ -485,13 +761,15 @@ class Renderer {
         }
         li.stopCommaList();
       }
-    } else {
+    } else if (inc.valueSet && inc.valueSet.length > 0) {
       li.tx(this.translatePlural(inc.valueSet.length, 'VALUE_SET_RULES_INC'));
       li.startCommaList("and");
       for (let vs of inc.valueSet) {
         this.renderLinkComma(li, vs);
       }
       li.stopCommaList();
+    } else {
+      this._invalid('ValueSet.compose.include', inc, 'invalid ValueSet include (must specify a system or at least one valueSet)');
     }
   }
 
@@ -713,6 +991,7 @@ class Renderer {
   }
 
   async addConceptRow(tbl, concept, level, cs, columnInfo) {
+    this._requireValidCode(concept.code, 'CodeSystem.concept.code');
     const tr = tbl.tr();
 
     // Apply styling for deprecated concepts
@@ -1304,9 +1583,8 @@ class Renderer {
   }
 
   async renderCapabilityStatement(cs) {
-    if (cs.json) {
-      cs = cs.json;
-    }
+    cs = this._resolveResource(cs, 'CapabilityStatement', 'renderCapabilityStatement');
+    this._requireAllowed(cs.status, VALID_PUBLICATION_STATUS, 'CapabilityStatement.status', 'invalid status');
 
     let div_ = div();
 
@@ -1575,9 +1853,8 @@ class Renderer {
   }
 
   async renderTerminologyCapabilities(tc) {
-    if (tc.json) {
-      tc = tc.json;
-    }
+    tc = this._resolveResource(tc, 'TerminologyCapabilities', 'renderTerminologyCapabilities');
+    this._requireAllowed(tc.status, VALID_PUBLICATION_STATUS, 'TerminologyCapabilities.status', 'invalid status');
 
     let div_ = div();
 
@@ -1675,9 +1952,8 @@ class Renderer {
    * metadata table (reusing renderMetadataTable), then group-by-group rendering.
    */
   async renderConceptMap(cm) {
-    if (cm.json) {
-      cm = cm.json;
-    }
+    cm = this._resolveResource(cm, 'ConceptMap', 'renderConceptMap');
+    this._requireAllowed(cm.status, VALID_PUBLICATION_STATUS, 'ConceptMap.status', 'invalid status');
 
     let div_ = div();
 
@@ -2080,8 +2356,12 @@ class Renderer {
    */
   renderConceptMapRelationship(tr, tgt) {
     if (tgt.relationship) {
+      this._requireAllowed(tgt.relationship, VALID_CONCEPTMAP_RELATIONSHIPS,
+        'ConceptMap.group.element.target.relationship', 'invalid ConceptMap relationship');
       tr.td().tx(this.presentRelationshipCode(tgt.relationship));
     } else if (tgt.equivalence) {
+      this._requireAllowed(tgt.equivalence, VALID_CONCEPTMAP_EQUIVALENCES,
+        'ConceptMap.group.element.target.equivalence', 'invalid ConceptMap equivalence');
       tr.td().tx(this.presentEquivalenceCode(tgt.equivalence));
     } else {
       tr.td().tx("(" + "equivalent" + ")");
@@ -2252,6 +2532,7 @@ class Renderer {
       return f.op;
     }
   }
+
 }
 
 module.exports = { Renderer };

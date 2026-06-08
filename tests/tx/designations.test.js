@@ -355,6 +355,13 @@ describe('Designations', () => {
       expect(passes).toBe(true);
     });
 
+    test('empty filter passes() matches every value (was broken by this.null typo)', () => {
+      const emptyFilter = new SearchFilterText('');
+      expect(emptyFilter.passes('anything at all')).toBe(true);
+      expect(emptyFilter.passes('')).toBe(true);
+      expect(emptyFilter.passes('Blood pressure measurement', true)).toEqual({ passes: true, rating: 0 });
+    });
+
     test('should return rating for matches', () => {
       const result = searchFilter.passes('Blood pressure measurement', true);
       expect(result.passes).toBe(true);

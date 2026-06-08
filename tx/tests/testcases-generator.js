@@ -38,11 +38,61 @@ function txTestVersion() {
 module.exports = { txTestVersion };
 `;
 
+    // Emit the per-suite describe blocks. `suffix` is appended to each it()
+    // name so the same tests can be emitted more than once (e.g. a cached pass)
+    // with distinct, reportable names.
+    // When oneVersion is true, each test is emitted at a single version
+    // (caching behaviour is version-independent, so the forced-caching pass
+    // doesn't need both R4 and R5): prefer R5, fall back to R4 for R4-only tests.
+    const emitSuites = (suffix, oneVersion = false) => {
+        let s = '';
+        for (const suite of testCases.suites) {
+            if (!suite.mode || modes.has(suite.mode)) {
+                s += `describe('${suite.name}', () => {\n`;
+
+                if (suite.description) {
+                    s += `  // ${suite.description}\n\n`;
+                }
+
+                for (const test of suite.tests) {
+                    if ((!test.mode || modes.has(test.mode)) && (!test["full-set"])) {
+                        let testDetails = {
+                            suite: suite.name,
+                            test: test.name
+                        }
+
+                        const escapedNameLiteral = JSON.stringify(test.name);
+                        const hasR5 = (!test.version || test.version.startsWith("5.0"));
+                        const hasR4 = (!test.version || test.version.startsWith("4.0"));
+                        const emitR5 = () => {
+                            s += `  it(${escapedNameLiteral} + 'R5${suffix}', async () => {\n`;
+                            s += `    await runTest(${JSON.stringify(testDetails)}, "5.0");\n`;
+                            s += `  });\n\n`;
+                        };
+                        const emitR4 = () => {
+                            s += `  it(${escapedNameLiteral} + 'R4${suffix}', async () => {\n`;
+                            s += `    await runTest(${JSON.stringify(testDetails)}, "4.0");\n`;
+                            s += `  });\n\n`;
+                        };
+                        if (oneVersion) {
+                            if (hasR5) emitR5(); else if (hasR4) emitR4();
+                        } else {
+                            if (hasR5) emitR5();
+                            if (hasR4) emitR4();
+                        }
+                    }
+                }
+                s += `});\n\n`;
+            }
+        }
+        return s;
+    };
+
     let output = `// AUTO-GENERATED FILE - DO NOT EDIT
 // Generated from test-cases.json
 // Regenerate with: node generate-tests.js
 
-const { runTest, startTxTests, finishTxTests } = require('../../tx/tests/test-runner');
+const { runTest, startTxTests, finishTxTests, setForcedCaching } = require('../../tx/tests/test-runner');
 
 describe('Tx Tests', () => {
 
@@ -54,37 +104,20 @@ describe('Tx Tests', () => {
   });
 `;
 
-    for (const suite of testCases.suites) {
-        if (!suite.mode || modes.has(suite.mode)) {
-            output += `describe('${suite.name}', () => {\n`;
+    // First two passes: every test at R5 and R4, with no effective caching
+    // (expansions complete well under the cache threshold).
+    output += emitSuites('');
 
-            if (suite.description) {
-                output += `  // ${suite.description}\n\n`;
-            }
+    // Third pass: run everything again with the expansion cache forced on,
+    // regardless of how long each expansion takes. This exercises cache
+    // correctness (e.g. that language settings are part of the cache key) that
+    // the fast, normally-uncached runs above cannot.
+    output += `describe('cached (forced caching)', () => {\n`;
+    output += `  beforeAll(() => { setForcedCaching(true); });\n`;
+    output += `  afterAll(() => { setForcedCaching(false); });\n\n`;
+    output += emitSuites('-cached', true);
+    output += `});\n\n`;
 
-            for (const test of suite.tests) {
-                if ((!test.mode || modes.has(test.mode)) && (!test["full-set"])) {
-                    let testDetails = {
-                        suite: suite.name,
-                        test: test.name
-                    }
-
-                    const escapedName = test.name.replace(/'/g, "\\'");
-                    if (!test.version || test.version.startsWith("5.0")) {
-                        output += `  it('${escapedName}R5', async () => {\n`;
-                        output += `    await runTest(${JSON.stringify(testDetails)}, "5.0");\n`;
-                        output += `  });\n\n`;
-                    }
-                    if (!test.version || test.version.startsWith("4.0")) {
-                        output += `  it('${escapedName}R4', async () => {\n`;
-                        output += `    await runTest(${JSON.stringify(testDetails)}, "4.0");\n`;
-                        output += `  });\n\n`;
-                    }
-                }
-            }
-            output += `});\n\n`;
-        }
-    }
     output += `});\n\n`;
   fs.writeFileSync(OUTPUT_FILE1, output);
   console.log(`Generated ${OUTPUT_FILE1}`);

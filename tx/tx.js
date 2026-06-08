@@ -980,7 +980,9 @@ class TXModule {
     });
 
     // External source info pages
-    router.get('/info/:id', async (req, res) => {
+    // GET renders the info page; POST lets a source's info() handle a form
+    // submission (e.g. VSAC on-demand resync) and re-renders the same page.
+    const infoHandler = async (req, res) => {
       const start = Date.now();
       try {
         const source = req.txEndpoint.provider.externalSources.find(s => s.id() === req.params.id);
@@ -1000,7 +1002,9 @@ class TXModule {
       } finally {
         this.countRequest('info', Date.now() - start);
       }
-    });
+    };
+    router.get('/info/:id', infoHandler);
+    router.post('/info/:id', infoHandler);
   }
 
   /**

@@ -604,6 +604,23 @@ class Library {
       version = parts[1];
     }
     const packagePath = await packageManager.fetch(packageId, version);
+    await this.#loadPackageFromPath(packagePath, mode, csOnly);
+  }
+
+  async loadUrl(packageManager, url, isDefault, mode, csOnly) {
+    const packagePath = await packageManager.fetchUrl(url);
+    await this.#loadPackageFromPath(packagePath, mode, csOnly);
+  }
+
+  /**
+   * Shared loader for npm- and url-sourced packages. Given a fetched package
+   * path, loads its CodeSystems (and, unless csOnly, its ValueSets and
+   * ConceptMaps) into this library. Factored out of loadNpm/loadUrl so the two
+   * cannot drift apart (a past divergence here used Map-style .set() on the
+   * array-backed codeSystems list, breaking url sources).
+   * @private
+   */
+  async #loadPackageFromPath(packagePath, mode, csOnly) {
     if (mode === "fetch" || mode === "cs") {
       return;
     }
@@ -624,45 +641,6 @@ class Library {
       }
       cs.sourcePackage = contentLoader.pid();
       cp.codeSystems.push(cs);
-      csc++;
-    }
-    this.codeSystemProviders.push(cp);
-    let vs = null;
-    if (!csOnly) {
-      vs = new PackageValueSetProvider(contentLoader);
-      await vs.initialize();
-      this.valueSetProviders.push(vs);
-      const cm = new PackageConceptMapProvider(contentLoader);
-      await cm.initialize();
-      this.conceptMapProviders.push(cm);
-    }
-
-    this.#logPackage(contentLoader.id(), contentLoader.version(), csc, vs ? vs.valueSetMap.size : 0);
-  }
-
-  async loadUrl(packageManager, url, isDefault, mode, csOnly) {
-    const packagePath = await packageManager.fetchUrl(url);
-    if (mode === "fetch" || mode === "cs") {
-      return;
-    }
-    const fullPackagePath = path.join(this.cacheFolder, packagePath);
-    const contentLoader = new PackageContentLoader(fullPackagePath);
-    await contentLoader.initialize();
-
-    this.packageSources.push(contentLoader.id()+"#"+contentLoader.version());
-
-    let cp = new ListCodeSystemProvider();
-    const resources = await contentLoader.getResourcesByType("CodeSystem");
-    let csc = 0;
-    for (const resource of resources) {
-      const cs = new CodeSystem(await contentLoader.loadFile(resource, contentLoader.fhirVersion()));
-      if (this.#isIgnored(cs.url, cs.version)) {
-        this.log.info(`Ignoring CodeSystem ${cs.url}${cs.version ? '#' + cs.version : ''} (excluded by config)`);
-        continue;
-      }
-      cs.sourcePackage = contentLoader.pid();
-      cp.codeSystems.set(cs.url, cs);
-      cp.codeSystems.set(cs.vurl, cs);
       csc++;
     }
     this.codeSystemProviders.push(cp);

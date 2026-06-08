@@ -26,10 +26,99 @@ describe('ECL Validator Test Suite', () => {
   beforeAll(async () => {
     // Load test SNOMED data
     opContext = new OperationContext('en', await TestUtilities.loadTranslations());
-    const factory = new SnomedServicesFactory(opContext.i18n, join(__dirname, '../../data/snomed-testing.cache'));
+    const factory = new SnomedServicesFactory(opContext.i18n, join(__dirname, '../../tx/data/snomed-testing.cache'));
     await factory.load();
     snomedServices = factory.snomedServices;
     eclValidator = new ECLValidator(snomedServices);
+  });
+
+  describe('ECL cardinality counts distinct values (issue #230 bug 3)', () => {
+    const expandCodes = (ecl) => {
+      const ctx = snomedServices.filterECL(ecl, true, opContext);
+      return new Set((ctx.descendants || []).map(i => snomedServices.concepts.getConceptId(i).toString()));
+    };
+
+    // 192008 has two raw 116676008 (Associated morphology) relationship rows but
+    // only ONE distinct value — the local analog of the issue's 903008. It must
+    // satisfy [1..1] and [1..*], and must NOT satisfy [2..*]. Counting raw rows
+    // (the bug) gave the opposite.
+    test('a single distinct morphology satisfies [1..1]/[1..*], not [2..*]', () => {
+      const one = expandCodes('* : [1..1] 116676008 = *');
+      const atLeastOne = expandCodes('* : [1..*] 116676008 = *');
+      const two = expandCodes('* : [2..*] 116676008 = *');
+      expect(one.has('192008')).toBe(true);
+      expect(atLeastOne.has('192008')).toBe(true);
+      expect(two.has('192008')).toBe(false);
+    });
+
+    test('[1..1] and [2..*] partition [1..*] (distinct-value counting is consistent)', () => {
+      const one = expandCodes('* : [1..1] 116676008 = *');
+      const two = expandCodes('* : [2..*] 116676008 = *');
+      const atLeastOne = expandCodes('* : [1..*] 116676008 = *');
+      expect(one.size + two.size).toBe(atLeastOne.size);
+      for (const c of one) {
+        expect(two.has(c)).toBe(false);
+      }
+    });
+
+    // Value-constrained form, matching the shape of the external case
+    // `< 64572001 : [1..1] 363698007 = << 10200004` whose count rose once
+    // distinct counting was applied. 192008 has Associated morphology 442021009
+    // in two raw rows but one distinct value, so it satisfies [1..1] (not [2..*])
+    // for that specific value.
+    test('value-constrained [1..1] includes a concept with one distinct value stated across rows', () => {
+      const one = expandCodes('* : [1..1] 116676008 = 442021009');
+      const atLeastOne = expandCodes('* : [1..*] 116676008 = 442021009');
+      const two = expandCodes('* : [2..*] 116676008 = 442021009');
+      expect(one.has('192008')).toBe(true);
+      expect(atLeastOne.has('192008')).toBe(true);
+      expect(two.has('192008')).toBe(false);
+    });
+  });
+
+  describe('ECL memberOf (issue #230 bugs 1 & 2)', () => {
+    const expand = (ecl) => {
+      const ctx = snomedServices.filterECL(ecl, true, opContext);
+      return ctx.descendants || [];
+    };
+    const codesOf = (ecl) => expand(ecl).map(i => snomedServices.concepts.getConceptId(i).toString());
+
+    // Bug 1: a bare ^<concept that is not a reference set> must be rejected with
+    // an error that names the concept (was: returned the fabricated 0xFFFFFFFF
+    // sentinel / the concept itself).
+    test('bare ^<non-reference-set> is rejected with a value-identifying error', () => {
+      expect(() => snomedServices.filterECL('^404684003', true, opContext))
+        .toThrow(/404684003 is not a reference set/);
+    });
+
+    // Bug 1: returns the refset's referenced-component concepts, including
+    // concepts that are themselves inactive (active refers to the membership row,
+    // not the referenced concept). 900000000000526001 (an association refset)
+    // has one member: the inactive concept 307530000.
+    test('memberOf returns referenced concepts, including inactive ones', () => {
+      const codes = codesOf('^900000000000526001');
+      expect(codes).toContain('307530000');
+      const idx = expand('^900000000000526001').find(
+        i => snomedServices.concepts.getConceptId(i).toString() === '307530000');
+      expect(snomedServices.isActive(idx)).toBe(false); // inactive concept, still returned
+    });
+
+    // Bug 1: never fabricate the 0xFFFFFFFF (4294967295) sentinel, and never
+    // return the operand concept itself.
+    test('memberOf never emits the sentinel or the operand itself', () => {
+      const codes = codesOf('^900000000000526001');
+      expect(codes).not.toContain('4294967295');
+      expect(codes).not.toContain('900000000000526001');
+    });
+
+    // Bug 2: a wrapped/computed operand must be evaluated, not rejected as
+    // "non-concept-reference refset is not yet supported".
+    test('wrapped memberOf operands are evaluated, not rejected as unsupported', () => {
+      expect(() => snomedServices.filterECL('^(<<192008)', true, opContext)).not.toThrow();
+      expect(() => snomedServices.filterECL('^(404684003)', true, opContext)).not.toThrow();
+      // computed operand is lenient: non-refset concepts in the set are skipped
+      expect(Array.isArray(codesOf('^(404684003)'))).toBe(true);
+    });
   });
 
   describe('ECL Lexer Tests', () => {

@@ -1,4 +1,4 @@
-const { TerminologyError} = require('../operation-context');
+const { TerminologyError} = require('../library/errors');
 const { CodeSystem } = require('../library/codesystem');
 const ValueSet = require('../library/valueset');
 const {VersionUtilities} = require("../../library/version-utilities");

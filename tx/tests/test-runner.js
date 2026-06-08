@@ -22,6 +22,25 @@ async function startTxTests() {
     await loadValidator();
 }
 
+/**
+ * Force (or stop forcing) the expansion cache to cache every expansion
+ * regardless of duration, across all endpoints. Clears the caches so the run
+ * starts clean. Used to run the whole test suite a third time with caching
+ * fully active, which exercises cache correctness (e.g. that language is part
+ * of the cache key) that the fast, normally-uncached runs cannot.
+ */
+function setForcedCaching(enabled) {
+    if (!txModule || !Array.isArray(txModule.endpoints)) {
+        return;
+    }
+    for (const ep of txModule.endpoints) {
+        if (ep.expansionCache) {
+            ep.expansionCache.clearAll();
+            ep.expansionCache.forceCaching = enabled;
+        }
+    }
+}
+
 async function  finishTxTests() {
     console.log(txTestSummary());
     let textfilename = path.join(__dirname, '../../test-cases-summary.txt');
@@ -153,4 +172,4 @@ async function unloadValidator() {
     }
 
 }
-module.exports = { startTxTests, finishTxTests, runTest, txTestModeSet };
+module.exports = { startTxTests, finishTxTests, runTest, txTestModeSet, setForcedCaching };

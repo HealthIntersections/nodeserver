@@ -18,7 +18,7 @@ function parametersToR5(jsonObj, sourceVersion) {
   }
 
   const {convertResourceToR5} = require("./xv-resource");
-  for (let p of jsonObj.parameter) {
+  for (let p of jsonObj.parameter || []) {
     if (p.resource) {
       p.resource = convertResourceToR5(p.resource, sourceVersion);
     }
@@ -59,7 +59,7 @@ function parametersFromR5(r5Obj, targetVersion) {
 function parametersR5ToR4(r5Obj) {
   const {convertResourceFromR5} = require("./xv-resource");
 
-  for (let p of r5Obj.parameter) {
+  for (let p of r5Obj.parameter || []) {
     if (p.resource) {
       p.resource = convertResourceFromR5(p.resource, "R4");
     }
@@ -71,7 +71,7 @@ function parametersR5ToR4(r5Obj) {
 }
 
 function convertResourceWithinR5(r5Obj) {
-  for (let p of r5Obj.parameter) {
+  for (let p of r5Obj.parameter || []) {
     if (p.name == 'match') {
       fixMatchParameterfor5(p);
     }
@@ -135,7 +135,7 @@ function convertParameterR5ToR3(p) {
 function parametersR5ToR3(r5Obj) {
   const {convertResourceFromR5} = require("./xv-resource");
 
-  for (let p of r5Obj.parameter) {
+  for (let p of r5Obj.parameter || []) {
     if (p.resource) {
       p.resource = convertResourceFromR5(p.resource, "R3");
     }

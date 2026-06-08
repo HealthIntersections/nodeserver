@@ -7,6 +7,12 @@ const { VersionUtilities } = require('../../library/version-utilities');
 const folders = require('../../library/folder-setup');
 const {debugLog} = require("../operation-context");
 
+// Persisted watermark for the phase-1b _lastUpdated scan.
+const VSAC_LAST_UPDATED_KEY = 'vsac_last_updated_date';
+
+// Canonical URL prefix for VSAC value sets, so operators can enter a bare OID.
+const VSAC_VALUESET_URL_PREFIX = 'http://cts.nlm.nih.gov/fhir/ValueSet/';
+
 /**
  * VSAC (Value Set Authority Center) ValueSet provider
  * Fetches and caches ValueSets from the NLM VSAC FHIR server
@@ -21,6 +27,8 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
    * @param {number} [config.refreshIntervalHours=24] - Hours between refresh scans
    * @param {string} [config.baseUrl='http://cts.nlm.nih.gov/fhir'] - Base URL for VSAC FHIR server
    * @param {number} [config.timeoutMs=120000] - HTTP request timeout in milliseconds
+   * @param {string} [config.resyncPassword] - If set, enables the operator "resync a ValueSet"
+   *   form on the /info page, gated by this password. If unset, the form is not offered.
    */
   constructor(config, stats) {
     super();
@@ -31,6 +39,8 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
     }
 
     this.apiKey = config.apiKey;
+    // Optional operator password for the on-demand resync form (see info()).
+    this.resyncPassword = config.resyncPassword || null;
     this.cacheFolder = folders.ensureFilePath("terminology-cache/vsac");
     this.baseUrl = config.baseUrl || 'http://cts.nlm.nih.gov/fhir';
     this.refreshIntervalHours = config.refreshIntervalHours || 24;
@@ -127,6 +137,7 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
       return;
     }
     this.queue = [];
+    this._pendingLastUpdated = null;
 
     this.isRefreshing = true;
     const runId = await this.database.startRun();
@@ -185,6 +196,9 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
       this.queue = [...new Set(this.queue)];
 
       let tracking = { totalFetched: 0, totalNew: 0, totalUpdated: 0, count: 0, newCount : 0 };
+      // URLs that fail even after a requeue are permanently dropped this run; we
+      // hold the watermark back when this is non-zero so they get re-scanned.
+      let permanentFailures = 0;
       // phase 2: query for history & content
       this.requeue = [];
       for (let q of this.queue) {
@@ -204,6 +218,7 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
         try {
           await this.processContentAndHistory(q, tracking, this.requeue.length);
         } catch (error) {
+          permanentFailures++;
           debugLog(error);
           this.stats.task('VSAC Sync', error.message);
         }
@@ -212,6 +227,20 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
 
       // Reload map with fresh data
       await this._reloadMap();
+
+      // Commit the _lastUpdated watermark only now that phase 2 has durably
+      // written everything. Hold it back if any URL was permanently dropped, so
+      // those URLs are re-scanned next run (never advance past un-applied
+      // changes). If the run threw or the process restarted before this point,
+      // the watermark is left untouched and the window is re-scanned.
+      if (this._pendingLastUpdated && permanentFailures === 0) {
+        await this.database.setSetting(VSAC_LAST_UPDATED_KEY, this._pendingLastUpdated);
+      } else if (permanentFailures > 0) {
+        const holdMsg = `Holding _lastUpdated watermark: ${permanentFailures} URL(s) failed after retry; will re-scan next run`;
+        console.log(holdMsg);
+        this.stats.task('VSAC Sync', holdMsg);
+      }
+
       let msg = `VSAC refresh completed. Total: ${tracking.totalFetched} ValueSets, New: ${tracking.totalNew}, Updated: ${tracking.totalUpdated}`;
       this.stats.taskDone('VSAC Sync', msg);
       console.log(msg);
@@ -579,9 +608,7 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
    * @private
    */
   async _scanLastUpdated() {
-    const SETTING_KEY = 'vsac_last_updated_date';
-
-    let sinceDate = await this.database.getSetting(SETTING_KEY);
+    let sinceDate = await this.database.getSetting(VSAC_LAST_UPDATED_KEY);
     if (!sinceDate) {
       // No stored date — default to 10 days ago
       const d = new Date();
@@ -615,10 +642,13 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
       url = this._getNextUrl(bundle);
     }
 
-    // Store the server date for next run
-    if (serverDate) {
-      await this.database.setSetting(SETTING_KEY, serverDate);
-    }
+    // Capture the server's date but do NOT commit the watermark here. It must
+    // only advance once phase 2 has durably upserted the queued URLs; committing
+    // it now (before phase 2) means a phase-2 failure or a process restart would
+    // move the watermark past URLs that were never written, stranding them
+    // permanently. refreshValueSets() commits this._pendingLastUpdated after
+    // phase 2 completes with no dropped URLs.
+    this._pendingLastUpdated = serverDate;
 
     return count;
   }
@@ -631,8 +661,123 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
     return "history";
   }
 
-  async info() {
+  /**
+   * Whether the on-demand resync form is enabled (a resyncPassword is configured).
+   */
+  _resyncEnabled() {
+    return !!this.resyncPassword;
+  }
+
+  /**
+   * Timing-safe comparison of a provided password against the configured one.
+   * @private
+   */
+  _passwordMatches(provided) {
+    if (!this.resyncPassword) {
+      return false;
+    }
+    const a = Buffer.from(String(provided == null ? '' : provided));
+    const b = Buffer.from(String(this.resyncPassword));
+    if (a.length !== b.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(a, b);
+  }
+
+  /**
+   * Immediately resync a single ValueSet URL (all versions): fetch from VSAC,
+   * upsert, and reload the in-memory map.
+   * @param {string} url - the ValueSet canonical url
+   * @returns {Promise<number>} number of versions fetched
+   */
+  async resyncValueSet(url) {
+    const tracking = { totalFetched: 0, totalNew: 0, totalUpdated: 0, count: 0, newCount: 0 };
+    await this.processContentAndHistory(url, tracking, 1);
+    await this._reloadMap();
+    return tracking.totalFetched;
+  }
+
+  /**
+   * Handle a POST from the resync form. Validates the password (timing-safe) and,
+   * if a full sync isn't already running, resyncs the requested URL. Returns an
+   * HTML notice. Never echoes or logs the password.
+   * @private
+   */
+  async _handleResyncRequest(req) {
     const escape = require('escape-html');
+    if (!this._resyncEnabled()) {
+      return '';
+    }
+    const body = req.body || {};
+    const url = this._expandOidOrUrl(body.url);
+
+    if (!this._passwordMatches(body.password)) {
+      // Small delay to blunt brute-forcing; reveal nothing else.
+      await new Promise(r => setTimeout(r, 1000));
+      return '<p style="color:#a00"><strong>Incorrect password &mdash; no action taken.</strong></p>';
+    }
+    if (!url) {
+      return '<p style="color:#a00">Enter a ValueSet URL to resync.</p>';
+    }
+    if (this.isRefreshing) {
+      return '<p style="color:#a60">A full sync is currently running; please retry in a few minutes.</p>';
+    }
+    try {
+      const n = await this.resyncValueSet(url);
+      console.log(`Manual resync of ${url}: ${n} version(s)`);
+      this.stats.task('VSAC Sync', `Manual resync of ${url}: ${n} version(s)`);
+      return `<p style="color:#070"><strong>Resynced ${escape(url)}: ${n} version(s).</strong></p>`;
+    } catch (error) {
+      debugLog(error);
+      return `<p style="color:#a00">Resync of ${escape(url)} failed: ${escape(error.message)}</p>`;
+    }
+  }
+
+  /**
+   * Accept either a full canonical URL or a bare VSAC OID. A dotted-decimal OID
+   * (optionally with a urn:oid: prefix) is expanded to the VSAC ValueSet URL.
+   * @private
+   */
+  _expandOidOrUrl(input) {
+    let s = (input == null ? '' : String(input)).trim();
+    if (s.toLowerCase().startsWith('urn:oid:')) {
+      s = s.substring('urn:oid:'.length);
+    }
+    if (/^[0-9]+(\.[0-9]+)+$/.test(s)) {
+      return VSAC_VALUESET_URL_PREFIX + s;
+    }
+    return s;
+  }
+
+  /**
+   * The resync form HTML, or '' when the feature is disabled (no password set).
+   * @private
+   */
+  _resyncFormHtml() {
+    if (!this._resyncEnabled()) {
+      return '';
+    }
+    return `<form method="post" autocomplete="off" style="margin:0 0 1em 0; padding:0.75em; border:1px solid #ccc; background:#f7f7f7">
+  <strong>Resync a ValueSet</strong>
+  <div style="margin-top:0.5em">
+    <label>ValueSet URL or OID: <input type="text" name="url" size="70" autocomplete="off"></label>
+  </div>
+  <div style="margin-top:0.5em">
+    <label>Password: <input type="password" name="password" autocomplete="off"></label>
+    <button type="submit">Resync</button>
+  </div>
+</form>`;
+  }
+
+  async info(req) {
+    const escape = require('escape-html');
+
+    // Operator action: resync a specific ValueSet (POST from the form below).
+    let resyncNotice = '';
+    if (req && req.method === 'POST') {
+      resyncNotice = await this._handleResyncRequest(req);
+    }
+
     const db = await this.database._getReadConnection();
 
     const rows = await new Promise((resolve, reject) => {
@@ -689,7 +834,10 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
         ? new Date(ts * 1000).toISOString().replace('T', ' ').substring(0, 19) + ' UTC'
         : '—';
 
-    let html = '<h3>VSAC Sync History</h3>';
+    let html = '';
+    html += this._resyncFormHtml();
+    html += resyncNotice;
+    html += '<h3>VSAC Sync History</h3>';
     html += '<table class="grid">';
     html += '<thead><tr><th>Time</th><th>Event</th><th>Detail</th></tr></thead>';
     html += '<tbody>';
