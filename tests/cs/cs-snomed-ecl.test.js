@@ -32,6 +32,73 @@ describe('ECL Validator Test Suite', () => {
     eclValidator = new ECLValidator(snomedServices);
   });
 
+  describe('ECL cardinality counts distinct values (issue #230 bug 3)', () => {
+    const expandCodes = (ecl) => {
+      const ctx = snomedServices.filterECL(ecl, true, opContext);
+      return new Set((ctx.descendants || []).map(i => snomedServices.concepts.getConceptId(i).toString()));
+    };
+
+    // 192008 has two raw 116676008 (Associated morphology) relationship rows but
+    // only ONE distinct value — the local analog of the issue's 903008. It must
+    // satisfy [1..1] and [1..*], and must NOT satisfy [2..*]. Counting raw rows
+    // (the bug) gave the opposite.
+    test('a single distinct morphology satisfies [1..1]/[1..*], not [2..*]', () => {
+      const one = expandCodes('* : [1..1] 116676008 = *');
+      const atLeastOne = expandCodes('* : [1..*] 116676008 = *');
+      const two = expandCodes('* : [2..*] 116676008 = *');
+      expect(one.has('192008')).toBe(true);
+      expect(atLeastOne.has('192008')).toBe(true);
+      expect(two.has('192008')).toBe(false);
+    });
+
+    test('[1..1] and [2..*] partition [1..*] (distinct-value counting is consistent)', () => {
+      const one = expandCodes('* : [1..1] 116676008 = *');
+      const two = expandCodes('* : [2..*] 116676008 = *');
+      const atLeastOne = expandCodes('* : [1..*] 116676008 = *');
+      expect(one.size + two.size).toBe(atLeastOne.size);
+      for (const c of one) {
+        expect(two.has(c)).toBe(false);
+      }
+    });
+  });
+
+  describe('ECL memberOf (issue #230 bugs 1 & 2)', () => {
+    const expand = (ecl) => {
+      const ctx = snomedServices.filterECL(ecl, true, opContext);
+      return ctx.descendants || [];
+    };
+    const codesOf = (ecl) => expand(ecl).map(i => snomedServices.concepts.getConceptId(i).toString());
+
+    // Bug 1: a bare ^<concept that is not a reference set> must be rejected with
+    // an error that names the concept (was: returned the fabricated 0xFFFFFFFF
+    // sentinel / the concept itself).
+    test('bare ^<non-reference-set> is rejected with a value-identifying error', () => {
+      expect(() => snomedServices.filterECL('^404684003', true, opContext))
+        .toThrow(/404684003 is not a reference set/);
+    });
+
+    // Bug 1: never fabricate the 0xFFFFFFFF (4294967295) sentinel, never return
+    // the operand itself, and only return active concept members.
+    test('memberOf never emits the sentinel, the operand itself, or inactive/non-concepts', () => {
+      const idxs = expand('^192008');
+      const codes = idxs.map(i => snomedServices.concepts.getConceptId(i).toString());
+      expect(codes).not.toContain('4294967295');
+      expect(codes).not.toContain('192008');
+      for (const idx of idxs) {
+        expect(snomedServices.isActive(idx)).toBe(true);
+      }
+    });
+
+    // Bug 2: a wrapped/computed operand must be evaluated, not rejected as
+    // "non-concept-reference refset is not yet supported".
+    test('wrapped memberOf operands are evaluated, not rejected as unsupported', () => {
+      expect(() => snomedServices.filterECL('^(<<192008)', true, opContext)).not.toThrow();
+      expect(() => snomedServices.filterECL('^(404684003)', true, opContext)).not.toThrow();
+      // computed operand is lenient: non-refset concepts in the set are skipped
+      expect(Array.isArray(codesOf('^(404684003)'))).toBe(true);
+    });
+  });
+
   describe('ECL Lexer Tests', () => {
 
     test('should tokenize simple concept reference', () => {

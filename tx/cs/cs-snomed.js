@@ -326,6 +326,20 @@ class SnomedServices {
     return 0;
   }
 
+  // Like getConceptRefSet, but distinguishes "this concept is not a reference
+  // set" (returns null) from "it is a reference set that happens to have no
+  // members" (returns a numeric membersByRef, which may be 0 or the
+  // MAGIC_NO_CHILDREN sentinel). Used by memberOf to reject non-refset operands.
+  _findRefSetMembersRef(conceptIndex) {
+    for (let i = 0; i < this.refSetIndex.count(); i++) {
+      const refSet = this.refSetIndex.getReferenceSet(i);
+      if (refSet.definition === conceptIndex) {
+        return refSet.membersByRef;
+      }
+    }
+    return null;
+  }
+
   // Filter support methods
   filterEquals(id) {
     const result = new SnomedFilterContext();
@@ -593,7 +607,7 @@ class SnomedServices {
       if (operator) {
         throw new Error('ECL hierarchy operators combined with ^ (member-of) are not yet supported');
       }
-      return this._evalMemberOf(focus);
+      return this._evalMemberOf(focus, opContext);
     }
 
     // Plain concept reference
@@ -682,18 +696,51 @@ class SnomedServices {
   };
 
   /**
-   * Evaluate a MEMBER_OF node.  Only plain concept-reference refsets are
-   * supported; complex expressions inside ^ are not yet supported.
+   * Evaluate a MEMBER_OF (^) node. The operand may be any ECL expression: it is
+   * resolved to a set of candidate reference-set concepts, and the result is the
+   * union of their active concept members' referenced components.
+   *
+   * When the operand is a bare, explicitly-named concept that is not a reference
+   * set, this throws (the caller asked for an error in that case). When the
+   * operand is a computed expression (e.g. ^(<<900000000000455006)), concepts in
+   * the resolved set that are not reference sets are simply skipped — the closure
+   * of "Reference set" necessarily includes the non-refset parent itself.
+   *
    * @param {object} memberOfNode
+   * @param {OperationContext} [opContext]
    * @returns {SnomedFilterContext}
    */
-  _evalMemberOf = function (memberOfNode) {
-    const refSet = memberOfNode.refSet;
-    if (refSet.type !== ECLNodeType.CONCEPT_REFERENCE) {
-      throw new Error('ECL ^ (member-of) with a non-concept-reference refset is not yet supported');
+  _evalMemberOf = function (memberOfNode, opContext) {
+    const operandIsBareRef = memberOfNode.refSet.type === ECLNodeType.CONCEPT_REFERENCE;
+    const refsetConcepts = this._eclResolveSet(this._evalECLNode(memberOfNode.refSet, opContext), opContext);
+
+    const members = new Set();
+    for (const refsetIdx of refsetConcepts) {
+      if (opContext) opContext.deadCheck('ecl:memberOf');
+      const membersRef = this._findRefSetMembersRef(refsetIdx);
+      if (membersRef === null) {
+        if (operandIsBareRef) {
+          const code = this.concepts.getConceptId(refsetIdx).toString();
+          throw new Error(`The SNOMED CT Concept ${code} is not a reference set`);
+        }
+        continue; // computed operand: ignore concepts that aren't reference sets
+      }
+      if (membersRef === 0 || membersRef === 0xFFFFFFFF) {
+        continue; // a reference set with no members
+      }
+      const memberList = this.refSetMembers.getMembers(membersRef);
+      for (const m of memberList || []) {
+        // Only active concept referenced components (kind 0). Description/other
+        // members and inactive concepts are excluded — which also prevents the
+        // no-component sentinel (0xFFFFFFFF) from ever leaking into the result.
+        if (m.kind === 0 && this.isActive(m.ref)) {
+          members.add(m.ref);
+        }
+      }
     }
-    // filterIn accepts a comma-separated string; a single ID works fine
-    return this.filterIn(refSet.conceptId);
+    const result = new SnomedFilterContext();
+    result.descendants = [...members];
+    return result;
   };
 
   /**
@@ -867,16 +914,20 @@ class SnomedServices {
     const valueSet = resolved.valueSet;
 
     const relIdxs = this.getConceptRelationships(conceptIdx);
-    let count = 0;
+    // ECL cardinality counts non-redundant matching attributes — i.e. distinct
+    // matching values — not raw relationship rows. The same (type, value) can
+    // appear in multiple role groups; counting rows over-counts and makes e.g.
+    // [1..1] fail and [2..*] succeed for a concept with a single morphology.
+    const matchedTargets = new Set();
     for (const relIdx of relIdxs) {
       if (opContext) opContext.deadCheck('ecl:countAttributeMatches');
       const rel = this.relationships.getRelationship(relIdx);
       if (!rel.active) continue;
       if (rel.relType !== attrTypeIdx) continue;
       if (groupFilter !== null && rel.group !== groupFilter) continue;
-      if (valueSet.has(rel.target)) count++;
+      if (valueSet.has(rel.target)) matchedTargets.add(rel.target);
     }
-    return count;
+    return matchedTargets.size;
   };
 
   /**
