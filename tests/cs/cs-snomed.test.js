@@ -30,13 +30,19 @@ const {Designations} = require("../../tx/library/designations");
 const {TestUtilities} = require("../test-utilities");
 const folders = require('../../library/folder-setup');
 
-// Shared cache file paths and utilities
+// Shared cache file paths and utilities.
+// testCachePath is the scratch location the import test (below) writes/deletes.
+// committedCachePath is the checked-in copy under tx/data (which IS in git),
+// used by the consumer tests when no fresh import has been produced this run.
 const testCachePath = folders.ensureFilePath('snomed-testing.cache');
+const committedCachePath = path.resolve(__dirname, '../../tx/data/snomed-testing.cache');
 const fallbackCachePath = folders.ensureFilePath('sct_intl_20250201.cache');
 
 function findAvailableCacheFile() {
   if (fs.existsSync(testCachePath)) {
     return testCachePath;
+  } else if (fs.existsSync(committedCachePath)) {
+    return committedCachePath;
   } else if (fs.existsSync(fallbackCachePath)) {
     return fallbackCachePath;
   }

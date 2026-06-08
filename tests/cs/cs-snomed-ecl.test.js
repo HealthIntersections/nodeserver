@@ -26,7 +26,7 @@ describe('ECL Validator Test Suite', () => {
   beforeAll(async () => {
     // Load test SNOMED data
     opContext = new OperationContext('en', await TestUtilities.loadTranslations());
-    const factory = new SnomedServicesFactory(opContext.i18n, join(__dirname, '../../data/snomed-testing.cache'));
+    const factory = new SnomedServicesFactory(opContext.i18n, join(__dirname, '../../tx/data/snomed-testing.cache'));
     await factory.load();
     snomedServices = factory.snomedServices;
     eclValidator = new ECLValidator(snomedServices);
