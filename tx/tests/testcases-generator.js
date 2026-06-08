@@ -61,16 +61,16 @@ module.exports = { txTestVersion };
                             test: test.name
                         }
 
-                        const escapedName = test.name.replace(/'/g, "\\'");
+                        const escapedNameLiteral = JSON.stringify(test.name);
                         const hasR5 = (!test.version || test.version.startsWith("5.0"));
                         const hasR4 = (!test.version || test.version.startsWith("4.0"));
                         const emitR5 = () => {
-                            s += `  it('${escapedName}R5${suffix}', async () => {\n`;
+                            s += `  it(${escapedNameLiteral} + 'R5${suffix}', async () => {\n`;
                             s += `    await runTest(${JSON.stringify(testDetails)}, "5.0");\n`;
                             s += `  });\n\n`;
                         };
                         const emitR4 = () => {
-                            s += `  it('${escapedName}R4${suffix}', async () => {\n`;
+                            s += `  it(${escapedNameLiteral} + 'R4${suffix}', async () => {\n`;
                             s += `    await runTest(${JSON.stringify(testDetails)}, "4.0");\n`;
                             s += `  });\n\n`;
                         };
