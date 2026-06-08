@@ -129,8 +129,10 @@ class CanonicalResource {
           return this.dateIsMoreRecent(this.version, other.version);
         case 'integer':
           return parseInt(this.version, 10) > parseInt(other.version, 10);
-        case 'alpha': return this.version.localeCompare(other.version) > 0;
-        default: return this.version.localeCompare(other.version);
+        case 'alpha':
+        default:
+          // Return a boolean: true only when this.version sorts after other.version.
+          return this.version.localeCompare(other.version) > 0;
       }
     }
     if (this.date && other.date && this.date != other.date) {
