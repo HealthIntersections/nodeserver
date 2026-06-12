@@ -7,7 +7,7 @@
 //
 
 const express = require('express');
-// const cors = require('cors');
+const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -82,7 +82,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// app.use(cors(config.server.cors));
+// Single, app-level CORS policy for all modules, driven by config.server.cors.
+// This also handles OPTIONS preflight, so modules must NOT set their own
+// Access-Control-* headers (doing so stacks a second CORS layer and produces
+// duplicate, conflicting headers that browsers reject).
+app.use(cors(config.server.cors));
 
 // Module instances
 const modules = {};

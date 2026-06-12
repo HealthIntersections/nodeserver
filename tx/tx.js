@@ -382,16 +382,10 @@ class TXModule {
       next();
     });
 
-    // CORS headers
-    router.use((req, res, next) => {
-      res.header('Access-Control-Allow-Origin', '*');
-      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-      res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-      }
-      next();
-    });
+    // CORS is handled once at the app level (server.js, from config.server.cors).
+    // Do not set Access-Control-* headers here - doing so stacks a second
+    // CORS layer and produces duplicate, conflicting headers that browsers
+    // reject.
 
     // JSON body parsing - accept both application/json and application/fhir+json
     // Handle body that may already be read as a Buffer by app-level middleware

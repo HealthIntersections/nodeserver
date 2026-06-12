@@ -111,7 +111,30 @@ describe('TX Module', () => {
       const response = await request(app)
         .options('/tx/r5/metadata');
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBeLessThan(300);
+    });
+
+    // Regression: CORS must come from a single layer. If a module also sets
+    // its own Access-Control-* headers, they appear twice with conflicting
+    // values and browsers reject the request as a CORS failure.
+    test('should not emit duplicate CORS headers', (done) => {
+      const http = require('http');
+      const server = app.listen(0, () => {
+        const { port } = server.address();
+        http.get({ port, path: '/tx/r5/metadata', headers: { Accept: 'application/json' } }, (res) => {
+          res.resume();
+          const names = res.rawHeaders.filter((_, i) => i % 2 === 0).map((h) => h.toLowerCase());
+          const count = (name) => names.filter((h) => h === name).length;
+          try {
+            expect(count('access-control-allow-origin')).toBe(1);
+            expect(count('access-control-allow-headers')).toBeLessThanOrEqual(1);
+            expect(count('access-control-allow-methods')).toBeLessThanOrEqual(1);
+            server.close(() => done());
+          } catch (err) {
+            server.close(() => done(err));
+          }
+        });
+      });
     });
   });
 
