@@ -6,6 +6,7 @@
  */
 
 const express = require('express');
+const cors = require('cors');
 const path = require('path');
 const TXModule = require('../../tx/tx');
 
@@ -23,6 +24,8 @@ async function getTestApp() {
   }
 
   app = express();
+  // Mirror production: CORS is applied once at the app level.
+  app.use(cors());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 

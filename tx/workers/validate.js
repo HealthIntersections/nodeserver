@@ -1418,7 +1418,11 @@ class ValueSetChecker {
           m = this.worker.i18n.translate('NO_VALID_DISPLAY_AT_ALL', this.params.HTTPLanguages, [c.display, c.system, c.code]);
           mid = 'NO_VALID_DISPLAY_AT_ALL';
         } else {
-          if (ds === c.display) {
+          // no displays in the requested language(s): fall back to checking against the
+          // displays + designations in the code system's default language, not just the
+          // single preferred display (see tests validation-simple-*-good-language-none)
+          let hdDef = list.hasDisplay(this.params.workingLanguages(), defLang.value, c.display, false, DisplayCheckingStyle.CASE_INSENSITIVE);
+          if (hdDef.found) {
             m = this.worker.i18n.translate('NO_VALID_DISPLAY_FOUND_NONE_FOR_LANG_OK', this.params.HTTPLanguages, [c.display, c.system, c.code, this.params.langSummary(), ds]);
             mid = 'NO_VALID_DISPLAY_FOUND_NONE_FOR_LANG_OK';
             severity = 'information';
