@@ -17,6 +17,7 @@ class PublisherModule {
     this.logger = null;
     this.taskProcessor = null;
     this.isProcessing = false;
+    this.activeTaskIds = new Set();
     this.shutdownRequested = false;
     this.stats = stats;
   }
@@ -308,13 +309,19 @@ class PublisherModule {
       if (this.shutdownRequested) return;
 
       if (this.isProcessing) {
+        // A publication can legitimately run for longer than an hour (go-publish on a
+        // large IG), so never reset isProcessing while a task is in flight — doing so
+        // lets the poller start a second, concurrent run of the same task, which then
+        // fails on 'ig-registry already exists' and stomps the real run's status.
+        // Recovery from a genuinely hung IG Publisher is handled by the
+        // igPublisherTimeoutMinutes kill in runIgPublisher/runPublisherGoPublish.
         const stuckMs = this.isProcessingStarted ? Date.now() - this.isProcessingStarted : 0;
-        if (stuckMs > 60 * 60 * 1000) {
-          this.logger.warn('Task processor appears stuck (' + Math.round(stuckMs / 60000) + ' min) — resetting');
-          this.isProcessing = false;
-        } else {
-          return;
+        const warnAfterMs = ((this.config.igPublisherTimeoutMinutes || 60) + 30) * 60 * 1000;
+        if (stuckMs > warnAfterMs) {
+          this.logger.warn('Task processor still busy after ' + Math.round(stuckMs / 60000) + ' min (tasks: ' +
+            Array.from(this.activeTaskIds).join(', ') + ') — possible hang, not starting new work');
         }
+        return;
       }
 
       await this.processNextTask();
@@ -325,10 +332,14 @@ class PublisherModule {
     this.isProcessing = true;
     this.isProcessingStarted = Date.now();
 
+    let claimedTaskId = null;
     try {
       // Look for queued tasks first (draft builds)
       let task = await this.getNextQueuedTask();
       if (task) {
+        if (this.activeTaskIds.has(task.id)) return; // already being processed
+        claimedTaskId = task.id;
+        this.activeTaskIds.add(task.id);
         this.stats.task('Publisher', 'Building ' + task.npm_package_id + '#' + task.version);
         await this.processDraftBuild(task);
         this.stats.taskDone('Publisher', 'Built ' + task.npm_package_id + '#' + task.version);
@@ -338,6 +349,9 @@ class PublisherModule {
       // Then look for approved tasks (publishing)
       task = await this.getNextApprovedTask();
       if (task) {
+        if (this.activeTaskIds.has(task.id)) return; // already being processed
+        claimedTaskId = task.id;
+        this.activeTaskIds.add(task.id);
         this.stats.task('Publisher', 'Publishing ' + task.npm_package_id + '#' + task.version);
         await this.processPublication(task);
         this.stats.taskDone('Publisher', 'Published ' + task.npm_package_id + '#' + task.version);
@@ -349,6 +363,9 @@ class PublisherModule {
       this.logger.error('Error in task processor:', error);
       this.stats.taskError('Publisher', 'Error: ' + error.message);
     } finally {
+      if (claimedTaskId !== null) {
+        this.activeTaskIds.delete(claimedTaskId);
+      }
       this.isProcessing = false;
     }
   }
@@ -390,6 +407,9 @@ class PublisherModule {
       fields.push('waiting_approval_at = CURRENT_TIMESTAMP');
     } else if (status === 'complete') {
       fields.push('completed_at = CURRENT_TIMESTAMP');
+      // A successful completion invalidates any earlier failure (e.g. from a
+      // superseded duplicate run) — don't let a stale message outlive success.
+      fields.push('failure_reason = NULL');
     } else if (status === 'failed') {
       fields.push('failed_at = CURRENT_TIMESTAMP');
     }
@@ -405,6 +425,28 @@ class PublisherModule {
     return new Promise((resolve, reject) => {
       this.db.run(
           'UPDATE tasks SET ' + fields.join(', ') + ' WHERE id = ?',
+          values,
+          (err) => {
+            if (err) reject(err);
+            else resolve();
+          }
+      );
+    });
+  }
+
+  // Update arbitrary task fields WITHOUT touching status. Use this from long-running
+  // work (e.g. saving the announcement mid-publication) — writing back the in-memory
+  // task.status can resurrect a stale status and cause the poller to re-run the task.
+  async updateTaskFields(taskId, fields) {
+    const keys = Object.keys(fields);
+    if (keys.length === 0) return;
+    const assignments = keys.map(key => key + ' = ?');
+    const values = keys.map(key => fields[key]);
+    values.push(taskId);
+
+    return new Promise((resolve, reject) => {
+      this.db.run(
+          'UPDATE tasks SET ' + assignments.join(', ') + ' WHERE id = ?',
           values,
           (err) => {
             if (err) reject(err);
@@ -814,7 +856,7 @@ class PublisherModule {
     if (fs.existsSync(announcementPath)) {
       try {
         const announcement = fs.readFileSync(announcementPath, 'utf8');
-        await this.updateTaskStatus(task.id, task.status, { announcement: announcement });
+        await this.updateTaskFields(task.id, { announcement: announcement });
         await this.logTaskMessage(task.id, 'info', 'Announcement text saved (' + announcement.length + ' chars)');
       } catch (err) {
         await this.logTaskMessage(task.id, 'warn', 'Failed to read announcement file: ' + err.message);
