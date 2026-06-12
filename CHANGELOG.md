@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v0.9.7] - 2026-06-12
+
+### Added
+
+- Support for tx modele to load resources directly 
+- Missing overwork protection processing ECL
+
+### Fixed
+
+- Fix bug validating secondary displays across languages
+- Fix CORS issue (double headers)
+- Fix czech code in snomed import
+- Many minor validation fixes
+- ECL processing bugs
+- Publishing: better logging, and fix timeout & restart error
+
+### Tx Conformance Statement
+
+FHIRsmith passed all 2503 HL7 terminology service tests (modes tx.fhir.org+omop+general+snomed, tests v1.9.1, runner v6.9.10)
+
 ## [v0.9.6] - 2026-05-21
 
 ### Added
