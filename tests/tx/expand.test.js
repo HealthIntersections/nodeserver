@@ -7,6 +7,18 @@
 const request = require('supertest');
 const { getTestApp, shutdownTestApp } = require('./setup');
 
+// Caches must be created explicitly via $cache-control before a cache-id can be
+// referenced. Returns the server-issued id.
+async function startCache(app) {
+  const res = await request(app)
+    .post('/tx/r5/$cache-control')
+    .query({ mode: 'start' })
+    .set('Content-Type', 'application/json')
+    .send({ resourceType: 'Parameters', parameter: [] });
+  const p = (res.body.parameter || []).find(x => x.name === 'cache-id');
+  return p ? p.valueId : undefined;
+}
+
 describe('Expand Worker', () => {
   let app;
 
@@ -288,7 +300,7 @@ describe('Expand Worker', () => {
     });
 
     test('should cache tx-resource with cache-id and reuse in subsequent request', async () => {
-      const cacheId = 'test-cache-colors-' + Date.now();
+      const cacheId = await startCache(app);
 
       // First request: submit CodeSystem with cache-id
       const response1 = await request(app)
@@ -343,6 +355,55 @@ describe('Expand Worker', () => {
       // The second expansion should work because CodeSystem is cached
       // expect(response2.body.expansion.contains).toHaveLength(2);
       // expect(response2.body.expansion.contains.map(c => c.code)).toEqual(['red', 'blue']);
+    });
+
+    test('should cache the primary valueSet under cache-id and resolve it by url', async () => {
+      // Regression for the cache-id protocol gap: fhir-core registers the *primary*
+      // ValueSet by sending it inline as the `valueSet` parameter on the first call,
+      // then on later calls refers to it by url alone with the same cache-id. The
+      // server must retain that primary ValueSet, otherwise the by-url follow-up
+      // fails with "value set could not be found".
+      const cacheId = await startCache(app);
+
+      // First request: primary ValueSet sent inline as `valueSet`, plus the
+      // CodeSystem it needs as tx-resource, both under the cache-id.
+      // NB: cache-id is sent as `valueId` here, exactly as fhir-core sends it
+      // (IdType). getParameterValue must understand valueId or the cache-id is
+      // read as null and the whole protocol silently no-ops.
+      const response1 = await request(app)
+        .post('/tx/r5/ValueSet/$expand')
+        .set('Accept', 'application/json')
+        .set('Content-Type', 'application/json')
+        .send({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: 'cache-id', valueId: cacheId },
+            { name: 'tx-resource', resource: testCodeSystem },
+            { name: 'valueSet', resource: testValueSet }
+          ]
+        });
+
+      expect(response1.status).toBe(200);
+      expect(response1.body.resourceType).toBe('ValueSet');
+
+      // Second request: refer to the primary ValueSet by url only, same cache-id,
+      // with neither the valueSet nor the CodeSystem re-sent. Both must come from
+      // the cache. Before the fix this returned 422 "could not be found".
+      const response2 = await request(app)
+        .post('/tx/r5/ValueSet/$expand')
+        .set('Accept', 'application/json')
+        .set('Content-Type', 'application/json')
+        .send({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: 'cache-id', valueId: cacheId },
+            { name: 'url', valueString: testValueSet.url }
+          ]
+        });
+
+      expect(response2.status).toBe(200);
+      expect(response2.body.resourceType).toBe('ValueSet');
+      expect(response2.body.expansion).toBeDefined();
     });
 
     test('should fail without cache-id when CodeSystem not provided', async () => {

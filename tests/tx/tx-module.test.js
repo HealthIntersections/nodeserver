@@ -83,6 +83,33 @@ describe('TX Module', () => {
       expect(opNames).toContain('validate-code');
       expect(opNames).toContain('subsumes');
     });
+
+    test('advertises the $cache-control operation at the system level', async () => {
+      const response = await request(app)
+        .get('/tx/r5/metadata')
+        .set('Accept', 'application/json');
+      expect(response.status).toBe(200);
+
+      const rest = response.body.rest[0];
+      const systemOps = (rest.operation || []).map(o => o.name);
+      expect(systemOps).toContain('cache-control');
+      const cc = rest.operation.find(o => o.name === 'cache-control');
+      expect(cc.definition).toBe('http://hl7.org/fhir/tools/OperationDefinition/cache-control');
+    });
+
+    test('does NOT advertise cache-id as an expansion parameter (old implicit protocol retired)', async () => {
+      const response = await request(app)
+        .get('/tx/r5/metadata')
+        .query({ mode: 'terminology' })
+        .set('Accept', 'application/json');
+      expect(response.status).toBe(200);
+      expect(response.body.resourceType).toBe('TerminologyCapabilities');
+
+      const expansionParams = ((response.body.expansion || {}).parameter || []).map(p => p.name);
+      expect(expansionParams).not.toContain('cache-id');
+      // tx-resource is still supported and still advertised
+      expect(expansionParams).toContain('tx-resource');
+    });
   });
 
   describe('GET /tx/r5/', () => {

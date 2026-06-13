@@ -20,6 +20,30 @@ class ConceptMap extends CanonicalResource {
     this.jsonObj = conceptMapToR5(jsonObj, fhirVersion);
     this.validate();
     this.id = this.jsonObj.id;
+    // Precalculated at construction so callers (e.g. the resource cache) have a
+    // cheap O(1) sense of how large this resource is.
+    this._conceptCount = ConceptMap._countConcepts(this.jsonObj);
+  }
+
+  /**
+   * Number of concept nodes this ConceptMap carries: every source `element` plus
+   * every `target` across all groups (each is a coded node, so this approximates
+   * the resource's size). Precalculated at construction time.
+   * @returns {number}
+   */
+  conceptCount() {
+    return this._conceptCount;
+  }
+
+  static _countConcepts(jsonObj) {
+    let n = 0;
+    for (const g of ((jsonObj && jsonObj.group) || [])) {
+      for (const e of (g.element || [])) {
+        n++;
+        n += Array.isArray(e.target) ? e.target.length : 0;
+      }
+    }
+    return n;
   }
 
   /**

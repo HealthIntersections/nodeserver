@@ -4,7 +4,7 @@
     <canvas id="memoryChart" height="200"></canvas>
   </div>
   <div style="flex: 1;">
-    <h6>Cache</h6>
+    <h6>Expansion Cache</h6>
     <canvas id="cacheChart" height="200"></canvas>
   </div>
   <div style="flex: 1;">
@@ -18,8 +18,8 @@
     <canvas id="requestChart" height="200"></canvas>
   </div>
   <div style="flex: 1;">
-    <h6>CPU Usage (%)</h6>
-    <canvas id="cpuChart" height="200"></canvas>
+    <h6>Client Cache</h6>
+    <canvas id="clientCacheChart" height="200"></canvas>
   </div>
   <div style="flex: 1;">
     <h6>Node Blocking</h6>
@@ -99,13 +99,13 @@
     }
   });
 
-  // Cache chart
+  // Expansion cache chart
   new Chart(document.getElementById('cacheChart'), {
     type: 'line',
     data: {
       labels: historyData.map(d => formatTime(d.time)),
       datasets: [{
-        data: historyData.map(d => d.cache),
+        data: historyData.map(d => d.expansion),
         borderColor: '#7b7b7b',
         backgroundColor: 'rgba(123, 123, 123, 0.1)',
         fill: true,
@@ -121,7 +121,7 @@
           ...chartOptions.scales.y,
           title: {
             display: true,
-            text: '# cached items'
+            text: 'Expansion cache # items'
           }
         }
       }
@@ -158,13 +158,13 @@
     }
   });
 
-  // CPU chart
-  new Chart(document.getElementById('cpuChart'), {
+  // Client cache concepts chart
+  new Chart(document.getElementById('clientCacheChart'), {
     type: 'line',
     data: {
       labels: historyData.map(d => formatTime(d.time)),
       datasets: [{
-        data: historyData.map(d => parseFloat(formatMB(d.cpu))),
+        data: historyData.map(d => d.clientConcepts),
         borderColor: '#ff7b00',
         backgroundColor: 'rgba(255, 123, 0, 0.1)',
         fill: true,
@@ -180,7 +180,7 @@
           ...chartOptions.scales.y,
           title: {
             display: true,
-            text: '%'
+            text: 'Client Cache # concepts'
           }
         }
       }

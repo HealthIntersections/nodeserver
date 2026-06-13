@@ -267,6 +267,7 @@ class MetadataHandler {
             { name: 'translate', definition: 'http://hl7.org/fhir/OperationDefinition/ConceptMap-translate' },
             { name: 'closure', definition: 'http://hl7.org/fhir/OperationDefinition/ConceptMap-closure' },
             { name: 'related', definition: 'https://raw.githubusercontent.com/HealthIntersections/FHIRsmith/refs/heads/main/tx/data/OperationDefinition-ValueSet-related.json' },
+            { name: 'cache-control', definition: 'http://hl7.org/fhir/tools/OperationDefinition/cache-control' },
             { name: 'versions', definition: 'http://hl7.org/fhir/OperationDefinition/fhir-versions' }
           ]
         }
@@ -395,10 +396,14 @@ class MetadataHandler {
   buildExpansionCapabilities() {
     return {
       parameter: [
-        {
-          name: 'cache-id',
-          documentation: 'This server supports caching terminology resources between calls. Clients only need to send value sets and codesystems once; thereafter they are automatically in scope for calls with the same cache-id. The cache is retained for 30 min from last call'
-        },
+        // NOTE: `cache-id` is deliberately not advertised as an expansion parameter.
+        // Caching is now discovered via the $cache-control operation in the
+        // CapabilityStatement, not by advertising a cache-id parameter here. The old
+        // advertisement implied the implicit "auto-create on first sight" protocol,
+        // which has been replaced: a cache must be created explicitly with
+        // $cache-control?mode=start before its cache-id can be used. Clients that
+        // only know the old mechanism will see no cache-id parameter and simply not
+        // cache (inlining each request), which is correct, just not optimised.
         {
           name: 'tx-resource',
           documentation: 'Additional valuesets needed for evaluation e.g. value sets referred to from the import statement of the value set being expanded'

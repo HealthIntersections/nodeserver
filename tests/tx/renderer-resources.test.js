@@ -236,3 +236,50 @@ describe('displayDate remains lenient (separate from resource validation)', () =
     expect(renderer.displayDate('2024-13-45')).toBe('2024-13-45');
   });
 });
+
+// ─── Parameters primitive value rendering (valueId etc.) ─────────────────────
+
+describe('Parameters value rendering covers id-family primitives', () => {
+  test('valueId is rendered, not shown as (empty) - the cache-id case', async () => {
+    const html = await txHtml.renderParameters({
+      resourceType: 'Parameters',
+      parameter: [{ name: 'cache-id', valueId: '70995493-fd31-477e-b570-e0a2b3275bb5' }]
+    });
+    expect(html).toContain('70995493-fd31-477e-b570-e0a2b3275bb5');
+    expect(html).not.toContain('(empty)');
+  });
+
+  test('renders the other id-family / numeric primitives', async () => {
+    const cases = [
+      { name: 'oid', valueOid: 'urn:oid:1.2.3' , expect: 'urn:oid:1.2.3' },
+      { name: 'uuid', valueUuid: 'urn:uuid:abc', expect: 'urn:uuid:abc' },
+      { name: 'i64', valueInteger64: '9007199254740993', expect: '9007199254740993' },
+      { name: 'pos', valuePositiveInt: 5, expect: '5' },
+      { name: 'uns', valueUnsignedInt: 0, expect: '0' }
+    ];
+    for (const c of cases) {
+      const html = await txHtml.renderParameters({ resourceType: 'Parameters', parameter: [c] });
+      expect(html).toContain(c.expect);
+      expect(html).not.toContain('(empty)');
+    }
+  });
+
+  test('valueMarkdown is rendered as HTML (consistent with the rest of the server)', async () => {
+    const html = await txHtml.renderParameters({
+      resourceType: 'Parameters',
+      parameter: [{ name: 'doc', valueMarkdown: 'see **the docs** for details' }]
+    });
+    // The rendered table cell contains real HTML (the JSON-source block below the
+    // table still echoes the raw markdown, so we only assert the rendered form).
+    expect(html).toContain('<strong>the docs</strong>');
+    expect(html).not.toContain('(empty)');
+  });
+
+  test('valueMarkdown rendering is XSS-safe (raw HTML escaped)', async () => {
+    const html = await txHtml.renderParameters({
+      resourceType: 'Parameters',
+      parameter: [{ name: 'doc', valueMarkdown: 'hi <script>alert(1)</script>' }]
+    });
+    expect(html).not.toContain('<script>alert(1)</script>');
+  });
+});

@@ -471,6 +471,33 @@ class TxHtmlRenderer {
     if (param.valueCode !== undefined) {
       return `<code>${escape(param.valueCode)}</code>`;
     }
+    if (param.valueId !== undefined) {
+      return escape(String(param.valueId));
+    }
+    if (param.valueOid !== undefined) {
+      return escape(String(param.valueOid));
+    }
+    if (param.valueUuid !== undefined) {
+      return escape(String(param.valueUuid));
+    }
+    if (param.valueMarkdown !== undefined) {
+      // Render markdown to HTML the same way the rest of the server does, using
+      // commonmark in safe mode (raw HTML in the markdown is escaped, so this is
+      // XSS-safe).
+      const commonmark = require('commonmark');
+      const reader = new commonmark.Parser();
+      const writer = new commonmark.HtmlRenderer({ safe: true });
+      return writer.render(reader.parse(String(param.valueMarkdown)));
+    }
+    if (param.valueInteger64 !== undefined) {
+      return escape(String(param.valueInteger64));
+    }
+    if (param.valuePositiveInt !== undefined) {
+      return escape(String(param.valuePositiveInt));
+    }
+    if (param.valueUnsignedInt !== undefined) {
+      return escape(String(param.valueUnsignedInt));
+    }
     if (param.valueDate !== undefined) {
       return escape(param.valueDate);
     }

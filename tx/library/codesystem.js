@@ -42,6 +42,37 @@ class CodeSystem extends CanonicalResource {
       }
       this.buildMaps();
     }
+    // Precalculated at construction so callers (e.g. the resource cache) have a
+    // cheap O(1) sense of how large this resource is.
+    this._conceptCount = CodeSystem._countConcepts(this.jsonObj.concept);
+  }
+
+  /**
+   * Number of concepts defined in this CodeSystem, counted recursively (nested
+   * concepts included). Precalculated at construction time.
+   * @returns {number}
+   */
+  conceptCount() {
+    return this._conceptCount;
+  }
+
+  /**
+   * Recursively count concepts (including nested `concept` children).
+   * @param {Array} concepts
+   * @returns {number}
+   */
+  static _countConcepts(concepts) {
+    if (!Array.isArray(concepts)) {
+      return 0;
+    }
+    let n = 0;
+    for (const c of concepts) {
+      n++;
+      if (c && c.concept) {
+        n += CodeSystem._countConcepts(c.concept);
+      }
+    }
+    return n;
   }
 
   /**
