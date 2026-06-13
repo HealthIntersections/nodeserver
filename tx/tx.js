@@ -27,6 +27,7 @@ const LookupWorker = require('./workers/lookup');
 const SubsumesWorker = require('./workers/subsumes');
 const { MetadataHandler } = require('./workers/metadata');
 const { BatchValidateWorker } = require('./workers/batch-validate');
+const { CacheControlWorker } = require('./workers/cache-control');
 const {CapabilityStatementXML} = require("./xml/capabilitystatement-xml");
 const {TerminologyCapabilitiesXML} = require("./xml/terminologycapabilities-xml");
 const {ParametersXML} = require("./xml/parameters-xml");
@@ -655,6 +656,26 @@ class TXModule {
       }
     });
 
+    // $cache-control (GET and POST) - base-level operation: mode=start|end
+    router.get('/\\$cache-control', async (req, res) => {
+      const start = Date.now();
+      try {
+        let worker = new CacheControlWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        await worker.handle(req, res, this.log);
+      } finally {
+        this.countRequest('$cache-control', Date.now() - start);
+      }
+    });
+    router.post('/\\$cache-control', async (req, res) => {
+      const start = Date.now();
+      try {
+        let worker = new CacheControlWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        await worker.handle(req, res, this.log);
+      } finally {
+        this.countRequest('$cache-control', Date.now() - start);
+      }
+    });
+
     // ConceptMap/$translate (GET and POST)
     router.get('/ConceptMap/\\$translate', async (req, res) => {
       const start = Date.now();
@@ -1177,10 +1198,46 @@ class TXModule {
     }
   }
 
-  cacheCount() {
+  // Number of entries in the expansion cache, summed across endpoints.
+  expansionItemCount() {
     let count = 0;
     for (let ep of this.endpoints) {
-      count = count + ep.resourceCache.size() + ep.expansionCache.size();
+      count = count + ep.expansionCache.size();
+    }
+    return count;
+  }
+
+  // Number of concepts held in the client (resource) cache, summed across endpoints.
+  clientConceptCount() {
+    let count = 0;
+    for (let ep of this.endpoints) {
+      count = count + ep.resourceCache.conceptCount();
+    }
+    return count;
+  }
+
+  // Number of caches (cache-ids) currently held in the client cache, across endpoints.
+  clientCacheCount() {
+    let count = 0;
+    for (let ep of this.endpoints) {
+      count = count + ep.resourceCache.size();
+    }
+    return count;
+  }
+
+  // High-water marks for the client cache, summed across endpoints.
+  maxClientCacheCount() {
+    let count = 0;
+    for (let ep of this.endpoints) {
+      count = count + ep.resourceCache.maxSize();
+    }
+    return count;
+  }
+
+  maxClientConceptCount() {
+    let count = 0;
+    for (let ep of this.endpoints) {
+      count = count + ep.resourceCache.maxConceptCount();
     }
     return count;
   }

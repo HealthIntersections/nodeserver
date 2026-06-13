@@ -36,24 +36,26 @@ class ServerStats {
         : (now - this.startTime) / 60000;
       const requestsPerMin = minutesSinceStart > 0 ? requestsDelta / minutesSinceStart : 0;
 
-      const currentCpu = this.readSystemCpu();
-      const idleDelta = currentCpu.idle - this.lastUsage.idle;
-      const totalDelta = currentCpu.total - this.lastUsage.total;
-      const percent = totalDelta > 0 ? 100 * (1 - idleDelta / totalDelta) : 0;
-
       const loopDelay = this.eventLoopMonitor.mean / 1e6;
-      let cacheCount = 0;
+      // Two distinct caches: the expansion cache (count entries) and the client
+      // (resource) cache (count concepts held - a sense of how much it's carrying).
+      let expansionItems = 0;
+      let clientConcepts = 0;
       for (let m of this.cachingModules) {
-        cacheCount = cacheCount + m.cacheCount();
+        if (typeof m.expansionItemCount === 'function') {
+          expansionItems = expansionItems + m.expansionItemCount();
+        }
+        if (typeof m.clientConceptCount === 'function') {
+          clientConcepts = clientConcepts + m.clientConceptCount();
+        }
       }
 
-      this.history.push({time: now, mem: currentMem - this.startMem, rpm: requestsPerMin, tat: requestsTat, cpu: percent, block: loopDelay, cache : cacheCount});
+      this.history.push({time: now, mem: currentMem - this.startMem, rpm: requestsPerMin, tat: requestsTat, block: loopDelay, expansion: expansionItems, clientConcepts: clientConcepts});
 
       this.eventLoopMonitor.reset();
       this.requestCountSnapshot = combinedCount;
       this.requestTime = 0;
       this.lastTime = now;
-      this.lastUsage = currentCpu;
 
       // Prune old data (keep 24 hours)
       const cutoff = now - (24 * 60 * 60 * 1000); // 24 hours ago
@@ -65,7 +67,6 @@ class ServerStats {
     this.started = true;
     this.startMem = process.memoryUsage().heapUsed;
     this.startTime = Date.now();
-    this.lastUsage = this.readSystemCpu();
     this.lastTime = this.startTime;
     this.eventLoopMonitor = monitorEventLoopDelay({ resolution: 20 });
     this.eventLoopMonitor.enable();
@@ -141,16 +142,23 @@ class ServerStats {
     clearInterval(this.timer);
   }
 
-  readSystemCpu() {
-    const os = require('os');
-    const cpus = os.cpus();
-    let idle = 0, total = 0;
-    for (const cpu of cpus) {
-      idle += cpu.times.idle;
-      total += cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.idle + cpu.times.irq;
+  // Live cache aggregates across all registered caching modules (defensive: a
+  // module that doesn't expose a given metric contributes 0).
+  _sumCachingModules(method) {
+    let total = 0;
+    for (let m of this.cachingModules) {
+      if (typeof m[method] === 'function') {
+        total = total + m[method]();
+      }
     }
-    return { idle, total };
+    return total;
   }
+
+  expansionItems() { return this._sumCachingModules('expansionItemCount'); }
+  clientCaches() { return this._sumCachingModules('clientCacheCount'); }
+  clientConcepts() { return this._sumCachingModules('clientConceptCount'); }
+  maxClientCaches() { return this._sumCachingModules('maxClientCacheCount'); }
+  maxClientConcepts() { return this._sumCachingModules('maxClientConceptCount'); }
 
   getTaskColor(status) {
     switch (status) {

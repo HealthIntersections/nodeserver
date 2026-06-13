@@ -430,6 +430,11 @@ async function buildRootPageContent() {
   content += `<td style="background-color:${pctColor(processPCT)}"><strong>Process Memory:</strong> ${rssMB} MB of ${memLimitMB} MB (${processPCT.toFixed(0)}%)</td>`;
   content += `<td style="background-color:${pctColor(sysMemPCT)}"><strong>System Memory:</strong> ${usedMemMB} MB of ${totalMemMB} MB (${sysMemPCT.toFixed(0)}%)</td>`;
   content += '</tr>';
+  content += '<tr>';
+  content += `<td><strong>Expansion Cache:</strong> ${stats.expansionItems()} items</td>`;
+  content += `<td><strong>Client Cache:</strong> ${stats.clientCaches()} caches / ${stats.clientConcepts()} concepts</td>`;
+  content += `<td><strong>Max Client Cache:</strong> ${stats.maxClientCaches()} caches / ${stats.maxClientConcepts()} concepts</td>`;
+  content += '</tr>';
   content += getLogStats();
   content += '</table>';
 

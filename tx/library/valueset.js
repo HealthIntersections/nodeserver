@@ -25,6 +25,52 @@ class ValueSet extends CanonicalResource {
     this.jsonObj = valueSetToR5(jsonObj, fhirVersion);
     this.validate();
     this.buildMaps();
+    // Precalculated at construction so callers (e.g. the resource cache) have a
+    // cheap O(1) sense of how large this resource is.
+    this._conceptCount = ValueSet._countConcepts(this.jsonObj);
+  }
+
+  /**
+   * Number of concepts this ValueSet carries: the enumerated concepts in its
+   * compose (include + exclude `concept` lists) plus any concepts in an inline
+   * expansion (`expansion.contains`, counted recursively). Note this counts the
+   * concepts *present in the resource*, not the (possibly unbounded) size of the
+   * value set's full expansion. Precalculated at construction time.
+   * @returns {number}
+   */
+  conceptCount() {
+    return this._conceptCount;
+  }
+
+  static _countConcepts(jsonObj) {
+    let n = 0;
+    const compose = jsonObj && jsonObj.compose;
+    if (compose) {
+      for (const inc of (compose.include || [])) {
+        n += Array.isArray(inc.concept) ? inc.concept.length : 0;
+      }
+      for (const exc of (compose.exclude || [])) {
+        n += Array.isArray(exc.concept) ? exc.concept.length : 0;
+      }
+    }
+    if (jsonObj && jsonObj.expansion) {
+      n += ValueSet._countContains(jsonObj.expansion.contains);
+    }
+    return n;
+  }
+
+  static _countContains(items) {
+    if (!Array.isArray(items)) {
+      return 0;
+    }
+    let n = 0;
+    for (const it of items) {
+      n++;
+      if (it && it.contains) {
+        n += ValueSet._countContains(it.contains);
+      }
+    }
+    return n;
   }
 
   /**

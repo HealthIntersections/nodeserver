@@ -8,6 +8,12 @@ const {Languages} = require("../../library/languages");
 const {ConceptMap} = require("../library/conceptmap");
 const {Renderer} = require("../library/renderer");
 
+// The cache-id travels as an HTTP header (not an operation parameter) so proxies /
+// load-balancers can act on it and the server can reject it before parsing the body.
+// Defined here (the base worker) so both the worker and cache-control share one
+// source of truth without a circular require. Express lower-cases header names.
+const CACHE_ID_HEADER = 'x-cache-id';
+
 /**
  * Custom error for terminology setup issues
  */
@@ -121,7 +127,11 @@ class TerminologyWorker {
           latest = i;
         }
       }
-      return matches[latest];
+      const found = matches[latest];
+      if (this.additionalResourcesCacheId && this.log) {
+        this.log.info(`cache-id '${this.additionalResourcesCacheId}': using cached ${found.resourceType} ${found.url}${found.version ? '|' + found.version : ''} for lookup of ${url}${version ? '|' + version : ''}`);
+      }
+      return found;
     }
   }
 
@@ -487,48 +497,73 @@ class TerminologyWorker {
    * @returns {Object} Parameters resource
    */
   buildParameters(req) {
+    let params;
+
     // If POST with Parameters resource, use directly
     if (req.method === 'POST' && req.body && req.body.resourceType === 'Parameters') {
-      return req.body;
-    }
-    if (req.method === 'POST' && req.body && req.body.resourceType) {
+      params = req.body;
+    } else if (req.method === 'POST' && req.body && req.body.resourceType) {
       let langs = this.languages.parse(req.headers['accept-language']);
       throw new Issue('error', 'invalid', null, 'Wrong_type_for_resource_expected', this.i18n.translate('Wrong_type_for_resource_expected', langs, ["Parameters", req.body.resourceType])).handleAsOO(400);
-    }
+    } else {
+      // Convert query params or form body to Parameters
+      const source = req.method === 'POST' ? {...req.query, ...req.body} : req.query;
+      params = {
+        resourceType: 'Parameters',
+        parameter: []
+      };
 
-    // Convert query params or form body to Parameters
-    const source = req.method === 'POST' ? {...req.query, ...req.body} : req.query;
-    const params = {
-      resourceType: 'Parameters',
-      parameter: []
-    };
+      for (const [name, value] of Object.entries(source)) {
+        if (value === undefined || value === null) continue;
 
-    for (const [name, value] of Object.entries(source)) {
-      if (value === undefined || value === null) continue;
-
-      if (Array.isArray(value)) {
-        // Repeating parameter
-        for (const v of value) {
-          params.parameter.push({name, valueString: String(v)});
-        }
-      } else if (typeof value === 'object') {
-        // Could be a resource or complex type - check resourceType
-        if (value.resourceType) {
-          params.parameter.push({name, resource: value});
+        if (Array.isArray(value)) {
+          // Repeating parameter
+          for (const v of value) {
+            params.parameter.push({name, valueString: String(v)});
+          }
+        } else if (typeof value === 'object') {
+          // Could be a resource or complex type - check resourceType
+          if (value.resourceType) {
+            params.parameter.push({name, resource: value});
+          } else {
+            // Assume it's a complex type like Coding or CodeableConcept
+            params.parameter.push(this.buildComplexParameter(name, value));
+          }
+        } else if (value == 'true') {
+          params.parameter.push({name, valueBoolean: true});
+        } else if (value == 'false') {
+          params.parameter.push({name, valueBoolean: false});
         } else {
-          // Assume it's a complex type like Coding or CodeableConcept
-          params.parameter.push(this.buildComplexParameter(name, value));
+          params.parameter.push({name, valueString: String(value)});
         }
-      } else if (value == 'true') {
-        params.parameter.push({name, valueBoolean: true});
-      } else if (value == 'false') {
-        params.parameter.push({name, valueBoolean: false});
-      } else {
-        params.parameter.push({name, valueString: String(value)});
       }
     }
 
+    this.applyCacheIdHeader(req, params);
     return params;
+  }
+
+  /**
+   * Normalise the cache-id from the `${CACHE_ID_HEADER}` header into a `cache-id`
+   * parameter, so all downstream code can read the cache-id the same way whether
+   * the client sent it as a header (the going-forward mechanism) or, for now, still
+   * as a parameter. If a cache-id parameter is already present it is left as-is, so
+   * an explicit parameter wins and there's no surprising override.
+   * @param {express.Request} req
+   * @param {Object} params - Parameters resource (mutated in place)
+   */
+  applyCacheIdHeader(req, params) {
+    const headerVal = req && req.headers ? req.headers[CACHE_ID_HEADER] : null;
+    if (!headerVal) {
+      return;
+    }
+    if (!params.parameter) {
+      params.parameter = [];
+    }
+    if (params.parameter.some(p => p.name === 'cache-id')) {
+      return;
+    }
+    params.parameter.push({ name: 'cache-id', valueId: String(headerVal) });
   }
 
   /**
@@ -559,36 +594,79 @@ class TerminologyWorker {
   // ========== Additional Resources Handling ==========
 
   /**
+   * Collect the resources supplied inline in a Parameters resource: the
+   * `tx-resource` parameters, and the primary `valueSet`/`codeSystem` parameters.
+   *
+   * The primary resource is collected separately because the cache-id protocol
+   * needs it retained too: fhir-core sends the main ValueSet as `valueSet` (not
+   * `tx-resource`), so if it isn't cached, a later by-reference call can't resolve
+   * it ("value set ... could not be found"). A primary resource is only usable by
+   * reference if it has a url to key on, so url-less ones are skipped.
+   *
+   * @param {Object} params - Parameters resource
+   * @returns {{txResources: Array, primaryResources: Array}} wrapped resources
+   */
+  collectSuppliedResources(params) {
+    const txResources = [];
+    const primaryResources = [];
+    if (!params || !params.parameter) {
+      return { txResources, primaryResources };
+    }
+    for (const param of params.parameter) {
+      this.deadCheck('collectSuppliedResources');
+      if (param.name === 'tx-resource' && param.resource) {
+        const res = this.wrapRawResource(param.resource);
+        if (res) {
+          txResources.push(res);
+        }
+      } else if ((param.name === 'valueSet' || param.name === 'codeSystem') && param.resource && param.resource.url) {
+        const res = this.wrapRawResource(param.resource);
+        if (res) {
+          primaryResources.push(res);
+        }
+      }
+    }
+    return { txResources, primaryResources };
+  }
+
+  /**
    * Set up additional resources from tx-resource parameters and cache
    * @param {Object} params - Parameters resource
    */
   setupAdditionalResources(params) {
     if (!params || !params.parameter) return;
 
-    // Collect tx-resource parameters (resources provided inline)
-    const txResources = [];
-    for (const param of params.parameter) {
-      this.deadCheck('setupAdditionalResources');
-      if (param.name === 'tx-resource' && param.resource) {
-        let res = this.wrapRawResource(param.resource);
-        if (res) {
-          txResources.push(res);
-        }
-      }
-    }
+    // Collect the resources supplied inline on this request (tx-resource plus the
+    // primary valueSet/codeSystem). See collectSuppliedResources for why the
+    // primary resource is included.
+    const { txResources, primaryResources } = this.collectSuppliedResources(params);
 
     // Check for cache-id
     const cacheIdParam = this.findParameter(params, 'cache-id');
     const cacheId = cacheIdParam ? this.getParameterValue(cacheIdParam) : null;
 
     if (cacheId && this.opContext.resourceCache) {
-      // Merge tx-resources with cached resources
-      if (txResources.length > 0) {
-        this.opContext.resourceCache.add(cacheId, txResources);
+      // The cache must already exist: caches are created explicitly via
+      // $cache-control?mode=start, which is the only thing that mints a cache-id.
+      // A cache-id the server doesn't know is an unambiguous, server-authoritative
+      // error condition (never created, or expired / released) - report it with a
+      // specific coded issue rather than silently auto-creating a fresh cache and
+      // then failing obscurely later when a by-reference resource can't be found.
+      if (!this.opContext.resourceCache.has(cacheId)) {
+        throw new Issue('error', 'not-found', null, 'CACHE_ID_UNKNOWN',
+          this.i18n.translate('CACHE_ID_UNKNOWN', this.opContext.langs, [cacheId]),
+          'cache-id-unknown', 404);
       }
 
-      // Set additional resources to all resources for this cache-id
+      // The cache exists: merge any resources supplied on this request into it
+      // (incremental population is allowed), then expose the full cache contents.
+      const toCache = txResources.concat(primaryResources);
+      if (toCache.length > 0) {
+        this.opContext.resourceCache.add(cacheId, toCache);
+      }
+
       this.additionalResources = this.opContext.resourceCache.get(cacheId);
+      this.additionalResourcesCacheId = cacheId;
     } else {
       // No cache-id, just use the tx-resources directly
       this.additionalResources = txResources;
@@ -708,7 +786,7 @@ class TerminologyWorker {
     // Check for various value types
     const valueTypes = [
       'valueString', 'valueCode', 'valueUri', 'valueCanonical', 'valueUrl',
-      'valueBoolean', 'valueInteger', 'valueDecimal',
+      'valueBoolean', 'valueInteger', 'valueDecimal', 'valueId',
       'valueDateTime', 'valueDate', 'valueTime',
       'valueCoding', 'valueCodeableConcept',
       'valueIdentifier', 'valueQuantity'
@@ -934,5 +1012,6 @@ class TerminologyWorker {
 
 module.exports = {
   TerminologyWorker,
-  TerminologySetupError
+  TerminologySetupError,
+  CACHE_ID_HEADER
 };

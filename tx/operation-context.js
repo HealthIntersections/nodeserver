@@ -3,6 +3,7 @@ const inspector = require("inspector");
 const crypto = require("crypto");
 const {Languages} = require("../library/languages");
 const {Issue} = require("./library/operation-outcome");
+const Logger = require("../library/logger");
 
 /**
  * Check if running under a debugger
@@ -59,6 +60,37 @@ class ResourceCache {
     this.stats = stats;
     this.cache = new Map();
     this.locks = new Map(); // For thread-safety with async operations
+    this.log = Logger.getInstance().child({module: 'tx-cache'});
+    // Running total of concepts across every resource in every entry, maintained
+    // incrementally on each mutation so cache sizing/limits are O(1) to consult.
+    // Each entry also carries its own `concepts` subtotal so removal/replacement
+    // can adjust the total without rescanning.
+    this.totalConcepts = 0;
+    // High-water marks (never decremented) - the most caches and the most concepts
+    // this cache has held at once, for capacity reporting.
+    this.maxConcepts = 0;
+    this.maxSizeValue = 0;
+  }
+
+  /**
+   * Update the high-water marks after a mutation that may have grown the cache.
+   */
+  _trackMax() {
+    if (this.totalConcepts > this.maxConcepts) {
+      this.maxConcepts = this.totalConcepts;
+    }
+    if (this.cache.size > this.maxSizeValue) {
+      this.maxSizeValue = this.cache.size;
+    }
+  }
+
+  /**
+   * Concept count of a single cached resource, or 0 if it doesn't expose one.
+   * @param {Object} resource
+   * @returns {number}
+   */
+  _conceptsOf(resource) {
+    return resource && typeof resource.conceptCount === 'function' ? resource.conceptCount() : 0;
   }
 
   /**
@@ -70,8 +102,10 @@ class ResourceCache {
     const entry = this.cache.get(cacheId);
     if (entry) {
       entry.lastUsed = Date.now();
+      this.log.info(`cache-id '${cacheId}': hit, returning ${entry.resources.length} resource(s): ${entry.resources.map(r => this._resourceKey(r)).join(', ')}`);
       return [...entry.resources]; // Return a copy
     }
+    this.log.info(`cache-id '${cacheId}': miss (no entry)`);
     return [];
   }
 
@@ -92,22 +126,32 @@ class ResourceCache {
   add(cacheId, resources) {
     if (!resources || resources.length === 0) return;
 
-    const entry = this.cache.get(cacheId) || { resources: [], lastUsed: Date.now() };
+    const entry = this.cache.get(cacheId) || { resources: [], lastUsed: Date.now(), concepts: 0 };
 
-    // Merge resources, avoiding duplicates by url+version
+    // Merge resources, avoiding duplicates by url+version. Keep the entry's concept
+    // subtotal and the cache-wide total in step with each insertion/replacement.
     for (const resource of resources) {
       const key = this._resourceKey(resource);
+      const newConcepts = this._conceptsOf(resource);
       const existingIndex = entry.resources.findIndex(r => this._resourceKey(r) === key);
       if (existingIndex >= 0) {
-        // Replace existing
+        // Replace existing: adjust by the difference
+        const delta = newConcepts - this._conceptsOf(entry.resources[existingIndex]);
         entry.resources[existingIndex] = resource;
+        entry.concepts += delta;
+        this.totalConcepts += delta;
+        this.log.info(`cache-id '${cacheId}': replaced ${key}`);
       } else {
         entry.resources.push(resource);
+        entry.concepts += newConcepts;
+        this.totalConcepts += newConcepts;
+        this.log.info(`cache-id '${cacheId}': added ${key}`);
       }
     }
 
     entry.lastUsed = Date.now();
     this.cache.set(cacheId, entry);
+    this._trackMax();
   }
 
   /**
@@ -116,10 +160,23 @@ class ResourceCache {
    * @param {Array} resources - Resources to set
    */
   set(cacheId, resources) {
+    this.log.info(`cache-id '${cacheId}': set (replace all) with ${resources.length} resource(s): ${resources.map(r => this._resourceKey(r)).join(', ')}`);
+    // Drop the old entry's contribution, then count the replacement.
+    const existing = this.cache.get(cacheId);
+    if (existing) {
+      this.totalConcepts -= existing.concepts || 0;
+    }
+    let concepts = 0;
+    for (const resource of resources) {
+      concepts += this._conceptsOf(resource);
+    }
+    this.totalConcepts += concepts;
     this.cache.set(cacheId, {
       resources: [...resources],
-      lastUsed: Date.now()
+      lastUsed: Date.now(),
+      concepts
     });
+    this._trackMax();
   }
 
   /**
@@ -127,6 +184,10 @@ class ResourceCache {
    * @param {string} cacheId - The cache identifier
    */
   clear(cacheId) {
+    const entry = this.cache.get(cacheId);
+    if (entry) {
+      this.totalConcepts -= entry.concepts || 0;
+    }
     this.cache.delete(cacheId);
   }
 
@@ -135,6 +196,7 @@ class ResourceCache {
    */
   clearAll() {
     this.cache.clear();
+    this.totalConcepts = 0;
   }
 
   /**
@@ -150,6 +212,7 @@ class ResourceCache {
     for (const [cacheId, entry] of this.cache.entries()) {
       if (now - entry.lastUsed > maxAge) {
         i++;
+        this.totalConcepts -= entry.concepts || 0;
         this.cache.delete(cacheId);
       }
     }
@@ -164,6 +227,41 @@ class ResourceCache {
    */
   size() {
     return this.cache.size;
+  }
+
+  /**
+   * Total number of concepts held across every entry in the cache. Maintained
+   * incrementally, so this is O(1).
+   * @returns {number}
+   */
+  conceptCount() {
+    return this.totalConcepts;
+  }
+
+  /**
+   * Highest number of concepts this cache has held at once (high-water mark).
+   * @returns {number}
+   */
+  maxConceptCount() {
+    return this.maxConcepts;
+  }
+
+  /**
+   * Highest number of caches (cache-ids) this cache has held at once.
+   * @returns {number}
+   */
+  maxSize() {
+    return this.maxSizeValue;
+  }
+
+  /**
+   * Number of concepts held under a single cache-id (0 if unknown).
+   * @param {string} cacheId
+   * @returns {number}
+   */
+  conceptCountFor(cacheId) {
+    const entry = this.cache.get(cacheId);
+    return entry ? (entry.concepts || 0) : 0;
   }
 
   /**
