@@ -641,9 +641,17 @@ class TerminologyWorker {
     // primary resource is included.
     const { txResources, primaryResources } = this.collectSuppliedResources(params);
 
-    // Check for cache-id
+    // Check for cache-id. An explicit cache-id *parameter* wins; otherwise fall
+    // back to the cache-id the middleware lifted off the X-Cache-Id header onto
+    // the operation context. This fallback is what makes the header work on the
+    // op paths that don't route their Parameters through buildParameters
+    // (expand, related, batch-validate) or that hand setupAdditionalResources a
+    // raw req.body (lookup) - previously those silently ignored a front-loaded
+    // cache and failed to resolve by-reference resources.
     const cacheIdParam = this.findParameter(params, 'cache-id');
-    const cacheId = cacheIdParam ? this.getParameterValue(cacheIdParam) : null;
+    const cacheId = (cacheIdParam ? this.getParameterValue(cacheIdParam) : null)
+      || (this.opContext ? this.opContext.cacheId : null)
+      || null;
 
     if (cacheId && this.opContext.resourceCache) {
       // The cache must already exist: caches are created explicitly via

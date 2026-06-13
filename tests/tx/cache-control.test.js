@@ -204,4 +204,109 @@ describe('$cache-control routing (scaffolding)', () => {
       .send(emptyBody);
     expect(res.status).toBe(200);
   });
+
+  // ---- header-driven cache use across operations (regression) ----
+  //
+  // The cache-id travels as the X-Cache-Id header. Only the operations whose
+  // Parameters are assembled through buildParameters() used to honour it; the
+  // ones that read req.body / the query string directly (expand, related,
+  // batch-validate) or that handed setupAdditionalResources a raw req.body
+  // (lookup) silently ignored a front-loaded cache and failed to resolve
+  // by-reference resources. The middleware now lifts the header onto the
+  // operation context and setupAdditionalResources falls back to it, so every
+  // operation honours a front-loaded cache from the header alone (no inline
+  // tx-resource, no cache-id parameter).
+  describe('front-loaded cache is honoured from the header alone', () => {
+    const colorsCS = {
+      resourceType: 'CodeSystem',
+      url: 'http://example.org/hdr-test/colors',
+      version: '1.0.0',
+      status: 'active',
+      content: 'complete',
+      concept: [{ code: 'red', display: 'Red' }, { code: 'green', display: 'Green' }]
+    };
+    const colorsVS = {
+      resourceType: 'ValueSet',
+      url: 'http://example.org/hdr-test/colors-vs',
+      version: '1.0.0',
+      status: 'active',
+      compose: { include: [{ system: colorsCS.url }] }
+    };
+
+    async function startCache() {
+      const started = await request(app)
+        .post(BASE)
+        .query({ mode: 'start' })
+        .set('Content-Type', 'application/json')
+        .send({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: 'tx-resource', resource: colorsCS },
+            { name: 'valueSet', resource: colorsVS }
+          ]
+        });
+      return cacheIdFrom(started.body);
+    }
+
+    test('$expand resolves the front-loaded ValueSet by url via the header', async () => {
+      const cacheId = await startCache();
+      const res = await request(app)
+        .post('/tx/r5/ValueSet/$expand')
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [{ name: 'url', valueUri: colorsVS.url }] });
+      expect(res.status).toBe(200);
+      expect(res.body.resourceType).toBe('ValueSet');
+      const codes = ((res.body.expansion || {}).contains || []).map(c => c.code).sort();
+      expect(codes).toEqual(['green', 'red']);
+    });
+
+    test('$lookup resolves the front-loaded CodeSystem via the header', async () => {
+      const cacheId = await startCache();
+      const res = await request(app)
+        .post('/tx/r5/CodeSystem/$lookup')
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: 'system', valueUri: colorsCS.url },
+            { name: 'code', valueCode: 'green' }
+          ]
+        });
+      expect(res.status).toBe(200);
+      const display = (res.body.parameter || []).find(x => x.name === 'display');
+      expect(display && display.valueString).toBe('Green');
+    });
+
+    test('$validate-code resolves the front-loaded ValueSet by url via the header', async () => {
+      const cacheId = await startCache();
+      const res = await request(app)
+        .post('/tx/r5/ValueSet/$validate-code')
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: 'url', valueString: colorsVS.url },
+            { name: 'coding', valueCoding: { system: colorsCS.url, code: 'red' } }
+          ]
+        });
+      expect(res.status).toBe(200);
+      const result = (res.body.parameter || []).find(x => x.name === 'result');
+      expect(result && result.valueBoolean).toBe(true);
+    });
+
+    test('an unknown cache-id in the header is a coded 404 on $expand', async () => {
+      const res = await request(app)
+        .post('/tx/r5/ValueSet/$expand')
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', 'never-issued-this-id')
+        .send({ resourceType: 'Parameters', parameter: [{ name: 'url', valueUri: colorsVS.url }] });
+      expect(res.status).toBe(404);
+      expect(res.body.resourceType).toBe('OperationOutcome');
+      const coding = (((res.body.issue || [])[0] || {}).details || {}).coding || [];
+      expect(coding.some(c => c.code === 'cache-id-unknown')).toBe(true);
+    });
+  });
 });
