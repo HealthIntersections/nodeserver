@@ -535,6 +535,12 @@ class OperationContext {
     this.logEntries = [];
     this.resourceCache = resourceCache;
     this.expansionCache = expansionCache;
+    // Server-issued cache-id carried on the request (X-Cache-Id header). Set once
+    // per request from the header so every worker can consult it uniformly via
+    // setupAdditionalResources, regardless of how that worker assembles its
+    // Parameters (buildParameters, raw req.body, query/form). An explicit
+    // cache-id *parameter* still takes precedence over this.
+    this.cacheId = null;
     this.debugging = isDebugging();
     // Providers opened during this operation that need their underlying
     // resources (sqlite connections, etc.) released when the operation ends.
@@ -568,6 +574,7 @@ class OperationContext {
     newContext.timeTracker = this.timeTracker.link();
     newContext.logEntries = [...this.logEntries];
     newContext.debugging = this.debugging;
+    newContext.cacheId = this.cacheId;
     newContext.usageTracker = this.usageTracker;
     // Share the same provider-cleanup list so providers opened by the copy
     // are released when the parent operation ends.

@@ -297,6 +297,12 @@ class TXModule {
         endpointInfo.resourceCache, endpointInfo.expansionCache
       );
       opContext.usageTracker = this.usageTracker;
+      // Normalise the cache-id from the X-Cache-Id header onto the operation
+      // context once, here, so every worker honours a front-loaded cache no
+      // matter how it later assembles its Parameters (some use buildParameters,
+      // others read req.body / query directly). An explicit cache-id parameter
+      // on the request still wins (see setupAdditionalResources).
+      opContext.cacheId = req.get('X-Cache-Id') || null;
 
       // Attach everything to request
       req.txProvider = endpointInfo.provider;
