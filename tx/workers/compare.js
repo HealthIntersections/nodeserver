@@ -1,11 +1,11 @@
 //
-// Related Worker - Handles ValueSet $related operation
+// Compare Worker - Handles ValueSet $compare operation
 //
-// GET /ValueSet/{id}/$related
-// GET /ValueSet/$related?url=...&version=...
-// POST /ValueSet/$related (form body or Parameters with url)
-// POST /ValueSet/$related (body is ValueSet resource)
-// POST /ValueSet/$related (body is Parameters with valueSet parameter)
+// GET /ValueSet/{id}/$compare
+// GET /ValueSet/$compare?url=...&version=...
+// POST /ValueSet/$compare (form body or Parameters with url)
+// POST /ValueSet/$compare (body is ValueSet resource)
+// POST /ValueSet/$compare (body is Parameters with valueSet parameter)
 //
 
 const { TerminologyWorker } = require('./worker');
@@ -18,7 +18,7 @@ const {SearchFilterText} = require("../library/designations");
 const {ArrayMatcher} = require("../../library/utilities");
 const {debugLog} = require("../operation-context");
 
-class RelatedWorker extends TerminologyWorker {
+class CompareWorker extends TerminologyWorker {
   showLogic = false;
 
   /**
@@ -37,18 +37,18 @@ class RelatedWorker extends TerminologyWorker {
    * @returns {string}
    */
   opName() {
-    return 'related';
+    return 'compare';
   }
 
   /**
-   * Handle a type-level $related request
-   * GET/POST /ValueSet/$related
+   * Handle a type-level $compare request
+   * GET/POST /ValueSet/$compare
    * @param {express.Request} req - Express request
    * @param {express.Response} res - Express response
    */
   async handle(req, res) {
     try {
-      await this.handleTypeLevelRelated(req, res);
+      await this.handleTypeLevelCompare(req, res);
     } catch (error) {
       this.log.error(error);
       debugLog(error);
@@ -76,14 +76,14 @@ class RelatedWorker extends TerminologyWorker {
   }
 
   /**
-   * Handle an instance-level $related request
-   * GET/POST /ValueSet/{id}/$related
+   * Handle an instance-level $compare request
+   * GET/POST /ValueSet/{id}/$compare
    * @param {express.Request} req - Express request
    * @param {express.Response} res - Express response
    */
   async handleInstance(req, res) {
     try {
-      await this.handleInstanceLevelRelated(req, res);
+      await this.handleInstanceLevelCompare(req, res);
     } catch (error) {
       this.log.error(error);
       debugLog(error);
@@ -105,11 +105,11 @@ class RelatedWorker extends TerminologyWorker {
   }
 
   /**
-   * Handle type-level $related: /ValueSet/$related
+   * Handle type-level $compare: /ValueSet/$compare
    * ValueSet identified by url, or provided directly in body
    */
-  async handleTypeLevelRelated(req, res) {
-    this.deadCheck('related-type-level');
+  async handleTypeLevelCompare(req, res) {
+    this.deadCheck('compare-type-level');
 
     let params = req.body;
     this.addHttpParams(req, params);
@@ -121,16 +121,16 @@ class RelatedWorker extends TerminologyWorker {
     let thisVS = await this.readValueSet(res, "this", params, txp);
     let otherVS = await this.readValueSet(res, "other", params, txp);
 
-    const result = await this.doRelated(txp, thisVS, otherVS);
+    const result = await this.doCompare(txp, thisVS, otherVS);
     return res.json(result);
   }
   
   /**
-   * Handle instance-level related: /ValueSet/{id}/$related
+   * Handle instance-level compare: /ValueSet/{id}/$compare
    * ValueSet identified by resource ID
    */
-  async handleInstanceLevelRelated(req, res) {
-    this.deadCheck('related-instance-level');
+  async handleInstanceLevelCompare(req, res) {
+    this.deadCheck('compare-instance-level');
 
     let params = req.body;
     this.addHttpParams(req, params);
@@ -147,7 +147,7 @@ class RelatedWorker extends TerminologyWorker {
     }
     let otherVS = await this.readValueSet(res, "other", params, txp);
 
-    const result = await this.doRelated(txp, thisVS, otherVS);
+    const result = await this.doCompare(txp, thisVS, otherVS);
     return res.json(result);
   }
   
@@ -198,7 +198,7 @@ class RelatedWorker extends TerminologyWorker {
     }
   }
 
-  async doRelated(txp, thisVS, otherVS) {
+  async doCompare(txp, thisVS, otherVS) {
 
     // ok, we have to compare the composes. we don't care about anything else
     const thisC = thisVS.jsonObj.compose;
@@ -206,12 +206,12 @@ class RelatedWorker extends TerminologyWorker {
     if (!thisC) {
       return this.makeOutcome("indeterminate", `The ValueSet ${thisVS.vurl} has no compose`);
     }
-    Extensions.checkNoModifiers(thisC, 'RelatedWorker.doRelated', 'compose', thisVS.vurl)
+    Extensions.checkNoModifiers(thisC, 'CompareWorker.doCompare', 'compose', thisVS.vurl)
     this.checkNoLockedDate(thisVS.vurl, thisC);
     if (!otherC) {
       return this.makeOutcome("indeterminate", `The ValueSet ${otherVS.vurl} has no compose`);
     }
-    Extensions.checkNoModifiers(otherC, 'RelatedWorker.doRelated', 'compose', otherVS.vurl)
+    Extensions.checkNoModifiers(otherC, 'CompareWorker.doCompare', 'compose', otherVS.vurl)
     this.checkNoLockedDate(otherVS.vurl, otherC);
 
     let systems = new Map(); // tracks whether the comparison is version dependent or not
@@ -268,7 +268,7 @@ class RelatedWorker extends TerminologyWorker {
     } else if (status.left) {
       outcome = this.makeOutcome("superset", `The valueSet ${thisVS.vurl} is a super-set of the valueSet ${otherVS.vurl}`);
     } else {
-      outcome = this.makeOutcome("subset", `The valueSet ${thisVS.vurl} is a seb-set of the valueSet ${otherVS.vurl}`);
+      outcome = this.makeOutcome("subset", `The valueSet ${thisVS.vurl} is a sub-set of the valueSet ${otherVS.vurl}`);
     }
     if (txp.diagnostics) {
       outcome.parameter.push({name: 'performed-expansion', valueBoolean: exp ? true : false})
@@ -712,5 +712,5 @@ class RelatedWorker extends TerminologyWorker {
 }
 
 module.exports = {
-  RelatedWorker
+  CompareWorker
 };
