@@ -37,7 +37,7 @@ const {ConceptMapXML} = require("./xml/conceptmap-xml");
 const {TxHtmlRenderer} = require("./tx-html");
 const {Renderer} = require("./library/renderer");
 const {OperationsWorker} = require("./workers/operations");
-const {RelatedWorker} = require("./workers/related");
+const {CompareWorker} = require("./workers/compare");
 const {codeSystemFromR5} = require("./xversion/xv-codesystem");
 const {operationOutcomeFromR5} = require("./xversion/xv-operationoutcome");
 const {parametersFromR5} = require("./xversion/xv-parameters");
@@ -602,23 +602,23 @@ class TXModule {
       }
     });
 
-    // ValueSet/$related(GET and POST)
-    router.get('/ValueSet/\\$related', async (req, res) => {
+    // ValueSet/$compare(GET and POST)
+    router.get('/ValueSet/\\$compare', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new RelatedWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = new CompareWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
         await worker.handle(req, res);
       } finally {
-        this.countRequest('$related', Date.now() - start);
+        this.countRequest('$compare', Date.now() - start);
       }
     });
-    router.post('/ValueSet/\\$related', async (req, res) => {
+    router.post('/ValueSet/\\$compare', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new RelatedWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = new CompareWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
         await worker.handle(req, res);
       } finally {
-        this.countRequest('$related', Date.now() - start);
+        this.countRequest('$compare', Date.now() - start);
       }
     });
 
@@ -806,23 +806,23 @@ class TXModule {
     });
 
 
-    // ValueSet/[id]/$related
-    router.get('/ValueSet/:id/\\$related', async (req, res) => {
+    // ValueSet/[id]/$compare
+    router.get('/ValueSet/:id/\\$compare', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new RelatedWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = new CompareWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
         await worker.handleInstance(req, res, this.log);
       } finally {
-        this.countRequest('$related', Date.now() - start);
+        this.countRequest('$compare', Date.now() - start);
       }
     });
-    router.post('/ValueSet/:id/\\$related', async (req, res) => {
+    router.post('/ValueSet/:id/\\$compare', async (req, res) => {
       const start = Date.now();
       try {
-        let worker = new RelatedWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
+        let worker = new CompareWorker(req.txOpContext, this.log, req.txProvider, this.languages, this.i18n);
         await worker.handleInstance(req, res, this.log);
       } finally {
-        this.countRequest('$related', Date.now() - start);
+        this.countRequest('$compare', Date.now() - start);
       }
     });
 
