@@ -592,6 +592,62 @@ class PackagesModule {
     }
   }
 
+  // Re-fetch a single package tarball and replace whatever is stored for it, bypassing
+  // the crawler's GUID dedup and notForPublication feed gate. Used to push out a
+  // corrected package that was already (mis)published.
+  async forceUpdatePackage(link) {
+    if (!link || (!link.startsWith('http') && !link.startsWith('/'))) {
+      throw new Error('Invalid package link: ' + link);
+    }
+    if (!this.crawler) {
+      this.crawler = new PackageCrawler(this.config, this.db, this.stats);
+    }
+
+    // The feed uses the versioned package.tgz url as the (permalink) GUID, so reusing
+    // the link as the GUID keeps a later crawl from inserting a duplicate.
+    const guid = link;
+
+    const buffer = await this.crawler.fetchUrl(link);
+    const npm = await this.crawler.extractNpmPackage(buffer, link);
+
+    // Refuse to re-store a still-broken package - that would just re-publish the bug.
+    if (npm.notForPublication) {
+      throw new Error('Refusing to store ' + npm.id + '#' + npm.version + ': fetched tarball is still flagged notForPublication');
+    }
+
+    const idver = npm.id + '#' + npm.version;
+    const replaced = await this.deleteVersionsByGuid(guid);
+
+    const itemLog = { status: '??' };
+    await this.crawler.store(link, link, guid, new Date(), buffer, idver, itemLog);
+
+    pckLog.info('Force-updated ' + idver + ' from ' + link + ' (replaced ' + replaced + ' existing row(s))');
+    return { status: 'updated', id: npm.id, version: npm.version, replaced };
+  }
+
+  // Delete a stored package version and all of its child rows, by GUID.
+  deleteVersionsByGuid(guid) {
+    return new Promise((resolve, reject) => {
+      this.db.all('SELECT PackageVersionKey FROM PackageVersions WHERE GUID = ?', [guid], (err, rows) => {
+        if (err) return reject(err);
+        const keys = (rows || []).map(r => r.PackageVersionKey);
+        if (keys.length === 0) return resolve(0);
+        const ph = keys.map(() => '?').join(',');
+        const stmts = [
+          'DELETE FROM PackageFHIRVersions WHERE PackageVersionKey IN (' + ph + ')',
+          'DELETE FROM PackageDependencies WHERE PackageVersionKey IN (' + ph + ')',
+          'DELETE FROM PackageURLs WHERE PackageVersionKey IN (' + ph + ')',
+          'DELETE FROM PackageVersions WHERE PackageVersionKey IN (' + ph + ')'
+        ];
+        const runNext = (i) => {
+          if (i >= stmts.length) return resolve(keys.length);
+          this.db.run(stmts[i], keys, (e) => e ? reject(e) : runNext(i + 1));
+        };
+        runNext(0);
+      });
+    });
+  }
+
   async initializeDatabase() {
     return new Promise((resolve, reject) => {
       // Use config path if absolute, otherwise resolve relative to data dir
@@ -1220,6 +1276,52 @@ class PackagesModule {
         }
       } finally {
         this.stats.countRequest('crawl', Date.now() - start);
+      }
+    });
+
+    // Force-refresh specific packages, bypassing the feed. The crawler only fetches a
+    // package once (it dedupes on the feed GUID) and skips anything flagged
+    // notForPublication, so there is normally no way to make it re-pick-up a package
+    // that was published incorrectly and later corrected. This endpoint re-fetches the
+    // tarball(s) directly and replaces whatever is stored.
+    //
+    //   POST /update-package   { "links": ["http://hl7.org/fhir/uv/ips/2.0.1/package.tgz", ...] }
+    //
+    // The link is the versioned package.tgz url, which is exactly the GUID the feed uses,
+    // so the replacement keeps the same GUID and a later crawl won't create a duplicate.
+    // If config.updateToken is set, the request must carry it in the x-update-token header.
+    this.router.post('/update-package', async (req, res) => {
+      const start = Date.now();
+      try {
+        if (this.config.updateToken && req.headers['x-update-token'] !== this.config.updateToken) {
+          res.status(403).json({ error: 'forbidden: missing or invalid x-update-token' });
+          return;
+        }
+        let links = req.body && (req.body.links || req.body.packages || (req.body.url ? [req.body.url] : (req.body.link ? [req.body.link] : null)));
+        if (typeof links === 'string') links = [links];
+        if (!Array.isArray(links) || links.length === 0) {
+          res.status(400).json({ error: 'Provide a JSON body like {"links": ["<package.tgz url>", ...]}' });
+          return;
+        }
+        const results = [];
+        for (const link of links) {
+          try {
+            results.push(Object.assign({ link }, await this.forceUpdatePackage(link)));
+          } catch (e) {
+            pckLog.error('Force update failed for ' + link + ': ' + e.message);
+            results.push({ link, status: 'error', error: e.message });
+          }
+        }
+        const failed = results.filter(r => r.status === 'error').length;
+        res.status(failed === results.length ? 500 : 200).json({
+          message: 'Processed ' + results.length + ' package(s), ' + failed + ' failed',
+          results
+        });
+      } catch (error) {
+        pckLog.error('update-package endpoint failed:', error);
+        res.status(500).json({ error: 'update-package failed', message: error.message });
+      } finally {
+        this.stats.countRequest('update-package', Date.now() - start);
       }
     });
 
