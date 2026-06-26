@@ -558,6 +558,12 @@ class PackageCrawler {
       if (npmPackage.hasJavaScript && !isTemplate && id !== 'hl7.fhir.pubpack') {
         throw new Error(`Package ${idver} rejected: contains JavaScript files but is not a template package`);
       }
+      // The feed gate (item.notForPublication) only sees the RSS entry. A package whose
+      // feed entry is clean can still carry notForPublication inside the tarball - that is
+      // a draft build that must never enter the registry. Reject it here too.
+      if (npmPackage.notForPublication) {
+        throw new Error(`Package ${idver} rejected: tarball is flagged notForPublication (draft build, not suitable for publication)`);
+      }
 
       // Extract URLs from package
       const urls = this.processPackageUrls(npmPackage);
