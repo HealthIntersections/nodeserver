@@ -200,6 +200,17 @@ class PublisherModule {
         });
       });
     }
+    if (!columnNames.includes('publisher_version')) {
+      await new Promise((resolve, reject) => {
+        this.db.run('ALTER TABLE tasks ADD COLUMN publisher_version TEXT', (err) => {
+          if (err) reject(err);
+          else {
+            this.logger.info('Migration: added publisher_version column to tasks table');
+            resolve();
+          }
+        });
+      });
+    }
     const websiteColumns = await new Promise((resolve, reject) => {
       this.db.all("PRAGMA table_info(websites)", (err, rows) => {
         if (err) reject(err);
@@ -578,6 +589,16 @@ class PublisherModule {
         throw new Error('Could not find publisher.jar in latest release');
       }
 
+      // Record which IG Publisher version this task is using. The same jar is reused
+      // for the publication run, so this is the version that produced the output.
+      const publisherVersion = releaseResponse.data.tag_name || releaseResponse.data.name || 'unknown';
+      try {
+        await this.updateTaskFields(taskId, { publisher_version: publisherVersion });
+      } catch (e) {
+        this.logger.warn('Failed to record publisher_version for task ' + taskId + ': ' + e.message);
+      }
+      await this.logTaskMessage(taskId, 'info', 'Using IG Publisher version ' + publisherVersion);
+
       await this.logTaskMessage(taskId, 'info', 'Downloading from: ' + downloadUrl);
 
       // Download the file
@@ -760,6 +781,91 @@ class PublisherModule {
     await this.logTaskMessage(task.id, 'info', 'Build output verified: package-id=' + qaData['package-id'] + ', version=' + qaData['ig-ver']);
   }
 
+  // Read package/package.json out of a .tgz without unpacking the whole archive.
+  inspectPackageTgz(tgzPath) {
+    const { spawn } = require('child_process');
+    return new Promise((resolve, reject) => {
+      const tar = spawn('tar', ['-xzOf', tgzPath, 'package/package.json']);
+      let out = '';
+      let err = '';
+      tar.stdout.on('data', (d) => { out += d.toString(); });
+      tar.stderr.on('data', (d) => { err += d.toString(); });
+      tar.on('error', reject);
+      tar.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error('Could not read ' + tgzPath + ': ' + (err.trim() || ('tar exit ' + code))));
+        } else {
+          try {
+            resolve(JSON.parse(out));
+          } catch (e) {
+            reject(new Error('Invalid package.json in ' + tgzPath + ': ' + e.message));
+          }
+        }
+      });
+    });
+  }
+
+  // Confirm the package.tgz files that landed in the web tree are publication builds,
+  // not the draft. Throws (failing the task) if a draft package was published.
+  async verifyPublishedPackage(task, website, draftDir) {
+    await this.logTaskMessage(task.id, 'info', 'Verifying published package(s) are publication builds...');
+
+    // The intended publication path comes from the IG's publication-request.json.
+    const prPath = path.join(draftDir, 'publication-request.json');
+    if (!fs.existsSync(prPath)) {
+      await this.logTaskMessage(task.id, 'warn', 'No publication-request.json found at ' + prPath + ' - skipping published-package check');
+      return;
+    }
+    const pr = JSON.parse(fs.readFileSync(prPath, 'utf8'));
+    const pubPath = pr.path;
+
+    // The website base url lets us map a canonical url to a folder in the web tree.
+    const setupPath = path.join(website.local_folder, 'publish-setup.json');
+    if (!pubPath || !fs.existsSync(setupPath)) {
+      await this.logTaskMessage(task.id, 'warn', 'Cannot resolve web path (path or publish-setup.json missing) - skipping published-package check');
+      return;
+    }
+    const setup = JSON.parse(fs.readFileSync(setupPath, 'utf8'));
+    const baseUrl = setup.website && setup.website.url;
+    if (!baseUrl || !pubPath.startsWith(baseUrl)) {
+      await this.logTaskMessage(task.id, 'warn', 'Publication path ' + pubPath + ' is not under website url ' + baseUrl + ' - skipping published-package check');
+      return;
+    }
+
+    const relVer = pubPath.substring(baseUrl.length).replace(/^\/+/, '');
+    const relCur = relVer.replace(/\/[^/]+\/?$/, ''); // strip the version segment for the "current" copy
+    const candidates = [
+      path.join(website.local_folder, relVer, 'package.tgz'),
+      path.join(website.local_folder, relCur, 'package.tgz')
+    ];
+
+    let checked = 0;
+    for (const pkgPath of candidates) {
+      if (!fs.existsSync(pkgPath)) {
+        continue;
+      }
+      checked++;
+      const json = await this.inspectPackageTgz(pkgPath);
+      const problems = [];
+      if (json.notForPublication) {
+        problems.push('notForPublication is set');
+      }
+      if (typeof json.url === 'string' && json.url.startsWith('file:')) {
+        problems.push('url is a local file path (' + json.url + ')');
+      }
+      if (problems.length > 0) {
+        throw new Error('Published package ' + pkgPath + ' is a draft build, not a publication build (' +
+            problems.join('; ') + '). The IG Publisher publication run likely skipped package ' +
+            'regeneration (e.g. a Jekyll/template failure). Not committing.');
+      }
+      await this.logTaskMessage(task.id, 'info', 'Verified publication package: ' + pkgPath);
+    }
+
+    if (checked === 0) {
+      await this.logTaskMessage(task.id, 'warn', 'No published package.tgz found to verify under ' + relVer + ' or ' + relCur);
+    }
+  }
+
   async runPublication(task) {
     const website = await this.getWebsite(task.website_id);
     if (!website) {
@@ -835,6 +941,12 @@ class PublisherModule {
       throw new Error('Publication verification failed: ' + pubLogName + ' not found in zips directory');
     }
     await this.logTaskMessage(task.id, 'info', 'Publication run verified: ' + pubLogName + ' found');
+
+    // Step 5b: Verify the published package is actually a publication build.
+    // If the IG Publisher's publication run skipped package regeneration (e.g. a Jekyll
+    // or template failure), the draft package - flagged notForPublication with a file://
+    // url - can survive into the web tree. Catch that here, before anything is committed.
+    await this.verifyPublishedPackage(task, website, draftDir);
 
     // Step 6: Commit and push the web folder
     await this.logTaskMessage(task.id, 'info', 'Committing changes to web folder...');
@@ -1217,7 +1329,7 @@ class PublisherModule {
         } else {
           content += '<div class="table-responsive">';
           content += '<table class="table table-striped">';
-          content += '<thead><tr><th>ID</th><th>Package</th><th>Version</th><th>Website</th><th>Status</th><th>Queued</th><th>User</th><th>Actions</th></tr></thead>';
+          content += '<thead><tr><th>ID</th><th>Package</th><th>Version</th><th>Website</th><th>Status</th><th>IG Publisher</th><th>Queued</th><th>User</th><th>Actions</th></tr></thead>';
           content += '<tbody>';
 
           for (const task of tasks) {
@@ -1238,6 +1350,7 @@ class PublisherModule {
             content += '<td>' + task.version + '</td>';
             content += '<td>' + task.website_name + '</td>';
             content += '<td><span class="badge bg-' + this.getStatusColor(task.status) + '">' + task.status + '</span></td>';
+            content += '<td>' + (task.publisher_version ? '<code>' + escape(task.publisher_version) + '</code>' : '<span class="text-muted">—</span>') + '</td>';
             content += '<td>' + new Date(task.queued_at).toLocaleString() + '</td>';
             content += '<td>' + task.user_name + '</td>';
             content += '<td class="task-actions">';
@@ -1541,6 +1654,10 @@ class PublisherModule {
           let content = '<h3>Task Output: #' + task.id + ' - ' + task.npm_package_id + '#' + task.version + '</h3>';
           content += '<p><strong>Status:</strong> <span class="badge bg-' + this.getStatusColor(task.status) + '">' + task.status + '</span></p>';
           content += '<p><strong>GitHub:</strong> ' + task.github_org + '/' + task.github_repo + ' (' + task.git_branch + ')</p>';
+
+          if (task.publisher_version) {
+            content += '<p><strong>IG Publisher:</strong> <code>' + escape(task.publisher_version) + '</code></p>';
+          }
 
           if (task.local_folder) {
             content += '<p><strong>Local Folder:</strong> <code>' + task.local_folder + '</code></p>';
