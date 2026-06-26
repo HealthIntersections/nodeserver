@@ -176,6 +176,10 @@ describe('simple-cases', () => {
     await runTest({"suite":"simple-cases","test":"simple-expand-contained"}, "5.0");
   });
 
+  // it("simple-expand-contained" + 'R4', async () => {
+  //   await runTest({"suite":"simple-cases","test":"simple-expand-contained"}, "4.0");
+  // });
+
 });
 
 describe('parameters', () => {
@@ -5719,231 +5723,231 @@ describe('UCUM', () => {
 
 });
 
-describe('related', () => {
+describe('compare', () => {
   // Tests for candidate new 'related' operation
 
   it("related-all" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-all"}, "5.0");
+    await runTest({"suite":"compare","test":"related-all"}, "5.0");
   });
 
   it("related-all" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-all"}, "4.0");
+    await runTest({"suite":"compare","test":"related-all"}, "4.0");
   });
 
   it("related-active" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-active"}, "5.0");
+    await runTest({"suite":"compare","test":"related-active"}, "5.0");
   });
 
   it("related-active" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-active"}, "4.0");
+    await runTest({"suite":"compare","test":"related-active"}, "4.0");
   });
 
   it("related-inactive" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-inactive"}, "5.0");
+    await runTest({"suite":"compare","test":"related-inactive"}, "5.0");
   });
 
   it("related-inactive" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-inactive"}, "4.0");
+    await runTest({"suite":"compare","test":"related-inactive"}, "4.0");
   });
 
   it("related-enumerated" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-enumerated"}, "5.0");
+    await runTest({"suite":"compare","test":"related-enumerated"}, "5.0");
   });
 
   it("related-enumerated" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-enumerated"}, "4.0");
+    await runTest({"suite":"compare","test":"related-enumerated"}, "4.0");
   });
 
   it("related-is-a" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-is-a"}, "5.0");
+    await runTest({"suite":"compare","test":"related-is-a"}, "5.0");
   });
 
   it("related-is-a" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-is-a"}, "4.0");
+    await runTest({"suite":"compare","test":"related-is-a"}, "4.0");
   });
 
   it("related-regex-1" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-regex-1"}, "5.0");
+    await runTest({"suite":"compare","test":"related-regex-1"}, "5.0");
   });
 
   it("related-regex-1" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-regex-1"}, "4.0");
+    await runTest({"suite":"compare","test":"related-regex-1"}, "4.0");
   });
 
   it("related-regex-2" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-regex-2"}, "5.0");
+    await runTest({"suite":"compare","test":"related-regex-2"}, "5.0");
   });
 
   it("related-regex-2" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-regex-2"}, "4.0");
+    await runTest({"suite":"compare","test":"related-regex-2"}, "4.0");
   });
 
   it("related-lists" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-lists"}, "5.0");
+    await runTest({"suite":"compare","test":"related-lists"}, "5.0");
   });
 
   it("related-lists" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-lists"}, "4.0");
+    await runTest({"suite":"compare","test":"related-lists"}, "4.0");
   });
 
   it("related-lists-more" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-lists-more"}, "5.0");
+    await runTest({"suite":"compare","test":"related-lists-more"}, "5.0");
   });
 
   it("related-lists-more" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-lists-more"}, "4.0");
+    await runTest({"suite":"compare","test":"related-lists-more"}, "4.0");
   });
 
   it("related-lists-less" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-lists-less"}, "5.0");
+    await runTest({"suite":"compare","test":"related-lists-less"}, "5.0");
   });
 
   it("related-lists-less" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-lists-less"}, "4.0");
+    await runTest({"suite":"compare","test":"related-lists-less"}, "4.0");
   });
 
   it("related-lists-over" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-lists-over"}, "5.0");
+    await runTest({"suite":"compare","test":"related-lists-over"}, "5.0");
   });
 
   it("related-lists-over" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-lists-over"}, "4.0");
+    await runTest({"suite":"compare","test":"related-lists-over"}, "4.0");
   });
 
   it("related-lists-disj" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-lists-disj"}, "5.0");
+    await runTest({"suite":"compare","test":"related-lists-disj"}, "5.0");
   });
 
   it("related-lists-disj" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-lists-disj"}, "4.0");
+    await runTest({"suite":"compare","test":"related-lists-disj"}, "4.0");
   });
 
   it("related-systems" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-systems"}, "5.0");
+    await runTest({"suite":"compare","test":"related-systems"}, "5.0");
   });
 
   it("related-systems" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-systems"}, "4.0");
+    await runTest({"suite":"compare","test":"related-systems"}, "4.0");
   });
 
   it("related-systems" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-systems"}, "5.0");
+    await runTest({"suite":"compare","test":"related-systems"}, "5.0");
   });
 
   it("related-systems" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-systems"}, "4.0");
+    await runTest({"suite":"compare","test":"related-systems"}, "4.0");
   });
 
   it("related-systems-less" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-systems-less"}, "5.0");
+    await runTest({"suite":"compare","test":"related-systems-less"}, "5.0");
   });
 
   it("related-systems-less" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-systems-less"}, "4.0");
+    await runTest({"suite":"compare","test":"related-systems-less"}, "4.0");
   });
 
   it("related-systems-more" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-systems-more"}, "5.0");
+    await runTest({"suite":"compare","test":"related-systems-more"}, "5.0");
   });
 
   it("related-systems-more" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-systems-more"}, "4.0");
+    await runTest({"suite":"compare","test":"related-systems-more"}, "4.0");
   });
 
   it("related-system-disj" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-system-disj"}, "5.0");
+    await runTest({"suite":"compare","test":"related-system-disj"}, "5.0");
   });
 
   it("related-system-disj" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-system-disj"}, "4.0");
+    await runTest({"suite":"compare","test":"related-system-disj"}, "4.0");
   });
 
   it("related-system-over" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-system-over"}, "5.0");
+    await runTest({"suite":"compare","test":"related-system-over"}, "5.0");
   });
 
   it("related-system-over" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-system-over"}, "4.0");
+    await runTest({"suite":"compare","test":"related-system-over"}, "4.0");
   });
 
   it("related-filters-1" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-filters-1"}, "5.0");
+    await runTest({"suite":"compare","test":"related-filters-1"}, "5.0");
   });
 
   it("related-filters-1" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-filters-1"}, "4.0");
+    await runTest({"suite":"compare","test":"related-filters-1"}, "4.0");
   });
 
   it("related-filters-2" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-filters-2"}, "5.0");
+    await runTest({"suite":"compare","test":"related-filters-2"}, "5.0");
   });
 
   it("related-filters-2" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-filters-2"}, "4.0");
+    await runTest({"suite":"compare","test":"related-filters-2"}, "4.0");
   });
 
   it("related-filters-3" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-filters-3"}, "5.0");
+    await runTest({"suite":"compare","test":"related-filters-3"}, "5.0");
   });
 
   it("related-filters-3" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-filters-3"}, "4.0");
+    await runTest({"suite":"compare","test":"related-filters-3"}, "4.0");
   });
 
   it("related-mixed-1" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1"}, "5.0");
+    await runTest({"suite":"compare","test":"related-mixed-1"}, "5.0");
   });
 
   it("related-mixed-1" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1"}, "4.0");
+    await runTest({"suite":"compare","test":"related-mixed-1"}, "4.0");
   });
 
   it("related-mixed-1-less" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1-less"}, "5.0");
+    await runTest({"suite":"compare","test":"related-mixed-1-less"}, "5.0");
   });
 
   it("related-mixed-1-less" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1-less"}, "4.0");
+    await runTest({"suite":"compare","test":"related-mixed-1-less"}, "4.0");
   });
 
   it("related-mixed-1-more" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1-more"}, "5.0");
+    await runTest({"suite":"compare","test":"related-mixed-1-more"}, "5.0");
   });
 
   it("related-mixed-1-more" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1-more"}, "4.0");
+    await runTest({"suite":"compare","test":"related-mixed-1-more"}, "4.0");
   });
 
   it("related-mixed-1-disj" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1-disj"}, "5.0");
+    await runTest({"suite":"compare","test":"related-mixed-1-disj"}, "5.0");
   });
 
   it("related-mixed-1-disj" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1-disj"}, "4.0");
+    await runTest({"suite":"compare","test":"related-mixed-1-disj"}, "4.0");
   });
 
   it("related-mixed-1-over" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1-over"}, "5.0");
+    await runTest({"suite":"compare","test":"related-mixed-1-over"}, "5.0");
   });
 
   it("related-mixed-1-over" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1-over"}, "4.0");
+    await runTest({"suite":"compare","test":"related-mixed-1-over"}, "4.0");
   });
 
   it("related-filters-less" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-filters-less"}, "5.0");
+    await runTest({"suite":"compare","test":"related-filters-less"}, "5.0");
   });
 
   it("related-filters-less" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-filters-less"}, "4.0");
+    await runTest({"suite":"compare","test":"related-filters-less"}, "4.0");
   });
 
   it("related-filters-more" + 'R5', async () => {
-    await runTest({"suite":"related","test":"related-filters-more"}, "5.0");
+    await runTest({"suite":"compare","test":"related-filters-more"}, "5.0");
   });
 
   it("related-filters-more" + 'R4', async () => {
-    await runTest({"suite":"related","test":"related-filters-more"}, "4.0");
+    await runTest({"suite":"compare","test":"related-filters-more"}, "4.0");
   });
 
 });
@@ -9771,119 +9775,119 @@ describe('UCUM', () => {
 
 });
 
-describe('related', () => {
+describe('compare', () => {
   // Tests for candidate new 'related' operation
 
   it("related-all" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-all"}, "5.0");
+    await runTest({"suite":"compare","test":"related-all"}, "5.0");
   });
 
   it("related-active" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-active"}, "5.0");
+    await runTest({"suite":"compare","test":"related-active"}, "5.0");
   });
 
   it("related-inactive" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-inactive"}, "5.0");
+    await runTest({"suite":"compare","test":"related-inactive"}, "5.0");
   });
 
   it("related-enumerated" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-enumerated"}, "5.0");
+    await runTest({"suite":"compare","test":"related-enumerated"}, "5.0");
   });
 
   it("related-is-a" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-is-a"}, "5.0");
+    await runTest({"suite":"compare","test":"related-is-a"}, "5.0");
   });
 
   it("related-regex-1" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-regex-1"}, "5.0");
+    await runTest({"suite":"compare","test":"related-regex-1"}, "5.0");
   });
 
   it("related-regex-2" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-regex-2"}, "5.0");
+    await runTest({"suite":"compare","test":"related-regex-2"}, "5.0");
   });
 
   it("related-lists" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-lists"}, "5.0");
+    await runTest({"suite":"compare","test":"related-lists"}, "5.0");
   });
 
   it("related-lists-more" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-lists-more"}, "5.0");
+    await runTest({"suite":"compare","test":"related-lists-more"}, "5.0");
   });
 
   it("related-lists-less" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-lists-less"}, "5.0");
+    await runTest({"suite":"compare","test":"related-lists-less"}, "5.0");
   });
 
   it("related-lists-over" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-lists-over"}, "5.0");
+    await runTest({"suite":"compare","test":"related-lists-over"}, "5.0");
   });
 
   it("related-lists-disj" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-lists-disj"}, "5.0");
+    await runTest({"suite":"compare","test":"related-lists-disj"}, "5.0");
   });
 
   it("related-systems" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-systems"}, "5.0");
+    await runTest({"suite":"compare","test":"related-systems"}, "5.0");
   });
 
   it("related-systems" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-systems"}, "5.0");
+    await runTest({"suite":"compare","test":"related-systems"}, "5.0");
   });
 
   it("related-systems-less" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-systems-less"}, "5.0");
+    await runTest({"suite":"compare","test":"related-systems-less"}, "5.0");
   });
 
   it("related-systems-more" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-systems-more"}, "5.0");
+    await runTest({"suite":"compare","test":"related-systems-more"}, "5.0");
   });
 
   it("related-system-disj" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-system-disj"}, "5.0");
+    await runTest({"suite":"compare","test":"related-system-disj"}, "5.0");
   });
 
   it("related-system-over" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-system-over"}, "5.0");
+    await runTest({"suite":"compare","test":"related-system-over"}, "5.0");
   });
 
   it("related-filters-1" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-filters-1"}, "5.0");
+    await runTest({"suite":"compare","test":"related-filters-1"}, "5.0");
   });
 
   it("related-filters-2" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-filters-2"}, "5.0");
+    await runTest({"suite":"compare","test":"related-filters-2"}, "5.0");
   });
 
   it("related-filters-3" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-filters-3"}, "5.0");
+    await runTest({"suite":"compare","test":"related-filters-3"}, "5.0");
   });
 
   it("related-mixed-1" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1"}, "5.0");
+    await runTest({"suite":"compare","test":"related-mixed-1"}, "5.0");
   });
 
   it("related-mixed-1-less" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1-less"}, "5.0");
+    await runTest({"suite":"compare","test":"related-mixed-1-less"}, "5.0");
   });
 
   it("related-mixed-1-more" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1-more"}, "5.0");
+    await runTest({"suite":"compare","test":"related-mixed-1-more"}, "5.0");
   });
 
   it("related-mixed-1-disj" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1-disj"}, "5.0");
+    await runTest({"suite":"compare","test":"related-mixed-1-disj"}, "5.0");
   });
 
   it("related-mixed-1-over" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-mixed-1-over"}, "5.0");
+    await runTest({"suite":"compare","test":"related-mixed-1-over"}, "5.0");
   });
 
   it("related-filters-less" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-filters-less"}, "5.0");
+    await runTest({"suite":"compare","test":"related-filters-less"}, "5.0");
   });
 
   it("related-filters-more" + 'R5-cached', async () => {
-    await runTest({"suite":"related","test":"related-filters-more"}, "5.0");
+    await runTest({"suite":"compare","test":"related-filters-more"}, "5.0");
   });
 
 });

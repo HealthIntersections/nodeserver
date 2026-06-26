@@ -2,14 +2,33 @@
 // Crawler for gathering server information from terminology servers
 
 const axios = require('axios');
-const { 
-  ServerRegistries, 
-  ServerRegistry, 
-  ServerInformation, 
+const dns = require('dns');
+const http = require('http');
+const https = require('https');
+const ipaddr = require('ipaddr.js');
+const {
+  ServerRegistries,
+  ServerRegistry,
+  ServerInformation,
   ServerVersionInformation,
 } = require('./model');
 const {Extensions} = require("../tx/library/extensions");
 const {debugLog} = require("../tx/operation-context");
+
+// True if an IP literal is anything other than a normal public (unicast) address:
+// loopback, private, link-local (incl. 169.254.169.254 cloud metadata), unique-local,
+// CGNAT, multicast, reserved, etc. IPv4-mapped IPv6 addresses are unwrapped first.
+function isNonPublicAddress(ip) {
+  try {
+    let addr = ipaddr.parse(ip);
+    if (addr.kind() === 'ipv6' && addr.isIPv4MappedAddress()) {
+      addr = addr.toIPv4Address();
+    }
+    return addr.range() !== 'unicast';
+  } catch (e) {
+    return true; // unparseable - treat as unsafe
+  }
+}
 
 const MASTER_URL = 'https://fhir.github.io/ig-registry/tx-servers.json';
 
@@ -22,7 +41,8 @@ class RegistryCrawler {
       masterUrl: config.masterUrl || MASTER_URL,
       userAgent: config.userAgent || 'HealthIntersections/FhirServer',
       crawlInterval: config.crawlInterval || 5 * 60 * 1000, // 5 minutes default
-      apiKeys: config.apiKeys || {} // Map of server URL or code to API key
+      apiKeys: config.apiKeys || {}, // Map of server URL or code to API key
+      allowPrivateAddresses: config.allowPrivateAddresses || false // SSRF opt-out for local test servers
     };
     this.stats = stats;
 
@@ -37,6 +57,63 @@ class RegistryCrawler {
 
   useLog(logv) {
     this.log = logv;
+  }
+
+  // A DNS lookup wrapper that rejects any host resolving to a non-public address.
+  // Enforced at connection time (so it also covers redirect targets and defeats
+  // DNS-rebinding), this is the SSRF guard for outbound fetches. The registry is
+  // crawled from server-supplied "next" links, so the target host is not trusted.
+  // Set config.allowPrivateAddresses = true to disable (e.g. for local test servers).
+  ssrfLookup() {
+    const allowPrivate = !!(this.config && this.config.allowPrivateAddresses);
+    return (hostname, options, callback) => {
+      if (typeof options === 'function') {
+        callback = options;
+        options = {};
+      }
+      const wantAll = !!(options && options.all);
+      dns.lookup(hostname, Object.assign({}, options, { all: true }), (err, addresses) => {
+        if (err) {
+          callback(err);
+          return;
+        }
+        if (!allowPrivate) {
+          for (const a of addresses) {
+            if (isNonPublicAddress(a.address)) {
+              callback(new Error('Blocked request to non-public address ' + a.address + ' (host ' + hostname + ')'));
+              return;
+            }
+          }
+        }
+        if (wantAll) {
+          callback(null, addresses);
+        } else {
+          callback(null, addresses[0].address, addresses[0].family);
+        }
+      });
+    };
+  }
+
+  // http/https agents that route every connection through the SSRF lookup.
+  guardedAgents() {
+    if (!this._guardedAgents) {
+      const lookup = this.ssrfLookup();
+      class GuardedHttpAgent extends http.Agent {
+        createConnection(options, cb) {
+          return super.createConnection(Object.assign({}, options, { lookup }), cb);
+        }
+      }
+      class GuardedHttpsAgent extends https.Agent {
+        createConnection(options, cb) {
+          return super.createConnection(Object.assign({}, options, { lookup }), cb);
+        }
+      }
+      this._guardedAgents = {
+        httpAgent: new GuardedHttpAgent({ keepAlive: true }),
+        httpsAgent: new GuardedHttpsAgent({ keepAlive: true })
+      };
+    }
+    return this._guardedAgents;
   }
 
 
@@ -455,7 +532,9 @@ class RegistryCrawler {
         timeout: this.config.timeout,
         headers: headers,
         signal: this.abortController?.signal,
-        validateStatus: (status) => status < 500 // Don't throw on 4xx
+        validateStatus: (status) => status < 500, // Don't throw on 4xx
+        httpAgent: this.guardedAgents().httpAgent,
+        httpsAgent: this.guardedAgents().httpsAgent
       });
       
       if (response.status >= 400) {

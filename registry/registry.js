@@ -976,7 +976,15 @@ class RegistryModule {
 
       try {
         const params = this._normalizeQueryParams(req.query);
-        const {fhirVersion, url, valueSet, usage} = params;
+        const {fhirVersion, valueSet, usage, version} = params;
+        let {url} = params;
+
+        // If a version was supplied separately, fold it into the code system
+        // URL using the canonical url|version syntax that the resolver expects.
+        // Don't double up if the caller already encoded a version in the url.
+        if (version && url && !url.includes('|')) {
+          url = `${url}|${version}`;
+        }
 
         // Convert authoritativeOnly to boolean
         const authoritativeOnly = params.authoritativeOnly === 'true';
@@ -1219,6 +1227,7 @@ class RegistryModule {
   buildResolveFormContent(queryParams = {}) {
     const fhirVersion = queryParams.fhirVersion || '';
     const url = queryParams.url || '';
+    const version = queryParams.version || '';
     const valueSet = queryParams.valueSet || '';
     const authoritativeOnly = queryParams.authoritativeOnly === 'true';
 
@@ -1245,6 +1254,14 @@ class RegistryModule {
            value="${escape(url)}">`;
     html += '</p>';
     html += '<p class="text-muted small">Example: http://loinc.org</p>';
+
+    // Code System Version field (optional)
+    html += '<p>';
+    html += '<label for="version" class="form-label fw-bold">Code System Version</label>';
+    html += `<input type="text" class="form-control" id="version" name="version"
+           value="${escape(version)}">`;
+    html += '</p>';
+    html += '<p class="text-muted small">Optional. Example: 2.74 (combined with the Code System URL as url|version)</p>';
 
     // ValueSet URL field - now vertical
     html += '<p>';
