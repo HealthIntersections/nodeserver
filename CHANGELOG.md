@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v0.10.0] - 2026-06-27
+
+### Added
+
+- Publisher: track the IG Publisher version used for each task, and show it on the tasks list and task detail pages
+- Packages: new `POST /packages/update-package` endpoint to force-refresh specific packages in the registry, bypassing the feed crawler's de-duplication (used to push out a corrected package after a bad publish)
+- Publisher: automatically update SUSHI to the latest release before each draft build and publication run, installed into a FHIRsmith-owned prefix so it needs no root privileges
+
+### Changed
+
+- Rebuilt how caching works (see the tools IG for documentation)
+- Renamed the compare worker/operation
+
+### Fixed
+
+- Publisher: the publication run now verifies that the package about to be published is a real publication build (not a draft) before committing it to the web tree, so a failed publication build can no longer silently ship a `notForPublication` draft package
+- Packages: the crawler now rejects any package flagged `notForPublication` at ingest, instead of only checking the feed entry
+- Registry: better handling of versions on manual queries against the external registry
+- Fixed handling of the cache-control header
+- Corrections to generated test cases
+
+### Security
+
+- SSRF protection: outbound fetches in the packages and registry crawlers now reject any host that resolves to a non-public address (private, loopback, link-local including cloud-metadata, CGNAT, unique-local, etc.). Enforced at connection time, so it also covers redirect targets and DNS rebinding, and prevents leaking registry API keys to a redirected host
+- Path-injection hardening: local-file feed reads in the packages crawler are confined to explicitly-allowed directories; the `update-package` endpoint only accepts http(s) URLs
+- Dependency updates (npm audit)
+
+### Tx Conformance Statement
+
+FHIRsmith passed all 2503 HL7 terminology service tests (modes tx.fhir.org+omop+general+snomed, tests v1.9.1, runner v6.9.11
+
 ## [v0.9.7] - 2026-06-12
 
 ### Added
