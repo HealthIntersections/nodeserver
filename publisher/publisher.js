@@ -553,6 +553,11 @@ class PublisherModule {
     // Step 3: Clone GitHub repository
     await this.cloneRepository(task, draftDir);
 
+    // Step 3b: Update SUSHI to the latest release. The IG Publisher runs SUSHI with
+    // --require-latest, so a SUSHI that has fallen behind npm's latest makes the build
+    // fail. Refreshing it here keeps draft builds working.
+    await this.ensureLatestSushi(task.id);
+
     // Step 4: Run IG publisher
     await this.runIGPublisher(publisherJar, draftDir, logFile, task.id);
 
@@ -624,6 +629,62 @@ class PublisherModule {
     }
   }
 
+  // Directory holding FHIRsmith's own copy of SUSHI. Installing here (rather than -g)
+  // needs no root: on the server the global npm prefix (/usr) is root-owned.
+  sushiDir() {
+    return folders.filePath('publisher', 'sushi');
+  }
+
+  // Environment for spawning the IG Publisher so it finds our managed SUSHI on PATH.
+  // The publisher resolves the `sushi` command from PATH, so prepending our bin dir
+  // makes it use the version we just installed.
+  publisherEnv() {
+    const binDir = path.join(this.sushiDir(), 'bin');
+    return Object.assign({}, process.env, {
+      PATH: binDir + path.delimiter + (process.env.PATH || '')
+    });
+  }
+
+  // Update FHIRsmith's managed SUSHI to the latest npm release before a run. The IG
+  // Publisher invokes SUSHI with --require-latest, so a SUSHI that has fallen behind
+  // npm's latest makes the build abort. We install into a FHIRsmith-owned prefix
+  // (sushiDir) to avoid needing root for a global install, and the publisher picks it
+  // up via publisherEnv(). Best-effort: a failure is logged but not fatal - the
+  // corrected runBuild check in the IG Publisher now turns a stale SUSHI into a loud
+  // publication failure rather than a silently-published draft.
+  async ensureLatestSushi(taskId) {
+    const { spawn } = require('child_process');
+    const dir = this.sushiDir();
+    fs.mkdirSync(dir, { recursive: true });
+    await this.logTaskMessage(taskId, 'info', 'Ensuring SUSHI is up to date in ' + dir + ' ...');
+    await new Promise((resolve) => {
+      // -g with --prefix makes npm treat `dir` as the global prefix, so the binary
+      // lands at dir/bin/sushi (a FHIRsmith-owned, writable location).
+      const npm = spawn('npm', ['install', '-g', 'fsh-sushi@latest', '--prefix', dir], { stdio: ['ignore', 'pipe', 'pipe'] });
+      let err = '';
+      npm.stdout.on('data', () => { /* ignore */ });
+      npm.stderr.on('data', (d) => { err += d.toString(); });
+      npm.on('error', async (e) => {
+        await this.logTaskMessage(taskId, 'warn', 'Could not run npm to update SUSHI: ' + e.message);
+        resolve();
+      });
+      npm.on('close', async (code) => {
+        if (code === 0) {
+          let version = '';
+          try {
+            version = require('child_process').execSync('sushi --version', { env: this.publisherEnv(), encoding: 'utf8' }).trim();
+          } catch (e) {
+            version = '(version check failed)';
+          }
+          await this.logTaskMessage(taskId, 'info', 'SUSHI is up to date: ' + version);
+        } else {
+          await this.logTaskMessage(taskId, 'warn', 'SUSHI update exited with code ' + code + (err ? ': ' + err.trim().slice(-400) : ''));
+        }
+        resolve();
+      });
+    });
+  }
+
   async cloneRepository(task, draftDir) {
     const { spawn } = require('child_process');
     const gitUrl = 'https://github.com/' + task.github_org + '/' + task.github_repo + '.git';
@@ -679,7 +740,8 @@ class PublisherModule {
         '.'
       ], {
         cwd: draftDir,
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: this.publisherEnv()
       });
 
       // Create log file stream
@@ -705,7 +767,7 @@ class PublisherModule {
         const elapsedMs = Date.now() - buildStart;
         const sinceDataMs = Date.now() - lastDataAt;
         let logKb = 0;
-        try { logKb = Math.round(fs.statSync(logFile).size / 1024); } catch (_) {}
+        try { logKb = Math.round(fs.statSync(logFile).size / 1024); } catch (_) { /* log file not created yet */ }
         const elapsedMin = Math.floor(elapsedMs / 60000);
         const elapsedSec = Math.floor(elapsedMs / 1000) % 60;
         const idleSec = Math.floor(sinceDataMs / 1000);
@@ -930,6 +992,12 @@ class PublisherModule {
     // Step 3: Pull latest web folder before publishing into it
     await this.runCommand('git', ['pull'], { cwd: website.git_root }, task.id, 'Pulling latest web folder');
 
+    // Step 3b: Update SUSHI to the latest release before the publication run. This is the
+    // step that previously failed silently: the publication build runs SUSHI with
+    // --require-latest, and a draft approved days earlier may now face a newer SUSHI on
+    // npm. Refresh it so the publication build doesn't abort on a version mismatch.
+    await this.ensureLatestSushi(task.id);
+
     // Step 4: Run the IG publisher in go-publish mode
     await this.runPublisherGoPublish(task.id, publisherJar, draftDir, website.local_folder,
         registryDir, historyDir, templatesDir, zipsDir, publishLogFile);
@@ -1004,7 +1072,8 @@ class PublisherModule {
 
     return new Promise((resolve, reject) => {
       const java = spawn('java', args, {
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: this.publisherEnv()
       });
 
       const logStream = fs.createWriteStream(logFile);
@@ -1028,7 +1097,7 @@ class PublisherModule {
         const elapsedMs = Date.now() - buildStart;
         const sinceDataMs = Date.now() - lastDataAt;
         let logKb = 0;
-        try { logKb = Math.round(fs.statSync(logFile).size / 1024); } catch (_) {}
+        try { logKb = Math.round(fs.statSync(logFile).size / 1024); } catch (_) { /* log file not created yet */ }
         const elapsedMin = Math.floor(elapsedMs / 60000);
         const elapsedSec = Math.floor(elapsedMs / 1000) % 60;
         const idleSec = Math.floor(sinceDataMs / 1000);
