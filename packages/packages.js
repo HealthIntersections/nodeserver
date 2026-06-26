@@ -596,8 +596,10 @@ class PackagesModule {
   // the crawler's GUID dedup and notForPublication feed gate. Used to push out a
   // corrected package that was already (mis)published.
   async forceUpdatePackage(link) {
-    if (!link || (!link.startsWith('http') && !link.startsWith('/'))) {
-      throw new Error('Invalid package link: ' + link);
+    // Only allow fetching over http(s). This endpoint must never be usable to read
+    // local server files (path injection) - tarballs are always published web URLs.
+    if (!link || !/^https?:\/\//i.test(link)) {
+      throw new Error('Invalid package link (must be an http(s) URL): ' + link);
     }
     if (!this.crawler) {
       this.crawler = new PackageCrawler(this.config, this.db, this.stats);

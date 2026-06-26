@@ -9,7 +9,26 @@ const {XMLParser} = require('fast-xml-parser');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const dns = require('dns');
+const http = require('http');
+const https = require('https');
+const ipaddr = require('ipaddr.js');
 const {debugLog} = require("../tx/operation-context");
+
+// True if an IP literal is anything other than a normal public (unicast) address:
+// loopback, private, link-local (incl. 169.254.169.254 cloud metadata), unique-local,
+// CGNAT, multicast, reserved, etc. IPv4-mapped IPv6 addresses are unwrapped first.
+function isNonPublicAddress(ip) {
+  try {
+    let addr = ipaddr.parse(ip);
+    if (addr.kind() === 'ipv6' && addr.isIPv4MappedAddress()) {
+      addr = addr.toIPv4Address();
+    }
+    return addr.range() !== 'unicast';
+  } catch (e) {
+    return true; // unparseable - treat as unsafe
+  }
+}
 
 class PackageCrawler {
   log;
@@ -139,10 +158,96 @@ class PackageCrawler {
     return url.replace(/^http:/, 'https:');
   }
 
+  // Roots under which local-file feed reads are permitted. Reading local files supports
+  // locally-configured feeds (e.g. for testing); allowed roots come from
+  // config.localFeedDirs, plus the directory of a local master feed url. Anything else
+  // is rejected so a third-party feed can't point a read at an arbitrary server file.
+  allowedLocalRoots() {
+    const roots = [];
+    const cfg = this.config && this.config.localFeedDirs;
+    if (Array.isArray(cfg)) {
+      roots.push(...cfg);
+    } else if (typeof cfg === 'string' && cfg.length > 0) {
+      roots.push(cfg);
+    }
+    if (this.config && typeof this.config.masterUrl === 'string' && this.config.masterUrl.startsWith('/')) {
+      roots.push(path.dirname(this.config.masterUrl));
+    }
+    return roots.map((r) => path.resolve(r));
+  }
+
+  // A DNS lookup wrapper that rejects any host resolving to a non-public address.
+  // Enforced at connection time (so it also covers redirect targets and defeats
+  // DNS-rebinding), this is the SSRF guard for all outbound http(s) fetches.
+  // Set config.allowPrivateAddresses = true to disable (e.g. for local test registries).
+  ssrfLookup() {
+    const allowPrivate = !!(this.config && this.config.allowPrivateAddresses);
+    return (hostname, options, callback) => {
+      if (typeof options === 'function') {
+        callback = options;
+        options = {};
+      }
+      const wantAll = !!(options && options.all);
+      dns.lookup(hostname, Object.assign({}, options, { all: true }), (err, addresses) => {
+        if (err) {
+          callback(err);
+          return;
+        }
+        if (!allowPrivate) {
+          for (const a of addresses) {
+            if (isNonPublicAddress(a.address)) {
+              callback(new Error('Blocked request to non-public address ' + a.address + ' (host ' + hostname + ')'));
+              return;
+            }
+          }
+        }
+        if (wantAll) {
+          callback(null, addresses);
+        } else {
+          callback(null, addresses[0].address, addresses[0].family);
+        }
+      });
+    };
+  }
+
+  // http/https agents that route every connection through the SSRF lookup. Cached so
+  // connections can be pooled across requests.
+  guardedAgents() {
+    if (!this._guardedAgents) {
+      const lookup = this.ssrfLookup();
+      class GuardedHttpAgent extends http.Agent {
+        createConnection(options, cb) {
+          return super.createConnection(Object.assign({}, options, { lookup }), cb);
+        }
+      }
+      class GuardedHttpsAgent extends https.Agent {
+        createConnection(options, cb) {
+          return super.createConnection(Object.assign({}, options, { lookup }), cb);
+        }
+      }
+      this._guardedAgents = {
+        httpAgent: new GuardedHttpAgent({ keepAlive: true }),
+        httpsAgent: new GuardedHttpsAgent({ keepAlive: true })
+      };
+    }
+    return this._guardedAgents;
+  }
+
+  // Resolve a local feed path and confine it to an allowed root (path-injection guard).
+  resolveLocalReadPath(url) {
+    const resolved = path.resolve(url);
+    const roots = this.allowedLocalRoots();
+    const allowed = roots.some((root) => resolved === root || resolved.startsWith(root + path.sep));
+    if (!allowed) {
+      throw new Error('Refusing to read local file outside the allowed feed directories: ' + url);
+    }
+    return resolved;
+  }
+
   async fetchJson(url) {
     try {
       if (url.startsWith("/")) {
-        const content = await fs.promises.readFile(url, "utf8");
+        const content = await fs.promises.readFile(this.resolveLocalReadPath(url), "utf8");
         return JSON.parse(content);
       } else {
         const response = await axios.get(url, {
@@ -150,7 +255,9 @@ class PackageCrawler {
           signal: this.abortController?.signal,
           headers: {
             'User-Agent': 'FHIR Package Crawler/1.0'
-          }
+          },
+          httpAgent: this.guardedAgents().httpAgent,
+          httpsAgent: this.guardedAgents().httpsAgent
         });
         return response.data;
       }
@@ -166,7 +273,7 @@ class PackageCrawler {
   async fetchXml(url) {
     try {
       if (url.startsWith("/")) {
-        const content = await fs.promises.readFile(url, 'utf8');
+        const content = await fs.promises.readFile(this.resolveLocalReadPath(url), 'utf8');
         const parser = new XMLParser({
           ignoreAttributes: false,
           attributeNamePrefix: '@_',
@@ -180,7 +287,9 @@ class PackageCrawler {
           signal: this.abortController?.signal,
           headers: {
             'User-Agent': 'FHIR Package Crawler/1.0'
-          }
+          },
+          httpAgent: this.guardedAgents().httpAgent,
+          httpsAgent: this.guardedAgents().httpsAgent
         });
 
         const parser = new XMLParser({
@@ -203,7 +312,7 @@ class PackageCrawler {
   async fetchUrl(url) {
     try {
       if (url.startsWith("/")) {
-        const buffer = await fs.promises.readFile(url);
+        const buffer = await fs.promises.readFile(this.resolveLocalReadPath(url));
         this.totalBytes += buffer.byteLength;
         return buffer;
       } else {
@@ -213,7 +322,9 @@ class PackageCrawler {
           signal: this.abortController?.signal,
           headers: {
             'User-Agent': 'FHIR Package Crawler/1.0'
-          }
+          },
+          httpAgent: this.guardedAgents().httpAgent,
+          httpsAgent: this.guardedAgents().httpsAgent
         });
 
         this.totalBytes += response.data.byteLength;
