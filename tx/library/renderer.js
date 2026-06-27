@@ -340,12 +340,12 @@ class Renderer {
     }
   }
 
-  renderLinkComma(x, uri) {
-    let {desc, url} = (this.linkResolver ? this.linkResolver.resolveURL(this.opContext, uri) : null) || {};
-    if (url) {
-      x.commaItem(desc, url);
+  async renderLinkComma(x, uri) {
+    let {description, link} = await (this.linkResolver ? this.linkResolver.resolveURL(this.opContext, uri) : null) || {};
+    if (link) {
+      x.commaItem(description, link);
     } else {
-      x.commaItem(uri);
+      x.commaItem(link);
     }
   }
 
@@ -673,7 +673,7 @@ class Renderer {
       p.tx(" ");
       p.startCommaList("and");
       for (let ext of supplements) {
-        this.renderLinkComma(p, getValuePrimitive(ext));
+        await this.renderLinkComma(p, getValuePrimitive(ext));
       }
       p.stopCommaList();
       p.tx(".");
@@ -762,10 +762,10 @@ class Renderer {
         li.stopCommaList();
       }
     } else if (inc.valueSet && inc.valueSet.length > 0) {
-      li.tx(this.translatePlural(inc.valueSet.length, 'VALUE_SET_RULES_INC'));
+      li.tx(this.translatePlural(inc.valueSet.length, 'VALUE_SET_IMPORT')+" ");
       li.startCommaList("and");
       for (let vs of inc.valueSet) {
-        this.renderLinkComma(li, vs);
+        await this.renderLinkComma(li, vs);
       }
       li.stopCommaList();
     } else {

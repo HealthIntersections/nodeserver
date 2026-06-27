@@ -231,8 +231,8 @@ class Provider {
         return vs;
       }
     }
-    let vs = await this.findKnownValueSet(url, version);
-    return vs;
+    let vs1 = await this.findKnownValueSet(url, version);
+    return vs1;
   }
 
   async getConceptMapById(opContext, id) {
@@ -381,7 +381,7 @@ class Provider {
     if (vs) {
       return {
         link: this.path+"/ValueSet/"+vs.id,
-        description: (vs.title ? vs.title : vs.name)+(version ? " v"+version : "")
+        description: (vs.title ? vs.title : vs.name)+(version ? " v"+version : vs.version ?  " v"+vs.version : "")
       };
     }
     let cm = await this.findConceptMap(opContext, system, version);

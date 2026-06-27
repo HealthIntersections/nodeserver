@@ -8,6 +8,30 @@ const ValueSet = require("../library/valueset");
 const INDEXED_COLUMNS = ['id', 'url', 'version', 'date', 'description', 'name', 'publisher', 'status', 'title'];
 
 /**
+ * Is `candidate` a newer version than `current`? Used to keep the version-less
+ * (bare-url) and url|major.minor map keys pointing at the latest version when several
+ * versions of the same value set are present. Handles both semver (IG/package value
+ * sets) and VSAC-style YYYYMMDD date versions (not semver, but fixed-width so they
+ * order correctly numerically).
+ * @param {string|null|undefined} candidate
+ * @param {string|null|undefined} current
+ * @returns {boolean}
+ */
+function isNewerVersion(candidate, current) {
+  if (current == null) return true;
+  if (candidate == null) return false;
+  if (candidate === current) return false;
+  if (VersionUtilities.isSemVer(candidate) && VersionUtilities.isSemVer(current)) {
+    return VersionUtilities.isThisOrLater(current, candidate); // candidate >= current (semver-aware)
+  }
+  if (/^\d+$/.test(candidate) && /^\d+$/.test(current)) {
+    // e.g. VSAC YYYYMMDD - compare numerically (handles differing widths too)
+    return Number(candidate) > Number(current);
+  }
+  return candidate > current; // best-effort lexical fallback
+}
+
+/**
  * Shared database layer for ValueSet providers
  * Handles SQLite operations for indexing and searching ValueSets
  */
@@ -737,26 +761,35 @@ class ValueSetDatabase {
   }
 
   addToMap(valueSetMap, id, url, version, valueSet) {
-    valueSetMap.set(url, valueSet);
-    valueSetMap.set(id, valueSet);
+    // The bare-url key must resolve to the *latest* version, but rows arrive in no
+    // particular order (and several versions of the same url coexist - e.g. VSAC, where
+    // each date-version is its own row). So only overwrite it when this version is newer.
+    this._setIfNewer(valueSetMap, url, version, valueSet);
+    valueSetMap.set(id, valueSet); // id is unique per version
 
     if (version) {
-      // Store by url|version
-      const versionKey = `${url}|${version}`;
-      valueSetMap.set(versionKey, valueSet);
+      // Store by url|version (exact - unique per version, always set)
+      valueSetMap.set(`${url}|${version}`, valueSet);
 
-      // If version is semver, also store by url|major.minor
+      // If version is semver, also store by url|major.minor, keeping the latest patch
       try {
         if (VersionUtilities.isSemVer(version)) {
           const majorMinor = VersionUtilities.getMajMin(version);
           if (majorMinor) {
-            const majorMinorKey = `${url}|${majorMinor}`;
-            valueSetMap.set(majorMinorKey, valueSet);
+            this._setIfNewer(valueSetMap, `${url}|${majorMinor}`, version, valueSet);
           }
         }
       } catch (error) {
         // Ignore version parsing errors, just don't add major.minor key
       }
+    }
+  }
+
+  // Set map[key] = valueSet only if `version` is newer than the version already there.
+  _setIfNewer(valueSetMap, key, version, valueSet) {
+    const existing = valueSetMap.get(key);
+    if (!existing || isNewerVersion(version, existing.version)) {
+      valueSetMap.set(key, valueSet);
     }
   }
 

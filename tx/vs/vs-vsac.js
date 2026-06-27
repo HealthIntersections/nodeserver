@@ -66,6 +66,10 @@ class VSACValueSetProvider extends AbstractValueSetProvider {
     });
   }
 
+  code() {
+    return "vsac";
+  }
+
   sourcePackage() {
     return "vsac";
   }

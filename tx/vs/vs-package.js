@@ -26,6 +26,9 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
     this.sourcePackageCode = packageLoader.id();
   }
 
+  code() {
+    return this.sourcePackageCode;
+  }
   sourcePackage() {
     return this.sourcePackageCode;
   }
