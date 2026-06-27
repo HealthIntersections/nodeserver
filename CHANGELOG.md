@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v0.10.1] - 2026-06-27
+
+### Fixed
+
+- Terminology: the version-less value set lookup now resolves to the latest version when several versions of the same value set are present (e.g. VSAC date versions), instead of an arbitrary one determined by database row order
+- Rendering: fixed value set links in `renderLinkComma` (read the resolver's `description`/`link` fields and fall back to the raw URI)
+
+### Tx Conformance Statement
+
+FHIRsmith passed all 2503 HL7 terminology service tests (modes tx.fhir.org+omop+general+snomed, tests v1.9.1, runner v6.9.11)
+
 ## [v0.10.0] - 2026-06-27
 
 ### Added
@@ -35,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tx Conformance Statement
 
-FHIRsmith passed all 2503 HL7 terminology service tests (modes tx.fhir.org+omop+general+snomed, tests v1.9.1, runner v6.9.11
+FHIRsmith passed all 2503 HL7 terminology service tests (modes tx.fhir.org+omop+general+snomed, tests v1.9.1, runner v6.9.11)
 
 ## [v0.9.7] - 2026-06-12
 
