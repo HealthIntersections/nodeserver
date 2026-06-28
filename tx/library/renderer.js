@@ -157,8 +157,8 @@ class Renderer {
   async renderMetadataTable(res, tbl, sourcePackage) {
     this.renderMetadataVersion(res, tbl);
     await this.renderMetadataProfiles(res, tbl);
-    this.renderMetadataTags(res, tbl);
-    this.renderMetadataLabels(res, tbl);
+    await this.renderMetadataTags(res, tbl);
+    await this.renderMetadataLabels(res, tbl);
     this.renderMetadataLastUpdated(res, tbl);
     this.renderMetadataSource(res, tbl);
     this.renderProperty(tbl, 'TEST_PLAN_LANG', res.language);
@@ -221,32 +221,32 @@ class Renderer {
     }
   }
 
-  renderMetadataTags(res, tbl) {
+  async renderMetadataTags(res, tbl) {
     if (res.meta?.tag) {
       let tr = tbl.tr();
       tr.td().b().tx(this.translate('GENERAL_PROF'));
       if (res.meta.tag.length > 1) {
         let ul = tr.td();
         for (let u of res.meta.tag) {
-          this.renderCoding(ul.li(), u);
+          await this.renderCoding(ul.li(), u);
         }
       } else {
-        this.renderCoding(tr.td(), res.meta.tag[0]);
+        await this.renderCoding(tr.td(), res.meta.tag[0]);
       }
     }
   }
 
-  renderMetadataLabels(res, tbl) {
+  async renderMetadataLabels(res, tbl) {
     if (res.meta?.label) {
       let tr = tbl.tr();
       tr.td().b().tx(this.translate('GENERAL_PROF'));
       if (res.meta.label.length > 1) {
         let ul = tr.td();
         for (let u of res.meta.label) {
-          this.renderCodin(ul.li(), u);
+          await this.renderCoding(ul.li(), u);
         }
       } else {
-        this.renderCoding(tr.td(), res.meta.label[0]);
+        await this.renderCoding(tr.td(), res.meta.label[0]);
       }
     }
   }

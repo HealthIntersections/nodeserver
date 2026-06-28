@@ -481,7 +481,11 @@ class Library {
           throw new Error("Unable to load VSAC provider unless vsacCfg is provided in the configuration");
         }
         let vsac = new VSACValueSetProvider(this.vsacCfg, this.stats);
-        vsac.initialize();
+        // Intentionally not awaited: initialize() might run a full VSAC sync on first load,
+        // which can take minutes - we don't want to block startup. But attach a handler
+        // so a failed background sync surfaces as a log error rather than an unhandled
+        // promise rejection.
+        vsac.initialize().catch((err) => this.log.error(`VSAC initialization failed: ${err.message}`));
         this.valueSetProviders.push(vsac);
         this.externalSources.push(vsac);
         //const mem = process.memoryUsage();

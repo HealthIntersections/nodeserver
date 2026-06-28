@@ -1203,7 +1203,7 @@ class ValueSetChecker {
             }
           }
         } else {
-          this.checkCanonicalStatusCS(path, op, prov, this.valueSet);
+          await this.checkCanonicalStatusCS(path, op, prov, this.valueSet);
           let ctxt = await prov.locate(c.code);
           if (!ctxt.context) {
             // message can never be populated in pascal?
