@@ -2665,14 +2665,14 @@ class PublisherModule {
     return colors[status] || 'secondary';
   }
 
-  async logUserAction(userId, action, targetId, ipAddress) {
-    return new Promise((resolve) => {
-      this.db.run(
-          'INSERT INTO user_actions (user_id, action, target_id, ip_address) VALUES (?, ?, ?, ?)',
-          [userId, action, targetId, ipAddress],
-          () => resolve() // Don't fail if logging fails
-      );
-    });
+  // Fire-and-forget audit logging: callers don't await this, and it must never fail a
+  // request, so it returns void and swallows any DB error in the callback.
+  logUserAction(userId, action, targetId, ipAddress) {
+    this.db.run(
+        'INSERT INTO user_actions (user_id, action, target_id, ip_address) VALUES (?, ?, ?, ?)',
+        [userId, action, targetId, ipAddress],
+        () => {} // don't fail (or block) the request if audit logging fails
+    );
   }
 
   getStatus() {

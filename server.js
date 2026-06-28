@@ -860,4 +860,7 @@ async function serveFhirsmithHome(req, res) {
 }
 
 // Start the server
-startServer();
+startServer().catch((err) => {
+  serverLog.error('Fatal error during startup:', err);
+  process.exit(1);
+});

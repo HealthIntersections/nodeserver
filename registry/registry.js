@@ -116,13 +116,13 @@ class RegistryModule {
 
     // Run initial crawl after a short delay
     setTimeout(() => {
-      this.performCrawl();
+      this.performCrawl().catch((err) => this.logger.error('Registry crawl failed: ' + err.message));
     }, 5000);
 
     // Set up periodic crawling
     this.stats.addTask("TxRegistry", `${intervalMinutes} min`);
     this.crawlInterval = setInterval(() => {
-      this.performCrawl();
+      this.performCrawl().catch((err) => this.logger.error('Registry crawl failed: ' + err.message));
     }, intervalMs);
 
     this.logger.info(`Started periodic crawl every ${intervalMinutes} minutes`);

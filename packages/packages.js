@@ -1712,7 +1712,7 @@ class PackagesModule {
       // Update download counts after successful response
       // Do this asynchronously to not delay the response
       setImmediate(() => {
-        this.incrementDownloadCounts(packageData.PackageVersionKey, id);
+        void this.incrementDownloadCounts(packageData.PackageVersionKey, id); // fire-and-forget; errors handled internally
       });
 
     } catch (error) {

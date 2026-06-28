@@ -3156,7 +3156,7 @@ async function initializeXigModule(stats, xigConfig) {
     if (!fs.existsSync(XIG_DB_PATH)) {
       xigLog.info('No existing XIG database found, triggering initial download');
       setTimeout(() => {
-        updateXigDatabase();
+        updateXigDatabase().catch((err) => xigLog.error('XIG database update failed: ' + err.message));
       }, 5000);
     }
 
@@ -3167,7 +3167,7 @@ async function initializeXigModule(stats, xigConfig) {
     // Note: This assumes we're called only when XIG is enabled
     if (xigConfig?.autoUpdate !== false) {
       cron.schedule('0 2 * * *', () => {
-        updateXigDatabase();
+        updateXigDatabase().catch((err) => xigLog.error('XIG database update failed: ' + err.message));
       });
     }
 

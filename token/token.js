@@ -528,7 +528,7 @@ class TokenModule {
           }
 
           if (userId) {
-            this.logSecurityEvent(userId, 'logout', req.ip, req.get('User-Agent'), {});
+            void this.logSecurityEvent(userId, 'logout', req.ip, req.get('User-Agent'), {}); // fire-and-forget audit; errors handled internally
           }
 
           res.redirect('/token/login');
