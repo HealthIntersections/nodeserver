@@ -977,7 +977,7 @@ async function fetchResourceRows(queryParams, offset = 0, limit = 200) {
 }
 
 function rowToObject(row, queryParams) {
-  const { ver, realm, auth, type, rt } = queryParams;
+  const { type } = queryParams;
   const packageObj = getPackage(row.PackageKey);
 
   const obj = {
