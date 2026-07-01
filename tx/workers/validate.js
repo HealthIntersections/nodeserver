@@ -1126,17 +1126,23 @@ class ValueSetChecker {
         } else if (c.display && list.designations.length > 0) {
           await this.checkDisplays(list, defLang, c, msg, op, path);
         }
-        psys = c.system;
-        pcode = c.code;
-        if (ver.value) {
-          pver = ver.value;
-        }
-        let pd = list.preferredDisplay(this.params.workingLanguages());
-        if (pd) {
-          pdisp = pd;
-        }
-        if (!pdisp) {
-          pdisp = list.preferredDisplay(null);
+        // Report the FIRST matching coding, not the last: when a CodeableConcept
+        // has several valid codings, the code/system/version/display echoed back
+        // are those of the earliest coding that validated. Only capture once
+        // (pcode is undefined until the first match).
+        if (pcode === undefined) {
+          psys = c.system;
+          pcode = c.code;
+          if (ver.value) {
+            pver = ver.value;
+          }
+          let pd = list.preferredDisplay(this.params.workingLanguages());
+          if (pd) {
+            pdisp = pd;
+          }
+          if (!pdisp) {
+            pdisp = list.preferredDisplay(null);
+          }
         }
       } else if (!this.params.membershipOnly && ws) {
         if (!isAbsoluteUrl(ws)) {
@@ -1354,12 +1360,13 @@ class ValueSetChecker {
       if (!mpath) {
         mpath = 'code';
       }
+      let mid1 = "INACTIVE_CONCEPT_FOUND";
+      let mm1 = "";
       if (!['inactive', 'DISCOURAGED'].includes(vstatus.value)) {
-        let m = this.worker.i18n.translate('INACTIVE_CONCEPT_FOUND', this.params.HTTPLanguages, ['inactive', tcode]);
-        msg(m);
-        op.addIssue(new Issue('warning', 'business-rule', mpath, 'INACTIVE_CONCEPT_FOUND', m, 'code-comment'));
+        mid1 = 'INACTIVE_CONCEPT_FOUND_ADD';
+        mm1 = 'inactive';
       }
-      let m = this.worker.i18n.translate('INACTIVE_CONCEPT_FOUND', this.params.HTTPLanguages, [vstatus.value, tcode]);
+      let m = this.worker.i18n.translate(mid1, this.params.HTTPLanguages, [vstatus.value, tcode, mm1]);
       msg(m);
       op.addIssue(new Issue('warning', 'business-rule', mpath, 'INACTIVE_CONCEPT_FOUND', m, 'code-comment'));
     } else if (vstatus.value && vstatus.value.toLowerCase() === 'deprecated') {
