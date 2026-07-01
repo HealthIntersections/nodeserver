@@ -119,6 +119,19 @@ class ResourceCache {
   }
 
   /**
+   * Whether a cache is sealed. A sealed cache holds only the resources it was
+   * created with (at $cache-control?mode=start) and does not grow as further
+   * resources are seen on subsequent operations. An unsealed cache accumulates
+   * every resource it sees. Unknown/absent cache-ids report false.
+   * @param {string} cacheId - The cache identifier
+   * @returns {boolean}
+   */
+  isSealed(cacheId) {
+    const entry = this.cache.get(cacheId);
+    return entry ? !!entry.sealed : false;
+  }
+
+  /**
    * Add resources to a cache-id (merges with existing)
    * @param {string} cacheId - The cache identifier
    * @param {Array} resources - Resources to add
@@ -158,9 +171,11 @@ class ResourceCache {
    * Set resources for a cache-id (replaces existing)
    * @param {string} cacheId - The cache identifier
    * @param {Array} resources - Resources to set
+   * @param {boolean} [sealed=false] - If true, the cache is fixed at these
+   *   resources and will not grow when further resources are seen later.
    */
-  set(cacheId, resources) {
-    this.log.info(`cache-id '${cacheId}': set (replace all) with ${resources.length} resource(s): ${resources.map(r => this._resourceKey(r)).join(', ')}`);
+  set(cacheId, resources, sealed = false) {
+    this.log.info(`cache-id '${cacheId}': set (replace all, sealed=${!!sealed}) with ${resources.length} resource(s): ${resources.map(r => this._resourceKey(r)).join(', ')}`);
     // Drop the old entry's contribution, then count the replacement.
     const existing = this.cache.get(cacheId);
     if (existing) {
@@ -174,7 +189,8 @@ class ResourceCache {
     this.cache.set(cacheId, {
       resources: [...resources],
       lastUsed: Date.now(),
-      concepts
+      concepts,
+      sealed: !!sealed
     });
     this._trackMax();
   }

@@ -309,4 +309,117 @@ describe('$cache-control routing (scaffolding)', () => {
       expect(coding.some(c => c.code === 'cache-id-unknown')).toBe(true);
     });
   });
+
+  // ---- sealed vs unsealed caches ----
+  //
+  // `sealed` (start parameter) governs whether the cache may grow after creation.
+  // Sealed: only the front-loaded resources are ever in the cache; resources sent
+  // on a later request are used for that request but not retained. Unsealed: the
+  // cache accumulates resources it sees, so a resource sent once resolves by
+  // reference thereafter.
+  //
+  // NOTE: the server default is currently unsealed (transitional), which differs
+  // from the protocol default of sealed=true; that flips once all clients send an
+  // explicit `sealed`.
+  describe('sealed vs unsealed caches', () => {
+    const csA = {
+      resourceType: 'CodeSystem',
+      url: 'http://example.org/seal-test/csA',
+      version: '1.0.0', status: 'active', content: 'complete',
+      concept: [{ code: 'a1', display: 'A One' }]
+    };
+    const vsA = {
+      resourceType: 'ValueSet',
+      url: 'http://example.org/seal-test/vsA',
+      version: '1.0.0', status: 'active',
+      compose: { include: [{ system: csA.url }] }
+    };
+    // A second VS not front-loaded; used to probe whether the cache grew.
+    const csB = {
+      resourceType: 'CodeSystem',
+      url: 'http://example.org/seal-test/csB',
+      version: '1.0.0', status: 'active', content: 'complete',
+      concept: [{ code: 'b1', display: 'B One' }]
+    };
+    const vsB = {
+      resourceType: 'ValueSet',
+      url: 'http://example.org/seal-test/vsB',
+      version: '1.0.0', status: 'active',
+      compose: { include: [{ system: csB.url }] }
+    };
+
+    async function start(sealed) {
+      const params = [
+        { name: 'tx-resource', resource: csA },
+        { name: 'valueSet', resource: vsA }
+      ];
+      if (sealed !== undefined) params.push({ name: 'sealed', valueBoolean: sealed });
+      const started = await request(app)
+        .post(BASE).query({ mode: 'start' })
+        .set('Content-Type', 'application/json')
+        .send({ resourceType: 'Parameters', parameter: params });
+      return started.body;
+    }
+
+    test('start echoes the sealed flag it applied', async () => {
+      const body = await start(true);
+      const p = (body.parameter || []).find(x => x.name === 'sealed');
+      expect(p && p.valueBoolean).toBe(true);
+    });
+
+    test('default (no sealed param) is unsealed on this server (transitional)', async () => {
+      const body = await start(undefined);
+      const p = (body.parameter || []).find(x => x.name === 'sealed');
+      expect(p && p.valueBoolean).toBe(false);
+    });
+
+    test('a sealed cache does not retain a resource sent on a later request', async () => {
+      const cacheId = cacheIdFrom(await start(true));
+
+      // Send vsB/csB inline on a validate call (works for this call)...
+      const first = await request(app)
+        .post('/tx/r5/ValueSet/$validate-code')
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [
+          { name: 'valueSet', resource: vsB },
+          { name: 'tx-resource', resource: csB },
+          { name: 'coding', valueCoding: { system: csB.url, code: 'b1' } }
+        ] });
+      expect(first.status).toBe(200);
+
+      // ...but the sealed cache must not have kept vsB: a by-reference call now 404s.
+      const second = await request(app)
+        .post('/tx/r5/ValueSet/$expand')
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [{ name: 'url', valueUri: vsB.url }] });
+      expect(second.status).not.toBe(200);
+    });
+
+    test('an unsealed cache retains a resource sent on a later request', async () => {
+      const cacheId = cacheIdFrom(await start(false));
+
+      const first = await request(app)
+        .post('/tx/r5/ValueSet/$validate-code')
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [
+          { name: 'valueSet', resource: vsB },
+          { name: 'tx-resource', resource: csB },
+          { name: 'coding', valueCoding: { system: csB.url, code: 'b1' } }
+        ] });
+      expect(first.status).toBe(200);
+
+      // The unsealed cache kept vsB: it now resolves by reference.
+      const second = await request(app)
+        .post('/tx/r5/ValueSet/$expand')
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [{ name: 'url', valueUri: vsB.url }] });
+      expect(second.status).toBe(200);
+      const codes = ((second.body.expansion || {}).contains || []).map(c => c.code);
+      expect(codes).toContain('b1');
+    });
+  });
 });
