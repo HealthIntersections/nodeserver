@@ -51,6 +51,18 @@ describe('TX Module', () => {
       expect(response.body.kind).toBe('instance');
     });
 
+    test('url and implementation.url reflect the client host + endpoint path', async () => {
+      const response = await request(app)
+        .get('/tx/r5/metadata')
+        .set('Host', 'tx.example.org')
+        .set('Accept', 'application/json');
+
+      expect(response.status).toBe(200);
+      // Must echo the host the client used, not a hardcoded value
+      expect(response.body.implementation.url).toBe('http://tx.example.org/tx/r5');
+      expect(response.body.url).toBe('http://tx.example.org/tx/r5/CapabilityStatement/tx');
+    });
+
     test('should list supported resource types', async () => {
       const response = await request(app)
         .get('/tx/r5/metadata')

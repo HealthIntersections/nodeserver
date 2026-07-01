@@ -36,14 +36,35 @@ class MetadataHandler {
 
     if (mode === 'terminology') {
       this.logInfo = 'termcaps';
-      const tc = new TerminologyCapabilities(await this.buildTerminologyCapabilities(endpoint, provider));
+      const tc = new TerminologyCapabilities(await this.buildTerminologyCapabilities(endpoint, provider, req));
       return res.json(tc.jsonObj);
     }
     this.logInfo = 'metadata';
 
     // Default: return CapabilityStatement
-    const cs = new CapabilityStatement(this.buildCapabilityStatement(endpoint, provider));
+    const cs = new CapabilityStatement(this.buildCapabilityStatement(endpoint, provider, req));
     return res.json(cs.jsonObj);
+  }
+
+  /**
+   * Resolve the public base URL for this request.
+   * Derived from what the client actually asked for (scheme + host) plus the
+   * endpoint path, so the server echoes the host the client used rather than a
+   * fixed, hardcoded value. Falls back to config/host only when no request is
+   * available (e.g. unit tests calling the build methods directly).
+   * @param {express.Request} [req] - Express request
+   * @param {Object} endpoint - Endpoint info {path, ...}
+   * @returns {string} Base URL, e.g. https://tx.fhir.org/r4
+   */
+  resolveBaseUrl(req, endpoint) {
+    if (!req) {
+      return this.config.baseUrl || `https://${this.host}${endpoint.path}`;
+    }
+    // Requires app.set('trust proxy', ...) and nginx forwarding X-Forwarded-Proto
+    // for the scheme to be correct behind the reverse proxy.
+    const proto = req.protocol || 'https';
+    const host = req.get('host') || this.host;
+    return `${proto}://${host}${endpoint.path}`;
   }
 
   /**
@@ -106,11 +127,11 @@ class MetadataHandler {
    * @param {Object} provider - Provider for code systems and resources
    * @returns {Object} CapabilityStatement resource
    */
-  buildCapabilityStatement(endpoint) {
+  buildCapabilityStatement(endpoint, provider, req) {
 
     const now = new Date().toISOString();
     const fhirVersion = this.mapFhirVersion(endpoint.fhirVersion);
-    const baseUrl = this.config.baseUrl || `https://${this.host}${endpoint.path}`;
+    const baseUrl = this.resolveBaseUrl(req, endpoint);
     const serverVersion = this.config.serverVersion;
 
     return {
@@ -281,9 +302,9 @@ class MetadataHandler {
    * @param {Object} provider - Provider for code systems and resources
    * @returns {Object} TerminologyCapabilities resource
    */
-  async buildTerminologyCapabilities(endpoint, provider) {
+  async buildTerminologyCapabilities(endpoint, provider, req) {
     const now = new Date().toISOString();
-    const baseUrl = this.config.baseUrl || `https://${this.host}${endpoint.path}`;
+    const baseUrl = this.resolveBaseUrl(req, endpoint);
     const serverVersion = this.config.serverVersion || '1.0.0';
 
     const tc = {

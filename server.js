@@ -68,6 +68,10 @@ htmlServer.setSponsorMessage(config.sponsorMessage ? config.sponsorMessage : '')
 
 const app = express();
 
+// Behind nginx (or any reverse proxy): honor X-Forwarded-* so req.protocol and
+// req.hostname reflect what the client actually requested, not the loopback hop.
+app.set('trust proxy', config.server.trustProxy ?? true);
+
 const PORT = process.env.PORT || config.server.port || 3000;
 
 // Middleware
