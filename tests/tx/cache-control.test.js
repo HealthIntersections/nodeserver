@@ -422,4 +422,174 @@ describe('$cache-control routing (scaffolding)', () => {
       expect(codes).toContain('b1');
     });
   });
+
+  // ---- batch front-loading (two-pass) ----
+  //
+  // A batch against an unsealed cache front-loads every resource it supplies
+  // (tx-resource + primary valueSet/codeSystem) into the cache before any entry is
+  // evaluated. So the batch is order-independent (an entry may reference by url a
+  // resource a later entry supplies) and a failing entry does not withhold what it
+  // carried. A sealed cache does not grow, so there is no cross-entry sharing.
+  describe('batch front-loading (two-pass)', () => {
+    const BATCH = '/tx/r5/ValueSet/$batch-validate-code';
+
+    const entry = (parameter) => ({
+      name: 'validation',
+      resource: { resourceType: 'Parameters', parameter }
+    });
+    const results = (body) => (body.parameter || []).filter(x => x.name === 'validation');
+
+    async function startCache(sealed) {
+      const parameter = [];
+      if (sealed !== undefined) parameter.push({ name: 'sealed', valueBoolean: sealed });
+      const started = await request(app).post(BASE).query({ mode: 'start' })
+        .set('Content-Type', 'application/json')
+        .send({ resourceType: 'Parameters', parameter });
+      return cacheIdFrom(started.body);
+    }
+
+    const mkCS = (tag) => ({
+      resourceType: 'CodeSystem', url: `http://example.org/batch/${tag}-cs`,
+      version: '1.0.0', status: 'active', content: 'complete',
+      concept: [{ code: `${tag}1`, display: `${tag} one` }]
+    });
+    const mkVS = (tag, cs) => ({
+      resourceType: 'ValueSet', url: `http://example.org/batch/${tag}-vs`,
+      version: '1.0.0', status: 'active',
+      compose: { include: [{ system: cs.url }] }
+    });
+
+    test('an entry resolves a url supplied only by a LATER entry (unsealed)', async () => {
+      const cacheId = await startCache(false);
+      const cs = mkCS('fwd'); const vs = mkVS('fwd', cs);
+      const res = await request(app).post(BATCH)
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [
+          // entry 0: references vs by url only (forward reference)
+          entry([
+            { name: 'url', valueString: vs.url },
+            { name: 'coding', valueCoding: { system: cs.url, code: 'fwd1' } }
+          ]),
+          // entry 1: supplies vs + cs inline, AFTER the entry that references them
+          entry([
+            { name: 'tx-resource', resource: cs },
+            { name: 'valueSet', resource: vs },
+            { name: 'coding', valueCoding: { system: cs.url, code: 'fwd1' } }
+          ])
+        ] });
+      expect(res.status).toBe(200);
+      const rs = results(res.body);
+      expect(rs.length).toBe(2);
+      // the forward-referencing entry validated true because pass 1 pooled the
+      // resources from the later entry before any entry ran.
+      const r0 = (rs[0].resource.parameter || []).find(x => x.name === 'result');
+      expect(r0 && r0.valueBoolean).toBe(true);
+    });
+
+    test('resources are front-loaded even when the carrying entry fails, and persist (unsealed)', async () => {
+      const cacheId = await startCache(false);
+      const cs = mkCS('fail'); const vs = mkVS('fail', cs);
+      const batch = await request(app).post(BATCH)
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [
+          // this entry supplies vs+cs but validates a code that isn't in the system
+          entry([
+            { name: 'tx-resource', resource: cs },
+            { name: 'valueSet', resource: vs },
+            { name: 'coding', valueCoding: { system: cs.url, code: 'NOPE' } }
+          ])
+        ] });
+      expect(batch.status).toBe(200);
+
+      // Despite that entry not validating cleanly, vs was populated: a separate
+      // by-reference $expand on the same cache now resolves it.
+      const exp = await request(app).post('/tx/r5/ValueSet/$expand')
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [{ name: 'url', valueUri: vs.url }] });
+      expect(exp.status).toBe(200);
+      const codes = ((exp.body.expansion || {}).contains || []).map(c => c.code);
+      expect(codes).toContain('fail1');
+    });
+
+    test('a sealed batch does NOT share resources across entries', async () => {
+      const cacheId = await startCache(true);
+      const cs = mkCS('seal'); const vs = mkVS('seal', cs);
+      const res = await request(app).post(BATCH)
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [
+          // entry 0 references vs by url only
+          entry([
+            { name: 'url', valueString: vs.url },
+            { name: 'coding', valueCoding: { system: cs.url, code: 'seal1' } }
+          ]),
+          // entry 1 supplies vs - but a sealed cache does not share it to entry 0
+          entry([
+            { name: 'tx-resource', resource: cs },
+            { name: 'valueSet', resource: vs },
+            { name: 'coding', valueCoding: { system: cs.url, code: 'seal1' } }
+          ])
+        ] });
+      expect(res.status).toBe(200);
+      const rs = results(res.body);
+      // entry 0 could not resolve vs (no cross-entry sharing when sealed):
+      // either an OperationOutcome or result=false, but not a clean true.
+      const r0res = rs[0].resource;
+      const r0 = (r0res.parameter || []).find(x => x.name === 'result');
+      const unresolved = r0res.resourceType === 'OperationOutcome' || (r0 && r0.valueBoolean === false);
+      expect(unresolved).toBe(true);
+      // entry 1, which carried the resource itself, still validates true.
+      const r1 = (rs[1].resource.parameter || []).find(x => x.name === 'result');
+      expect(r1 && r1.valueBoolean).toBe(true);
+    });
+
+    test('an unknown cache-id fails the whole batch with a coded 404', async () => {
+      const cs = mkCS('unk'); const vs = mkVS('unk', cs);
+      const res = await request(app).post(BATCH)
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', 'never-issued-this-id')
+        .send({ resourceType: 'Parameters', parameter: [
+          entry([
+            { name: 'valueSet', resource: vs },
+            { name: 'coding', valueCoding: { system: cs.url, code: 'unk1' } }
+          ])
+        ] });
+      expect(res.status).toBe(404);
+      expect(res.body.resourceType).toBe('OperationOutcome');
+      const coding = (((res.body.issue || [])[0] || {}).details || {}).coding || [];
+      expect(coding.some(c => c.code === 'cache-id-unknown')).toBe(true);
+    });
+
+    // CodeSystem batch: same front-loading, but the primary being validated is a
+    // code system (system+code), not a value set.
+    test('a CodeSystem batch front-loads and resolves a system supplied by a later entry (unsealed)', async () => {
+      const CS_BATCH = '/tx/r5/CodeSystem/$batch-validate-code';
+      const cacheId = await startCache(false);
+      const cs = mkCS('csbatch');
+      const res = await request(app).post(CS_BATCH)
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [
+          // entry 0: validates a code against cs by system url only (forward ref)
+          entry([
+            { name: 'system', valueUri: cs.url },
+            { name: 'code', valueCode: 'csbatch1' }
+          ]),
+          // entry 1: supplies cs inline, AFTER the entry that references it
+          entry([
+            { name: 'tx-resource', resource: cs },
+            { name: 'system', valueUri: cs.url },
+            { name: 'code', valueCode: 'csbatch1' }
+          ])
+        ] });
+      expect(res.status).toBe(200);
+      const rs = results(res.body);
+      expect(rs.length).toBe(2);
+      const r0 = (rs[0].resource.parameter || []).find(x => x.name === 'result');
+      expect(r0 && r0.valueBoolean).toBe(true);
+    });
+  });
 });
