@@ -124,15 +124,44 @@ class CacheControlWorker extends TerminologyWorker {
     const { txResources, primaryResources } = this.collectSuppliedResources(params.jsonObj);
     const resources = txResources.concat(primaryResources);
 
+    // `sealed` controls whether the cache may grow after creation. When sealed,
+    // the cache holds only the resources front-loaded here; when unsealed, later
+    // operations accumulate every resource they see into it (see
+    // setupAdditionalResources).
+    //
+    // NOTE: the protocol default is `true`, but the server default here is
+    // deliberately `false` during the transition: existing clients that rely on
+    // incremental population and do not yet send `sealed` must keep working.
+    // Flip this to default-true once all clients send an explicit value.
+    const sealed = this.readSealed(params.jsonObj);
+
     const cacheId = crypto.randomUUID();
-    cache.set(cacheId, resources);
+    cache.set(cacheId, resources, sealed);
 
     return res.status(200).json({
       resourceType: 'Parameters',
       parameter: [
-        { name: 'cache-id', valueId: cacheId }
+        { name: 'cache-id', valueId: cacheId },
+        { name: 'sealed', valueBoolean: sealed }
       ]
     });
+  }
+
+  /**
+   * Read the `sealed` boolean from the start request's Parameters.
+   *
+   * Server-side default is FALSE (transitional — see start()): a cache is only
+   * sealed if the client explicitly asks for it. Accepts a real JSON boolean or
+   * the string "true"/"false" for robustness across clients.
+   *
+   * @param {Object} params - Parameters resource (jsonObj)
+   * @returns {boolean}
+   */
+  readSealed(params) {
+    const p = this.findParameter(params, 'sealed');
+    if (!p) return false;
+    const v = this.getParameterValue(p);
+    return v === true || v === 'true';
   }
 
   /**

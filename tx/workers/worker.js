@@ -666,14 +666,23 @@ class TerminologyWorker {
           'cache-id-unknown', 404);
       }
 
-      // The cache exists: merge any resources supplied on this request into it
-      // (incremental population is allowed), then expose the full cache contents.
-      const toCache = txResources.concat(primaryResources);
-      if (toCache.length > 0) {
-        this.opContext.resourceCache.add(cacheId, toCache);
+      // The cache exists. If it is unsealed, merge any resources supplied on this
+      // request into it (incremental population). If it is sealed, the cache is
+      // fixed at what it was created with: resources supplied now are still used
+      // for this request (via additionalResources below) but are NOT added to the
+      // shared cache, so a sealed cache never grows.
+      if (!this.opContext.resourceCache.isSealed(cacheId)) {
+        const toCache = txResources.concat(primaryResources);
+        if (toCache.length > 0) {
+          this.opContext.resourceCache.add(cacheId, toCache);
+        }
+        this.additionalResources = this.opContext.resourceCache.get(cacheId);
+      } else {
+        // Sealed: expose the cache contents plus this request's own inline
+        // resources (used for this call only), without mutating the cache.
+        this.additionalResources = this.opContext.resourceCache.get(cacheId)
+          .concat(txResources, primaryResources);
       }
-
-      this.additionalResources = this.opContext.resourceCache.get(cacheId);
       this.additionalResourcesCacheId = cacheId;
     } else {
       // No cache-id, just use the tx-resources directly
