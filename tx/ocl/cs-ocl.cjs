@@ -1,6 +1,7 @@
 const fs = require('fs/promises');
 const { AbstractCodeSystemProvider } = require('../cs/cs-provider-api');
 const { CodeSystemProvider, CodeSystemFactoryProvider, CodeSystemContentMode, FilterExecutionContext } = require('../cs/cs-api');
+const { BaseCSServices } = require('../cs/cs-base');
 const { CodeSystem } = require('../library/codesystem');
 const { SearchFilterText } = require('../library/designations');
 const { PAGE_SIZE, CONCEPT_PAGE_SIZE, COLD_CACHE_FRESHNESS_MS, OCL_CODESYSTEM_MARKER_EXTENSION } = require('./shared/constants');
@@ -595,7 +596,7 @@ class OCLCodeSystemProvider extends AbstractCodeSystemProvider {
   }
 }
 
-class OCLSourceCodeSystemProvider extends CodeSystemProvider {
+class OCLSourceCodeSystemProvider extends BaseCSServices {
   constructor(opContext, supplements, client, meta, sharedCaches = null) {
     super(opContext, supplements);
     this.httpClient = client;
@@ -733,6 +734,36 @@ class OCLSourceCodeSystemProvider extends CodeSystemProvider {
         }
       }
       this._listSupplementDesignations(ctxt.code, displays);
+    }
+  }
+
+  async extendLookup(ctxt, props, params) {
+    const context = await this.#ensureContext(ctxt);
+    const extras = context && context.extras;
+    if (!extras || typeof extras !== 'object') {
+      return;
+    }
+    for (const [key, value] of Object.entries(extras)) {
+      if (!key || value === null || value === undefined) {
+        continue;
+      }
+      if (!this._hasProp(props, key, true)) {
+        continue;
+      }
+      const part = [{ name: 'code', valueCode: key }];
+      if (typeof value === 'boolean') {
+        part.push({ name: 'value', valueBoolean: value });
+      } else if (typeof value === 'number' && Number.isInteger(value)) {
+        part.push({ name: 'value', valueInteger: value });
+      } else if (typeof value === 'number' && Number.isFinite(value)) {
+        part.push({ name: 'value', valueDecimal: value });
+      } else if (typeof value === 'string') {
+        part.push({ name: 'value', valueString: value });
+      } else {
+        // Extras may hold arbitrary JSON (arrays, objects); serialize rather than drop data.
+        part.push({ name: 'value', valueString: JSON.stringify(value) });
+      }
+      params.push({ name: 'property', part });
     }
   }
 
@@ -1848,6 +1879,7 @@ patchProviderForOCLFactorySync(() => OCLSourceCodeSystemFactory.factoriesByKey);
 
 module.exports = {
   OCLCodeSystemProvider,
+  OCLSourceCodeSystemProvider,
   OCLSourceCodeSystemFactory,
   OCLBackgroundJobQueue
 };
