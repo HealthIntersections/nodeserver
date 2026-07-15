@@ -625,17 +625,52 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
   }
 
   async #ensureCanonicalForSourceUrls(sourceUrls) {
+    // Deduplicate the repo paths that still need a canonical.
+    const pending = [];
+    const seen = new Set();
     for (const sourceUrl of sourceUrls || []) {
       const sourceKey = this.#norm(sourceUrl);
-      if (!sourceKey || this._canonicalBySourceUrl.has(sourceKey)) {
+      if (!sourceKey || this._canonicalBySourceUrl.has(sourceKey) || seen.has(sourceKey)) {
         continue;
       }
-
       const sourcePath = String(sourceUrl || '').trim();
       if (!isOclRepoPath(sourcePath)) {
         continue;
       }
+      seen.add(sourceKey);
+      pending.push(sourcePath);
+    }
 
+    if (pending.length === 0) {
+      return;
+    }
+
+    // One $resolveReference batch instead of one GET per source: the result
+    // carries the repo's canonical_url. Anything the batch cannot resolve falls
+    // through to the per-source GETs below, so behaviour without a token (or on
+    // failure) is unchanged.
+    if (this.referenceResolver.isEnabled()) {
+      try {
+        const results = await this.referenceResolver.resolveReferences(pending);
+        if (Array.isArray(results)) {
+          for (let i = 0; i < pending.length; i++) {
+            const r = results[i];
+            if (!r?.resolved || !r.canonical) {
+              continue;
+            }
+            const resolvedSourceUrl = r.repoUrl || pending[i];
+            this.#recordCanonicalForSource(pending[i], resolvedSourceUrl, r.canonical);
+          }
+        }
+      } catch (error) {
+        console.warn(`[OCL] $resolveReference batch for source canonicals failed: ${error.message}`);
+      }
+    }
+
+    for (const sourcePath of pending) {
+      if (this._canonicalBySourceUrl.has(this.#norm(sourcePath))) {
+        continue;
+      }
       try {
         const response = await this.httpClient.get(sourcePath);
         const source = response.data || {};
@@ -644,18 +679,24 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
         if (!canonical) {
           continue;
         }
-
-        const canonicalKey = this.#norm(canonical);
-        if (!this._sourceUrlsByCanonical.has(canonicalKey)) {
-          this._sourceUrlsByCanonical.set(canonicalKey, new Set());
-        }
-        this._sourceUrlsByCanonical.get(canonicalKey).add(resolvedSourceUrl);
-        this._canonicalBySourceUrl.set(this.#norm(resolvedSourceUrl), canonical);
+        this.#recordCanonicalForSource(sourcePath, resolvedSourceUrl, canonical);
       } catch (e) {
         // Ignore source lookup failures and continue resolving remaining sources.
         continue;
       }
     }
+  }
+
+  #recordCanonicalForSource(requestedPath, resolvedSourceUrl, canonical) {
+    const canonicalKey = this.#norm(canonical);
+    if (!this._sourceUrlsByCanonical.has(canonicalKey)) {
+      this._sourceUrlsByCanonical.set(canonicalKey, new Set());
+    }
+    this._sourceUrlsByCanonical.get(canonicalKey).add(resolvedSourceUrl);
+    this._canonicalBySourceUrl.set(this.#norm(resolvedSourceUrl), canonical);
+    // Also index under the exact path we were asked about, so the "already
+    // resolved" checks hit even when OCL's repo url differs in shape.
+    this._canonicalBySourceUrl.set(this.#norm(requestedPath), canonical);
   }
 
   #queryTokenFromSystem(systemUrl) {

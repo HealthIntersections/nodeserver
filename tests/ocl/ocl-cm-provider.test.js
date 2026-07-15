@@ -525,6 +525,57 @@ describe('OCLConceptMapProvider $resolveReference integration', () => {
     expect(getPaths(httpClient)).toContain(SEARCH_ENDPOINT);
   });
 
+  it('resolves mapping source canonicals in one batch, not one GET per source', async () => {
+    // Flow: resolve source-system (1 ref) -> fetch {source}/mappings/ -> resolve
+    // the from/to source canonicals of the mappings in a single batched POST.
+    const post = jest.fn(async (path, body) => ({
+      data: body.map(ref => {
+        const url = typeof ref === 'string' ? ref : ref.url;
+        const repo = url.startsWith('/') ? url : '/orgs/TestOrg/sources/A/';
+        return {
+          reference_type: url.startsWith('/') ? 'relative' : 'canonical',
+          resolved: true,
+          result: {
+            url: repo,
+            owner_type: 'Organization',
+            type: 'Source',
+            canonical_url: `http://canon.example.org${repo}`
+          }
+        };
+      })
+    }));
+    const get = jest.fn(async (url) => {
+      if (url.endsWith('/mappings/')) {
+        return {
+          data: [makeMapping({
+            from_source_url: '/orgs/TestOrg/sources/SourceA/',
+            to_source_url: '/orgs/TestOrg/sources/SourceB/'
+          })]
+        };
+      }
+      return { data: [] };
+    });
+    const { provider, httpClient } = makeProvider({ post });
+    httpClient.get = get;
+    provider.httpClient.get = get;
+
+    const results = await provider.searchConceptMaps(searchParams);
+
+    // POST #1 resolves the source-system; POST #2 is the batch with BOTH
+    // mapping source paths in one request.
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post.mock.calls[1][1]).toEqual([
+      '/orgs/TestOrg/sources/SourceA/',
+      '/orgs/TestOrg/sources/SourceB/'
+    ]);
+    // No per-source detail GETs: only the mappings listing was fetched.
+    const detailGets = get.mock.calls.filter(c => /\/sources\/Source[AB]\/$/.test(c[0]));
+    expect(detailGets).toHaveLength(0);
+    // Aggregation used the canonicals from the batch.
+    expect(results).toHaveLength(1);
+    expect(results[0].jsonObj.group[0].source).toBe('http://canon.example.org/orgs/TestOrg/sources/SourceA/');
+  });
+
   // Regression: searchConceptMaps used to lower-case every param value. The old
   // text search tolerated it (#norm lower-cases anyway), but $resolveReference
   // matches the canonical exactly, so a lower-cased URL never resolved.
