@@ -473,6 +473,24 @@ describe('OCLConceptMapProvider $resolveReference integration', () => {
     expect(getPaths(httpClient)).toContain('/users/joe/sources/S/HEAD/concepts/');
   });
 
+  // Regression: searchConceptMaps used to lower-case every param value. The old text
+  // search tolerated it (#norm lower-cases anyway), but $resolveReference matches the
+  // canonical exactly, so a lower-cased URL never resolved.
+  it('sends the canonical to $resolveReference with its original casing', async () => {
+    const { provider, httpClient } = makeProvider({
+      post: resolveReferenceReply('/orgs/Mangara/sources/S/HEAD/')
+    });
+
+    await provider.searchConceptMaps([
+      { name: 'source-system', value: 'https://mangara.hsl.org.br/fhir/CodeSystem/AlcoolSPA_uso_Mangara' }
+    ]);
+
+    expect(httpClient.post).toHaveBeenCalledTimes(1);
+    expect(httpClient.post.mock.calls[0][1]).toEqual([
+      'https://mangara.hsl.org.br/fhir/CodeSystem/AlcoolSPA_uso_Mangara'
+    ]);
+  });
+
   it('falls back to the source search when no token is configured', async () => {
     const { provider, httpClient } = makeProvider({ token: null });
 

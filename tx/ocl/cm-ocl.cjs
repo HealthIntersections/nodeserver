@@ -117,8 +117,13 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
   async searchConceptMaps(searchParams, _elements) {
     this._validateSearchParams(searchParams);
 
+    // Keep the canonical exactly as supplied. Lower-casing it here was harmless while
+    // every consumer compared through #norm() (which lower-cases anyway), but
+    // $resolveReference matches the canonical exactly, and OCL has no
+    // .../fhir/codesystem/alcoolspa_uso_mangara -- only .../fhir/CodeSystem/AlcoolSPA_uso_Mangara.
+    // findConceptMapForTranslation already passes the caller's original casing.
     const params = Object.fromEntries(
-      searchParams.map(({ name, value }) => [name, String(value).toLowerCase()])
+      searchParams.map(({ name, value }) => [name, String(value)])
     );
     const sourceSystem = params['source-system'] || params.source || null;
     const targetSystem = params['target-system'] || params.target || null;
