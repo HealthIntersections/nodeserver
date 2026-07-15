@@ -110,6 +110,22 @@ describe('OCL CodeSystem default-version resolution', () => {
     expect(metas.map(m => m.version)).toEqual(['HEAD']);
   });
 
+  it('does not re-resolve unchanged canonicals on refresh (steady state costs nothing)', async () => {
+    const { provider, httpClient } = makeProvider();
+
+    await provider.listCodeSystems('5.0', null);
+    expect(httpClient.post).toHaveBeenCalledTimes(1);
+
+    // Minute refresh with an unchanged listing: same checksum, no new resolve.
+    provider.getCodeSystemChanges('5.0', null);
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    expect(httpClient.get.mock.calls.filter(c => c[0] === '/sources/').length).toBeGreaterThanOrEqual(2);
+    expect(httpClient.post).toHaveBeenCalledTimes(1);
+    // The release default survived the refresh.
+    expect(provider.getSourceMetas().map(m => m.version)).toEqual(['20230109', 'HEAD']);
+  });
+
   it('keeps discovery working when $resolveReference is unavailable', async () => {
     const error = new Error('Request failed with status code 404');
     error.response = { status: 404 };
