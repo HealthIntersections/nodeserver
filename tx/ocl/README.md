@@ -67,6 +67,16 @@ instance probed (while the listing endpoints are public), so the resolver is
 constructed disabled and every caller keeps its previous search path. It also
 disables itself for the process on `404`/`401`/`403`.
 
+### CodeSystem default versions (release vs HEAD)
+OCL's own resolution treats a source's **latest release** as its default version
+(HEAD only when nothing is released), but discovery listings only ever report
+HEAD. With a token, discovery batch-resolves every canonical through
+`$resolveReference` and registers **both** versions: the release becomes what a
+versionless request gets (matching OCL), and HEAD stays reachable via an
+explicit `version=HEAD`. Only canonicals that are new or changed are re-resolved
+on refresh, so a steady-state cycle costs no extra requests. Without a token,
+discovery stays HEAD-only as before.
+
 ConceptMaps (`cm-ocl.js`):
 - fetch by id via `/mappings/{id}/`
 - search via `/mappings/` or `/orgs/{org}/mappings/`

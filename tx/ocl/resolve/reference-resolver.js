@@ -14,6 +14,10 @@
 
 const RESOLVE_PATH = '/$resolveReference/';
 
+// The live instance rejects large batches (403 somewhere between 150 and 200
+// references); 100 resolved in ~1.1s. Chunking is transparent to callers.
+const MAX_BATCH_SIZE = 100;
+
 // Org-only visibility policy: an artifact is expected to live in an organization
 // to be visible through the terminology service. User-owned repos (/users/...)
 // are experimental by convention and are excluded from discovery AND resolution.
@@ -183,11 +187,16 @@ class OclReferenceResolver {
   }
 
   /**
-   * Resolve many references in one POST. Results come back in the caller's order.
+   * Resolve many references, chunked into POSTs of at most MAX_BATCH_SIZE.
+   * Results come back in the caller's order.
    *
+   * @param {object} [options]
+   * @param {boolean} [options.bypassCache] - re-ask OCL even for cached entries
+   *   (the cache is still updated). Used by discovery refresh, where a source's
+   *   default version may have changed since it was last resolved.
    * @returns {Promise<Array|null>} null when the resolver is unavailable (use fallback)
    */
-  async resolveReferences(refs) {
+  async resolveReferences(refs, { bypassCache = false } = {}) {
     if (!this.#enabled) {
       return null;
     }
@@ -203,22 +212,32 @@ class OclReferenceResolver {
 
     bodies.forEach((body, index) => {
       const key = cacheKey(body);
-      if (this.#cache.has(key)) {
+      if (!bypassCache && this.#cache.has(key)) {
         output[index] = this.#cache.get(key);
       } else {
         misses.push({ body, index });
       }
     });
 
-    if (misses.length === 0) {
-      return output;
+    for (let start = 0; start < misses.length; start += MAX_BATCH_SIZE) {
+      const chunk = misses.slice(start, start + MAX_BATCH_SIZE);
+      const outcome = await this.#resolveChunk(chunk, output);
+      if (outcome === null) {
+        // Resolver became unavailable; the caller falls back wholesale rather
+        // than acting on a half-resolved set.
+        return null;
+      }
     }
 
+    return output;
+  }
+
+  async #resolveChunk(chunk, output) {
     let response;
     try {
-      response = await this.#httpClient.post(RESOLVE_PATH, misses.map(m => m.body));
+      response = await this.#httpClient.post(RESOLVE_PATH, chunk.map(m => m.body));
     } catch (error) {
-      return this.#handleError(error, misses, output);
+      return this.#handleError(error, chunk, output);
     }
 
     const payload = Array.isArray(response?.data)
@@ -228,19 +247,19 @@ class OclReferenceResolver {
         : [response.data];
 
     // Results are positional. On a count mismatch we cannot know which result
-    // belongs to which reference, so treat everything as unresolved rather than
+    // belongs to which reference, so treat the chunk as unresolved rather than
     // silently attributing a resolution to the wrong canonical.
-    if (payload.length !== misses.length) {
+    if (payload.length !== chunk.length) {
       this.#logger.error(
-        `[OCL] $resolveReference returned ${payload.length} result(s) for ${misses.length} reference(s); discarding to avoid misaligned results`
+        `[OCL] $resolveReference returned ${payload.length} result(s) for ${chunk.length} reference(s); discarding to avoid misaligned results`
       );
-      for (const { body, index } of misses) {
+      for (const { body, index } of chunk) {
         output[index] = unresolved(body);
       }
       return output;
     }
 
-    misses.forEach(({ body, index }, position) => {
+    chunk.forEach(({ body, index }, position) => {
       let value = normalizeResult(payload[position], body);
       // Org-only policy: a canonical resolving to a user-owned repo is treated as
       // unresolved — user artifacts are experimental and not visible through the

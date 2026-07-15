@@ -425,6 +425,36 @@ describe('OclReferenceResolver batching', () => {
   });
 });
 
+describe('OclReferenceResolver chunking', () => {
+  it('splits a large batch into POSTs of at most 100 and preserves order', async () => {
+    const httpClient = echoClient();
+    const resolver = makeResolver({ httpClient });
+    const refs = Array.from({ length: 250 }, (_, i) => `ref${i}`);
+
+    const results = await resolver.resolveReferences(refs);
+
+    expect(httpClient.post).toHaveBeenCalledTimes(3);
+    expect(httpClient.post.mock.calls.map(c => c[1].length)).toEqual([100, 100, 50]);
+    expect(results).toHaveLength(250);
+    expect(results[0].repoUrl).toBe('/orgs/X/sources/ref0/');
+    expect(results[249].repoUrl).toBe('/orgs/X/sources/ref249/');
+  });
+
+  it('bypassCache re-asks OCL and refreshes the cache', async () => {
+    const httpClient = echoClient();
+    const resolver = makeResolver({ httpClient });
+
+    await resolver.resolve('a');
+    await resolver.resolveReferences(['a'], { bypassCache: true });
+
+    expect(httpClient.post).toHaveBeenCalledTimes(2);
+
+    // Cache was refreshed, not invalidated: a third plain call is a cache hit.
+    await resolver.resolve('a');
+    expect(httpClient.post).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('OclReferenceResolver caching', () => {
   it('serves a repeat reference from cache', async () => {
     const httpClient = echoClient();
