@@ -214,6 +214,13 @@ describe('OCLConceptMapProvider', () => {
       ];
 
       const getMock = jest.fn().mockImplementation((url) => {
+        // {source}/mappings/ — one request returns every mapping the source owns.
+        // Verified against the live OCL instance: this returns the same set as
+        // walking concepts and asking each one, without the per-concept fan-out.
+        // Must precede the '/sources/' branch below, which would otherwise swallow it.
+        if (url.endsWith('/mappings/') && !url.includes('/concepts/')) {
+          return Promise.resolve({ data: mappings });
+        }
         // source search — resolve canonical for SourceA
         if (url.includes('/sources/') && !url.includes('/concepts/')) {
           return Promise.resolve({
@@ -470,7 +477,7 @@ describe('OCLConceptMapProvider $resolveReference integration', () => {
     // The authoritative answer makes the q= text search unnecessary.
     expect(getPaths(httpClient)).not.toContain(SEARCH_ENDPOINT);
     // ...and a user-owned repo survives, which the old /orgs/-only filter dropped.
-    expect(getPaths(httpClient)).toContain('/users/joe/sources/S/HEAD/concepts/');
+    expect(getPaths(httpClient)).toContain('/users/joe/sources/S/HEAD/mappings/');
   });
 
   // Regression: searchConceptMaps used to lower-case every param value. The old text

@@ -155,29 +155,18 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
     const allMappings = [];
     for (const sourcePath of sourcePaths) {
       const normalizedPath = this.#normalizeSourcePath(sourcePath);
-      let concepts;
       try {
-        concepts = await this.#fetchAllPages(
-          `${normalizedPath}concepts/`, { limit: PAGE_SIZE }, this.maxSearchPages
+        // Ask the source for its mappings directly. Walking concepts and asking each
+        // one costs a request per concept and, worse, only ever sees the first
+        // maxSearchPages of them -- for LOINC that is 1000 of 184683 concepts (0.5%),
+        // so any mapping past that point was silently invisible.
+        const mappings = await this.#fetchAllPages(
+          `${normalizedPath}mappings/`, { limit: PAGE_SIZE }, this.maxSearchPages
         );
+        allMappings.push(...mappings);
       } catch (_err) {
+        // source exposes no mappings endpoint or is inaccessible — skip
         continue;
-      }
-
-      for (const concept of concepts) {
-        const code = concept.id || concept.mnemonic;
-        if (!code) {
-          continue;
-        }
-        try {
-          const mappings = await this.#fetchAllPages(
-            `${normalizedPath}concepts/${encodeURIComponent(code)}/mappings/`,
-            { limit: PAGE_SIZE }, 2
-          );
-          allMappings.push(...mappings);
-        } catch (_err) {
-          // concept has no mappings or endpoint inaccessible — skip
-        }
       }
     }
 
