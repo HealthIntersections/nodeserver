@@ -549,6 +549,18 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
    * caller falls back to the existing search.
    */
   async #resolveViaReferenceResolver(systemUrl) {
+    // Say why once, rather than per lookup: for a tokenless deployment this is the
+    // expected steady state, not an error.
+    if (!this.referenceResolver.isEnabled()) {
+      if (!this._resolverDisabledLogged) {
+        this._resolverDisabledLogged = true;
+        console.log(
+          `[OCL] $resolveReference not in use (${this.referenceResolver.disabledReason}); using source search`
+        );
+      }
+      return null;
+    }
+
     let resolved;
     try {
       resolved = await this.referenceResolver.resolve(systemUrl);
@@ -558,8 +570,16 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
     }
 
     if (!resolved?.resolved || !resolved.repoUrl) {
+      console.log(`[OCL] $resolveReference did not resolve ${systemUrl}; falling back to source search`);
       return null;
     }
+
+    // Logged on success too: resolver and search return the same thing, so without
+    // this there is no way -- from outside or from the logs -- to tell which path ran.
+    const via = resolved.registryEntry ? `url registry ${resolved.registryEntry}` : 'namespace';
+    console.log(
+      `[OCL] $resolveReference resolved ${systemUrl} -> ${resolved.repoUrl} (namespace ${resolved.namespace}, via ${via})`
+    );
 
     // Keep the canonical<->repo caches coherent with the search path's bookkeeping.
     const canonicalKey = this.#norm(systemUrl);
