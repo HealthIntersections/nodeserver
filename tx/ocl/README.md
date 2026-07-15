@@ -169,10 +169,16 @@ sources:
 - **A token is what enables `$resolveReference`.** It remains optional and no existing
   configuration needs to change — but see below for what you gain by adding one.
 
-> **Do not commit a real token.** `data/library.yml` is tracked by git and is not
-> ignored, and there is no environment-variable interpolation in `tx/library.js`
-> (the `ocl:` alias block is read from the same file). A token added there is a live
-> credential in your repository history. Keep the edit local and uncommitted.
+> **Know where the token ends up.** There is no environment-variable interpolation in
+> `tx/library.js` — the `ocl:` alias block is read from the same YAML — so the token's
+> only home is the library file, and that file is normally tracked by git. A token
+> committed there is a live credential in your history: it is readable by anyone with
+> repository access, and rotating it at OCL (not deleting the line) is the only way to
+> revoke it afterwards.
+>
+> That can be a reasonable trade in a **private** deployment repository whose purpose
+> is to carry environment config. Do not do it in a public one, and do not let the
+> library file travel with a contribution upstream.
 
 ### Canonical resolution via `$resolveReference`
 
