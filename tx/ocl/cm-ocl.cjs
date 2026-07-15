@@ -3,7 +3,7 @@ const { ConceptMap } = require('../library/conceptmap');
 const { PAGE_SIZE } = require('./shared/constants');
 const { createOclHttpClient } = require('./http/client');
 const { fetchAllPages, extractItemsAndNext } = require('./http/pagination');
-const { isOclRepoPath } = require('./resolve/reference-resolver');
+const { OclReferenceResolver, isOclRepoPath } = require('./resolve/reference-resolver');
 
 const DEFAULT_MAX_SEARCH_PAGES = 10;
 
@@ -23,6 +23,15 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
     this._sourceCandidatesCache = new Map();
     this._sourceUrlsByCanonical = new Map();
     this._canonicalBySourceUrl = new Map();
+
+    // Asks OCL which repo holds a canonical instead of guessing via text search.
+    // Disabled unless a token is configured, in which case #candidateSourceUrls
+    // keeps using its existing search.
+    this.referenceResolver = new OclReferenceResolver({
+      httpClient: this.httpClient,
+      org: this.org,
+      token: options.token || null
+    });
   }
 
   assignIds(ids) {
@@ -516,14 +525,51 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
       }
     }
 
-    const discovered = await this.#resolveSourceCandidatesFromOcl(systemUrl);
-    for (const item of discovered) {
-      result.add(item);
+    // Ask OCL which repo holds this canonical (#2261). An authoritative answer makes
+    // the heuristic text search below unnecessary; without one we fall back to it.
+    const resolved = await this.#resolveViaReferenceResolver(systemUrl);
+    if (resolved) {
+      result.add(resolved);
+    } else {
+      const discovered = await this.#resolveSourceCandidatesFromOcl(systemUrl);
+      for (const item of discovered) {
+        result.add(item);
+      }
     }
 
     const out = Array.from(result);
     this._sourceCandidatesCache.set(cacheKey, out);
     return out;
+  }
+
+  /**
+   * Resolve a canonical to its OCL repo via $resolveReference.
+   * Returns null when the resolver is disabled (no token), when the endpoint is
+   * unavailable, or when OCL cannot resolve the canonical — in every case the
+   * caller falls back to the existing search.
+   */
+  async #resolveViaReferenceResolver(systemUrl) {
+    let resolved;
+    try {
+      resolved = await this.referenceResolver.resolve(systemUrl);
+    } catch (error) {
+      console.warn(`[OCL] $resolveReference lookup failed for ${systemUrl}: ${error.message}`);
+      return null;
+    }
+
+    if (!resolved?.resolved || !resolved.repoUrl) {
+      return null;
+    }
+
+    // Keep the canonical<->repo caches coherent with the search path's bookkeeping.
+    const canonicalKey = this.#norm(systemUrl);
+    if (!this._sourceUrlsByCanonical.has(canonicalKey)) {
+      this._sourceUrlsByCanonical.set(canonicalKey, new Set());
+    }
+    this._sourceUrlsByCanonical.get(canonicalKey).add(resolved.repoUrl);
+    this._canonicalBySourceUrl.set(this.#norm(resolved.repoUrl), systemUrl);
+
+    return resolved.repoUrl;
   }
 
   async #resolveSourceCandidatesFromOcl(systemUrl) {
