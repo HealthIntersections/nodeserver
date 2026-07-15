@@ -214,6 +214,11 @@ describe('OCLConceptMapProvider', () => {
       ];
 
       const getMock = jest.fn().mockImplementation((url) => {
+        // {source}/mappings/ — one request returns every mapping the source owns.
+        // Must precede the '/sources/' branch below, which would otherwise swallow it.
+        if (url.endsWith('/mappings/') && !url.includes('/concepts/')) {
+          return Promise.resolve({ data: mappings });
+        }
         // source search — resolve canonical for SourceA
         if (url.includes('/sources/') && !url.includes('/concepts/')) {
           return Promise.resolve({
@@ -468,7 +473,7 @@ describe('OCLConceptMapProvider $resolveReference integration', () => {
     expect(httpClient.post).toHaveBeenCalledTimes(1);
     // The authoritative answer makes the q= text search unnecessary.
     expect(getPaths(httpClient)).not.toContain(SEARCH_ENDPOINT);
-    expect(getPaths(httpClient)).toContain('/orgs/OtherOrg/sources/S/concepts/');
+    expect(getPaths(httpClient)).toContain('/orgs/OtherOrg/sources/S/mappings/');
   });
 
   it('falls back to the source search when the canonical resolves to a user-owned repo', async () => {
@@ -485,7 +490,7 @@ describe('OCLConceptMapProvider $resolveReference integration', () => {
 
     await provider.searchConceptMaps(searchParams);
 
-    expect(getPaths(httpClient)).not.toContain('/users/joe/sources/S/concepts/');
+    expect(getPaths(httpClient)).not.toContain('/users/joe/sources/S/mappings/');
     expect(getPaths(httpClient)).toContain(SEARCH_ENDPOINT);
   });
 
