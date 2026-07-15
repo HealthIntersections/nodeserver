@@ -7,6 +7,7 @@ const { SearchFilterText } = require('../library/designations');
 const { PAGE_SIZE, CONCEPT_PAGE_SIZE, COLD_CACHE_FRESHNESS_MS, OCL_CODESYSTEM_MARKER_EXTENSION } = require('./shared/constants');
 const { createOclHttpClient } = require('./http/client');
 const { fetchAllPages, extractItemsAndNext } = require('./http/pagination');
+const { isOrgOwned } = require('./resolve/reference-resolver');
 const { CACHE_CS_DIR, CACHE_VS_DIR, getCacheFilePath } = require('./cache/cache-paths');
 const { ensureCacheDirectories, getColdCacheAgeMs, formatCacheAgeMinutes } = require('./cache/cache-utils');
 const { computeCodeSystemFingerprint } = require('./fingerprint/fingerprint');
@@ -192,10 +193,36 @@ class OCLCodeSystemProvider extends AbstractCodeSystemProvider {
   }
 
   async #fetchSourcesForDiscovery() {
+    // Prefer the global listing: one paginated crawl instead of one listing per
+    // org (N+1 requests). Org-only policy: user-owned sources are experimental by
+    // convention and not visible to the terminology service, so filter them out.
+    try {
+      const all = await this.#fetchAllPages('/sources/');
+      if (Array.isArray(all) && all.length > 0) {
+        const seen = new Set();
+        const orgOwned = [];
+        for (const source of all) {
+          if (!source || typeof source !== 'object' || !isOrgOwned(source)) {
+            continue;
+          }
+          const key = this.#sourceIdentity(source);
+          if (seen.has(key)) {
+            continue;
+          }
+          seen.add(key);
+          orgOwned.push(source);
+        }
+        if (orgOwned.length > 0) {
+          return orgOwned;
+        }
+      }
+    } catch (error) {
+      console.warn(`[OCL] Global /sources/ listing failed (${error.message}); falling back to per-org discovery`);
+    }
+
     const organizations = await this.#fetchOrganizationIds();
     if (organizations.length === 0) {
-      // Fallback for OCL instances that expose global listing but not org listing.
-      return await this.#fetchAllPages('/sources/');
+      return [];
     }
 
     const allSources = [];

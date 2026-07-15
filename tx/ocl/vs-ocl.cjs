@@ -9,7 +9,7 @@ const { TxParameters } = require('../params');
 const { OCLSourceCodeSystemFactory, OCLBackgroundJobQueue } = require('./cs-ocl');
 const { PAGE_SIZE, CONCEPT_PAGE_SIZE, FILTERED_CONCEPT_PAGE_SIZE, COLD_CACHE_FRESHNESS_MS } = require('./shared/constants');
 const { createOclHttpClient } = require('./http/client');
-const { OclReferenceResolver } = require('./resolve/reference-resolver');
+const { OclReferenceResolver, isOrgOwned } = require('./resolve/reference-resolver');
 const { CACHE_VS_DIR, getCacheFilePath } = require('./cache/cache-paths');
 const { ensureCacheDirectories, getColdCacheAgeMs, formatCacheAgeMinutes } = require('./cache/cache-utils');
 const { computeValueSetExpansionFingerprint } = require('./fingerprint/fingerprint');
@@ -1383,10 +1383,36 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
   }
 
   async #fetchCollectionsForDiscovery() {
+    // Prefer the global listing: one paginated crawl instead of one listing per
+    // org (N+1 requests). Org-only policy: user-owned collections are
+    // experimental by convention and not visible to the terminology service.
+    try {
+      const all = await this.#fetchAllPages('/collections/');
+      if (Array.isArray(all) && all.length > 0) {
+        const seen = new Set();
+        const orgOwned = [];
+        for (const collection of all) {
+          if (!collection || typeof collection !== 'object' || !isOrgOwned(collection)) {
+            continue;
+          }
+          const key = this.#collectionIdentity(collection);
+          if (seen.has(key)) {
+            continue;
+          }
+          seen.add(key);
+          orgOwned.push(collection);
+        }
+        if (orgOwned.length > 0) {
+          return orgOwned;
+        }
+      }
+    } catch (error) {
+      console.warn(`[OCL-ValueSet] Global /collections/ listing failed (${error.message}); falling back to per-org discovery`);
+    }
+
     const organizations = await this.#fetchOrganizationIds();
     if (organizations.length === 0) {
-      // Fallback for OCL instances that expose global listing but not org listing.
-      return await this.#fetchAllPages('/collections/');
+      return [];
     }
 
     const allCollections = [];
