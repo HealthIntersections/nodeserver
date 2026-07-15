@@ -3,6 +3,7 @@ const { ConceptMap } = require('../library/conceptmap');
 const { PAGE_SIZE } = require('./shared/constants');
 const { createOclHttpClient } = require('./http/client');
 const { fetchAllPages, extractItemsAndNext } = require('./http/pagination');
+const { isOclRepoPath } = require('./resolve/reference-resolver');
 
 const DEFAULT_MAX_SEARCH_PAGES = 10;
 
@@ -131,7 +132,7 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
   async #collectMappingsForSearch(sourceSystem, targetSystem) {
     const systemUrl = sourceSystem || targetSystem;
     const candidates = await this.#candidateSourceUrls(systemUrl);
-    const sourcePaths = candidates.filter(s => String(s || '').startsWith('/orgs/'));
+    const sourcePaths = candidates.filter(isOclRepoPath);
 
     if (sourcePaths.length === 0) {
       return [];
@@ -283,7 +284,7 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
     const targetCandidates = await this.#candidateSourceUrls(targetSystem);
 
     const mappings = [];
-    const sourcePaths = sourceCandidates.filter(s => String(s || '').startsWith('/orgs/'));
+    const sourcePaths = sourceCandidates.filter(isOclRepoPath);
 
     if (sourceCode && sourcePaths.length > 0) {
       for (const sourcePath of sourcePaths) {
@@ -572,7 +573,7 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
       }
 
       const sourcePath = String(sourceUrl || '').trim();
-      if (!sourcePath.startsWith('/orgs/')) {
+      if (!isOclRepoPath(sourcePath)) {
         continue;
       }
 
