@@ -411,3 +411,113 @@ describe('OCLConceptMapProvider', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------
+// $resolveReference integration
+// ---------------------------------------------------------------
+describe('OCLConceptMapProvider $resolveReference integration', () => {
+  const { OclReferenceResolver } = require('../../tx/ocl/resolve/reference-resolver');
+
+  const SEARCH_ENDPOINT = '/orgs/TestOrg/sources/';
+
+  function makeProvider({ token = 'Token abc', post } = {}) {
+    const provider = new OCLConceptMapProvider({ org: 'TestOrg', token });
+    const httpClient = {
+      get: jest.fn(async () => ({ data: [] })),
+      post: post || jest.fn(async () => ({ data: [] }))
+    };
+    // The provider captures httpClient at construction, so rebuild the resolver
+    // on the mock the same way the other tests swap httpClient.
+    provider.httpClient = httpClient;
+    provider.referenceResolver = new OclReferenceResolver({
+      httpClient,
+      token,
+      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() }
+    });
+    return { provider, httpClient };
+  }
+
+  function resolveReferenceReply(url) {
+    return jest.fn(async () => ({
+      data: [
+        {
+          reference_type: 'canonical',
+          resolved: true,
+          request: null,
+          resolution_url: url,
+          url_registry_entry: null,
+          result: { type: 'Source', short_code: 'S', url, canonical_url: 'http://x.org/cs', owner_type: 'Organization' }
+        }
+      ]
+    }));
+  }
+
+  function getPaths(httpClient) {
+    return httpClient.get.mock.calls.map(call => call[0]);
+  }
+
+  const searchParams = [{ name: 'source-system', value: 'http://x.org/cs' }];
+
+  it('uses the resolved repo and skips the heuristic source search', async () => {
+    const { provider, httpClient } = makeProvider({
+      post: resolveReferenceReply('/users/joe/sources/S/')
+    });
+
+    await provider.searchConceptMaps(searchParams);
+
+    expect(httpClient.post).toHaveBeenCalledTimes(1);
+    // The authoritative answer makes the q= text search unnecessary.
+    expect(getPaths(httpClient)).not.toContain(SEARCH_ENDPOINT);
+    // ...and a user-owned repo survives, which an /orgs/-only filter would drop.
+    expect(getPaths(httpClient)).toContain('/users/joe/sources/S/concepts/');
+  });
+
+  it('falls back to the source search when no token is configured', async () => {
+    const { provider, httpClient } = makeProvider({ token: null });
+
+    await provider.searchConceptMaps(searchParams);
+
+    expect(httpClient.post).not.toHaveBeenCalled();
+    expect(getPaths(httpClient)).toContain(SEARCH_ENDPOINT);
+  });
+
+  it('falls back to the source search when OCL cannot resolve the canonical', async () => {
+    const post = jest.fn(async () => ({
+      data: [{ reference_type: 'canonical', resolved: false, result: null }]
+    }));
+    const { provider, httpClient } = makeProvider({ post });
+
+    await provider.searchConceptMaps(searchParams);
+
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(getPaths(httpClient)).toContain(SEARCH_ENDPOINT);
+  });
+
+  it('falls back to the source search when $resolveReference is unavailable', async () => {
+    const error = new Error('Request failed with status code 404');
+    error.response = { status: 404 };
+    const { provider, httpClient } = makeProvider({ post: jest.fn().mockRejectedValue(error) });
+
+    await provider.searchConceptMaps(searchParams);
+
+    expect(getPaths(httpClient)).toContain(SEARCH_ENDPOINT);
+  });
+
+  // Regression: searchConceptMaps used to lower-case every param value. The old
+  // text search tolerated it (#norm lower-cases anyway), but $resolveReference
+  // matches the canonical exactly, so a lower-cased URL never resolved.
+  it('sends the canonical to $resolveReference with its original casing', async () => {
+    const { provider, httpClient } = makeProvider({
+      post: resolveReferenceReply('/orgs/Mangara/sources/S/')
+    });
+
+    await provider.searchConceptMaps([
+      { name: 'source-system', value: 'https://mangara.hsl.org.br/fhir/CodeSystem/AlcoolSPA_uso_Mangara' }
+    ]);
+
+    expect(httpClient.post).toHaveBeenCalledTimes(1);
+    expect(httpClient.post.mock.calls[0][1]).toEqual([
+      'https://mangara.hsl.org.br/fhir/CodeSystem/AlcoolSPA_uso_Mangara'
+    ]);
+  });
+});

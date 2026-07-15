@@ -3,6 +3,7 @@ const { ConceptMap } = require('../library/conceptmap');
 const { PAGE_SIZE } = require('./shared/constants');
 const { createOclHttpClient } = require('./http/client');
 const { fetchAllPages, extractItemsAndNext } = require('./http/pagination');
+const { OclReferenceResolver, isOclRepoPath } = require('./resolve/reference-resolver');
 
 const DEFAULT_MAX_SEARCH_PAGES = 10;
 
@@ -22,6 +23,14 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
     this._sourceCandidatesCache = new Map();
     this._sourceUrlsByCanonical = new Map();
     this._canonicalBySourceUrl = new Map();
+
+    // Asks OCL which repo holds a canonical instead of guessing via text search.
+    // Disabled unless a token is configured, in which case #candidateSourceUrls
+    // keeps using its existing search.
+    this.referenceResolver = new OclReferenceResolver({
+      httpClient: this.httpClient,
+      token: options.token || null
+    });
   }
 
   assignIds(ids) {
@@ -107,8 +116,12 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
   async searchConceptMaps(searchParams, _elements) {
     this._validateSearchParams(searchParams);
 
+    // Keep the canonical exactly as supplied. Lower-casing it was harmless while
+    // every consumer compared through #norm() (which lower-cases anyway), but
+    // $resolveReference matches the canonical exactly, and OCL has no
+    // .../fhir/codesystem/x -- only .../fhir/CodeSystem/X.
     const params = Object.fromEntries(
-      searchParams.map(({ name, value }) => [name, String(value).toLowerCase()])
+      searchParams.map(({ name, value }) => [name, String(value)])
     );
     const sourceSystem = params['source-system'] || params.source || null;
     const targetSystem = params['target-system'] || params.target || null;
@@ -131,7 +144,7 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
   async #collectMappingsForSearch(sourceSystem, targetSystem) {
     const systemUrl = sourceSystem || targetSystem;
     const candidates = await this.#candidateSourceUrls(systemUrl);
-    const sourcePaths = candidates.filter(s => String(s || '').startsWith('/orgs/'));
+    const sourcePaths = candidates.filter(isOclRepoPath);
 
     if (sourcePaths.length === 0) {
       return [];
@@ -283,7 +296,7 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
     const targetCandidates = await this.#candidateSourceUrls(targetSystem);
 
     const mappings = [];
-    const sourcePaths = sourceCandidates.filter(s => String(s || '').startsWith('/orgs/'));
+    const sourcePaths = sourceCandidates.filter(isOclRepoPath);
 
     if (sourceCode && sourcePaths.length > 0) {
       for (const sourcePath of sourcePaths) {
@@ -515,14 +528,71 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
       }
     }
 
-    const discovered = await this.#resolveSourceCandidatesFromOcl(systemUrl);
-    for (const item of discovered) {
-      result.add(item);
+    // Ask OCL which repo holds this canonical. An authoritative answer makes the
+    // heuristic text search below unnecessary; without one we fall back to it.
+    const resolved = await this.#resolveViaReferenceResolver(systemUrl);
+    if (resolved) {
+      result.add(resolved);
+    } else {
+      const discovered = await this.#resolveSourceCandidatesFromOcl(systemUrl);
+      for (const item of discovered) {
+        result.add(item);
+      }
     }
 
     const out = Array.from(result);
     this._sourceCandidatesCache.set(cacheKey, out);
     return out;
+  }
+
+  /**
+   * Resolve a canonical to its OCL repo via $resolveReference.
+   * Returns null when the resolver is disabled (no token), the endpoint is
+   * unavailable, or OCL cannot resolve the canonical -- in every case the caller
+   * falls back to the existing search.
+   */
+  async #resolveViaReferenceResolver(systemUrl) {
+    // Say why once, rather than per lookup: for a tokenless deployment this is the
+    // expected steady state, not an error.
+    if (!this.referenceResolver.isEnabled()) {
+      if (!this._resolverDisabledLogged) {
+        this._resolverDisabledLogged = true;
+        console.log(
+          `[OCL] $resolveReference not in use (${this.referenceResolver.disabledReason}); using source search`
+        );
+      }
+      return null;
+    }
+
+    let resolved;
+    try {
+      resolved = await this.referenceResolver.resolve(systemUrl);
+    } catch (error) {
+      console.warn(`[OCL] $resolveReference lookup failed for ${systemUrl}: ${error.message}`);
+      return null;
+    }
+
+    if (!resolved?.resolved || !resolved.repoUrl) {
+      console.log(`[OCL] $resolveReference did not resolve ${systemUrl}; falling back to source search`);
+      return null;
+    }
+
+    // Logged on success too: resolver and search return the same thing, so without
+    // this there is no way -- from outside or from the logs -- to tell which path ran.
+    console.log(`[OCL] $resolveReference resolved ${systemUrl} -> ${resolved.repoUrl}`);
+
+    // Keep the canonical<->repo caches coherent with the search path's bookkeeping.
+    // Index under what was asked, but record OCL's own canonical_url as the repo's
+    // canonical: echoing the request back would store whatever spelling the caller
+    // used rather than the repo's actual identity.
+    const canonicalKey = this.#norm(systemUrl);
+    if (!this._sourceUrlsByCanonical.has(canonicalKey)) {
+      this._sourceUrlsByCanonical.set(canonicalKey, new Set());
+    }
+    this._sourceUrlsByCanonical.get(canonicalKey).add(resolved.repoUrl);
+    this._canonicalBySourceUrl.set(this.#norm(resolved.repoUrl), resolved.canonical || systemUrl);
+
+    return resolved.repoUrl;
   }
 
   async #resolveSourceCandidatesFromOcl(systemUrl) {
@@ -572,7 +642,7 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
       }
 
       const sourcePath = String(sourceUrl || '').trim();
-      if (!sourcePath.startsWith('/orgs/')) {
+      if (!isOclRepoPath(sourcePath)) {
         continue;
       }
 
