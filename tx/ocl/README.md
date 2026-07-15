@@ -31,6 +31,7 @@ In FHIRsmith terms, these providers are loaded by `tx/library.js` when a source 
 - `jobs/background-queue.js`: singleton keyed queue, size-priority ordering, max concurrency = 2, heartbeat logging every 30s.
 - `mappers/concept-mapper.js`: maps OCL concept payloads to internal concept context shape.
 - `model/concept-filter-context.js`: ranked filter result set used by CodeSystem filters.
+- `resolve/reference-resolver.js`: client for OCL's `$resolveReference` — resolves a canonical URL to the repo that holds it. Requires a token; see [Canonical resolution via `$resolveReference`](#canonical-resolution-via-resolvereference).
 - `shared/constants.js`: defaults and constants (`PAGE_SIZE`, cache freshness window, etc.).
 - `shared/patches.js`:
   - patches search worker so `CodeSystem?url=...&code=...` on OCL resources only returns matching concept subtree.
@@ -131,9 +132,11 @@ ocl:<baseUrl>|org=<orgId>|token=<tokenOrAlias>|timeout=<ms>
 
 Parsed keys:
 - `baseUrl` (required)
-- `org` (optional)
-- `token` (optional)
+- `org` (optional) — scopes discovery, and derives the `$resolveReference` namespace (`/orgs/{org}/`)
+- `token` (optional) — enables `$resolveReference`; without it that operation is not used
 - `timeout` (optional positive number)
+
+Unrecognised keys are ignored silently, so a typo (`namepsace=...`) is dropped rather than reported.
 
 Examples:
 
@@ -163,6 +166,55 @@ sources:
 - Token is optional, sent as `Authorization`:
   - `Token <value>` if no prefix is provided
   - preserved if already `Token ...` or `Bearer ...`
+- **A token is what enables `$resolveReference`.** It remains optional and no existing
+  configuration needs to change — but see below for what you gain by adding one.
+
+> **Do not commit a real token.** `data/library.yml` is tracked by git and is not
+> ignored, and there is no environment-variable interpolation in `tx/library.js`
+> (the `ocl:` alias block is read from the same file). A token added there is a live
+> credential in your repository history. Keep the edit local and uncommitted.
+
+### Canonical resolution via `$resolveReference`
+
+OCL's [`$resolveReference`](https://docs.openconceptlab.org/en/latest/oclapi/apireference/resolveReference.html)
+answers *"which repo holds this canonical URL?"* authoritatively, in one call.
+Without it, `cm-ocl.js` has to guess: it derives a search token from the canonical,
+pages through `/orgs/{org}/sources/?q=...`, and matches `canonical_url` on whatever
+the search happens to surface.
+
+**A token is required, and this is the one thing worth understanding here.**
+`$resolveReference` is authenticated on every OCL instance we have probed, while the
+`/orgs/` enumeration it replaces is public. So a tokenless server can still discover
+and serve OCL content exactly as before, but it cannot use `$resolveReference`.
+
+**Nothing breaks without a token.** The resolver is constructed disabled when no token
+is configured, and every caller falls back to the path it used previously. Existing
+`ocl:` source lines keep working unchanged; adding a token is opt-in:
+
+| Configuration | Canonical → repo resolution | Behaviour |
+| --- | --- | --- |
+| `ocl:https://ocl.example.org` | `/orgs/{org}/sources/?q=` search | unchanged from previous versions |
+| `ocl:https://ocl.example.org\|token=...` | `$resolveReference` | authoritative, one request, falls back to the search if it fails |
+
+The resolver also disables itself permanently — falling back for the rest of the
+process — if the instance answers `404` (operation not implemented) or `401`/`403`
+(credentials rejected). A `400` is logged as a bug on our side without disabling.
+
+**Namespace.** `$resolveReference` evaluates a reference within a *namespace*, which
+FHIRSmith derives from the source entry:
+
+- `org=X` configured → namespace `/orgs/X/`
+- no `org` → `/` (global), which is OCL's own default
+
+A namespace is a *preference*, not a boundary: OCL consults the owner's URL Registry,
+then repos in the namespace, then falls through to the **Global URL Registry**. A
+resolve scoped to `/orgs/A/` can therefore still return another owner's repo. Confining
+resolution to a namespace (the "sandbox" case) would have to be enforced on this side
+and is not implemented.
+
+**What it does not do:** `$resolveReference` resolves a *known* reference; it cannot
+*list* what exists. Source/collection discovery still uses the `/orgs/` enumeration
+described above.
 
 ### Enable/disable integration
 - Enable by including at least one `ocl:` source entry in TX library YAML.
@@ -200,11 +252,15 @@ Typical events:
 - If cache never warms, check cold-cache timestamps and 1-hour rule.
 - If searches by `code` behave unexpectedly, confirm OCL marker extension is present on CodeSystem resources.
 - For ValueSet filter behavior, verify `filter` is included in request path through `TxParameters.hashSource` patch and that filter text normalizes as expected.
+- If `$resolveReference` seems to be ignored, check for a `[OCL] $resolveReference ...` log line explaining why it disabled itself. Silence usually means no `token=` is configured, in which case it never runs at all.
 
 ### Known limitations (from current implementation)
 - OCL checksums are not relied on for cache invalidation.
 - Some source/collection discovery paths depend on OCL endpoint support and can fallback.
 - Missing endpoints returning `404` in some concept fetch paths are treated as empty content for graceful degradation.
+- `$resolveReference` is only used for ConceptMap source canonicals (`cm-ocl.js`). `cs-ocl.js`/`vs-ocl.js` still build repo paths by hand, but only as a last resort behind the `concepts_url` / `expansion_url` that OCL supplies in its payloads.
+- Namespace sandboxing is not implemented: a namespaced resolve can still fall through to OCL's Global URL Registry and return a repo outside that namespace.
+- There is no way to supply a token outside the tracked library YAML.
 
 ## Developer notes
 ### Where to extend
@@ -213,6 +269,7 @@ Typical events:
 - Add queue policy: `tx/ocl/jobs/background-queue.js`
 - Add mapping logic from OCL payloads: `tx/ocl/mappers/*`
 - Add fingerprint strategy: `tx/ocl/fingerprint/*`
+- Add canonical-resolution behavior: `tx/ocl/resolve/reference-resolver.js`
 - Add provider-specific behavior:
   - CodeSystem: `tx/ocl/cs-ocl.js`
   - ValueSet: `tx/ocl/vs-ocl.js`
@@ -220,6 +277,7 @@ Typical events:
 
 ### Ownership by concern
 - HTTP access: `http/client.js`, `http/pagination.js`
+- Canonical URL to OCL repo resolution: `resolve/reference-resolver.js`
 - Disk cold cache and pathing: `cache/cache-paths.js`, `cache/cache-utils.js`
 - Background jobs and scheduling policy: `jobs/background-queue.js`
 - Fingerprints/checksums: `fingerprint/fingerprint.js` and provider compare logic
@@ -234,3 +292,13 @@ Typical events:
 ```bash
 npm test -- --runInBand tests/ocl --coverage --collectCoverageFrom="tx/ocl/**/*.js"
 ```
+
+> **Read that number carefully.** Most of `tx/ocl` is `.cjs` with a one-line `.js`
+> re-export stub beside it, and the glob above (like `collectCoverageFrom` in
+> `jest.config.js`) matches `**/*.js` but **not** `**/*.cjs`. So for `cs-ocl`, `vs-ocl`
+> and `cm-ocl` it reports on the stubs, not the implementation. Only genuine `.js`
+> modules — currently `resolve/reference-resolver.js` — are really measured:
+>
+> ```bash
+> npx jest --testPathPattern "tests/ocl" --coverage --collectCoverageFrom="tx/ocl/resolve/**/*.js"
+> ```
