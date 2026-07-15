@@ -12,10 +12,18 @@ function silentLogger() {
   return { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 }
 
-// Shape of one entry in OCL's $resolveReference response array.
+// One entry from OCL's $resolveReference response.
+//
+// Shaped from a real response captured against oclapi2.ips.hsl.org.br, NOT from the
+// docs -- the documented example shows only {type, short_code, url}, but the live
+// payload carries canonical_url, owner_type, version and checksums, and reports
+// type "Source" rather than "Source Version".
 function oclEntry({
   resolved = true,
-  url = '/orgs/CIEL/sources/CIEL/HEAD/',
+  url = '/orgs/MS/sources/BRTabelaSUS/',
+  canonicalUrl = 'https://terminologia.saude.gov.br/fhir/CodeSystem/BRTabelaSUS',
+  owner = 'MS',
+  ownerType = 'Organization',
   registryEntry = null,
   referenceType = 'relative',
   resolutionUrl = null,
@@ -23,12 +31,29 @@ function oclEntry({
 } = {}) {
   return {
     reference_type: referenceType,
-    timestamp: '2026-07-15T13:12:18.919301',
+    timestamp: '2026-07-15T17:25:44.682776',
     resolved,
     request,
     resolution_url: resolutionUrl,
     url_registry_entry: registryEntry,
-    result: resolved ? { type: 'Source Version', short_code: 'CIEL', url } : null
+    result: resolved
+      ? {
+        short_code: url.split('/').filter(Boolean).pop(),
+        name: url.split('/').filter(Boolean).pop(),
+        url,
+        owner,
+        owner_type: ownerType,
+        owner_url: `/orgs/${owner}/`,
+        version: 'HEAD',
+        created_at: '2025-10-24T12:41:29.742565Z',
+        id: url.split('/').filter(Boolean).pop(),
+        source_type: 'Dictionary',
+        updated_at: '2026-06-22T15:25:14.276339Z',
+        canonical_url: canonicalUrl,
+        type: 'Source',
+        checksums: { standard: '282d3c8ce440b8a03698196967042a08', smart: '90599db3f6da397c1af26baaf9467eb1' }
+      }
+      : null
   };
 }
 
@@ -276,6 +301,68 @@ describe('OclReferenceResolver resolution', () => {
     const result = await resolver.resolve('/users/joe/sources/S/');
 
     expect(result.repoUrl).toBe('/users/joe/sources/S/HEAD/');
+  });
+
+  // Verbatim response captured from oclapi2.ips.hsl.org.br for
+  // POST /$resolveReference/ ["/orgs/MS/sources/BRTabelaSUS/concepts/1948/"].
+  // Guards against the doc's example, which omits most of these fields.
+  it('handles a real relative-reference response, concept and all', async () => {
+    const live = [{
+      reference_type: 'relative',
+      resolved: true,
+      timestamp: '2026-07-15T17:25:44.682776',
+      request: '/orgs/MS/sources/BRTabelaSUS/concepts/1948/',
+      resolution_url: '/orgs/MS/sources/BRTabelaSUS/',
+      url_registry_entry: null,
+      result: {
+        short_code: 'BRTabelaSUS',
+        name: 'BRTabelaSUS',
+        url: '/orgs/MS/sources/BRTabelaSUS/',
+        owner: 'MS',
+        owner_type: 'Organization',
+        owner_url: '/orgs/MS/',
+        version: 'HEAD',
+        created_at: '2025-10-24T12:41:29.742565Z',
+        id: 'BRTabelaSUS',
+        source_type: 'Dictionary',
+        updated_at: '2026-06-22T15:25:14.276339Z',
+        canonical_url: 'https://terminologia.saude.gov.br/fhir/CodeSystem/BRTabelaSUS',
+        type: 'Source',
+        checksums: { standard: '282d3c8ce440b8a03698196967042a08', smart: '90599db3f6da397c1af26baaf9467eb1' }
+      }
+    }];
+    const httpClient = { post: jest.fn(async () => ({ data: live })) };
+    const resolver = makeResolver({ httpClient });
+
+    const r = await resolver.resolve('/orgs/MS/sources/BRTabelaSUS/concepts/1948/');
+
+    expect(r.resolved).toBe(true);
+    expect(r.repoUrl).toBe('/orgs/MS/sources/BRTabelaSUS/');
+    expect(r.referenceType).toBe('relative');
+    // OCL strips the concept: the reference points at a concept, the repo is the source.
+    expect(r.resolutionUrl).toBe('/orgs/MS/sources/BRTabelaSUS/');
+    expect(r.canonical).toBe('https://terminologia.saude.gov.br/fhir/CodeSystem/BRTabelaSUS');
+    expect(r.ownerType).toBe('Organization');
+    expect(r.registryEntry).toBeNull();
+    // The raw result stays available for anything we don't surface (checksums, version...).
+    expect(r.result.checksums.standard).toBe('282d3c8ce440b8a03698196967042a08');
+  });
+
+  it('surfaces the repo canonical_url rather than echoing the requested spelling', async () => {
+    const httpClient = {
+      post: jest.fn(async () => ({
+        data: [oclEntry({
+          url: '/orgs/MS/sources/BRTabelaSUS/',
+          canonicalUrl: 'https://terminologia.saude.gov.br/fhir/CodeSystem/BRTabelaSUS'
+        })]
+      }))
+    };
+    const resolver = makeResolver({ httpClient });
+
+    // Asked with a different spelling than the repo's own canonical.
+    const r = await resolver.resolve('http://terminologia.saude.gov.br/fhir/CodeSystem/BRTabelaSUS');
+
+    expect(r.canonical).toBe('https://terminologia.saude.gov.br/fhir/CodeSystem/BRTabelaSUS');
   });
 
   it('surfaces url_registry_entry (Phase 2 sandbox needs it)', async () => {

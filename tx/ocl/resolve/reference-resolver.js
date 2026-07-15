@@ -121,6 +121,8 @@ function unresolved(namespace, request) {
   return {
     resolved: false,
     repoUrl: null,
+    canonical: null,
+    ownerType: null,
     resolutionUrl: null,
     registryEntry: null,
     referenceType: null,
@@ -141,6 +143,11 @@ function normalizeResult(entry, namespace, request) {
   return {
     resolved: Boolean(entry.resolved) && Boolean(repoUrl),
     repoUrl,
+    // OCL returns the repo's own canonical_url and owner_type. Prefer them over
+    // anything the caller assumed: they are authoritative, and echoing the request
+    // back would record whatever spelling the caller happened to use.
+    canonical: result ? (result.canonical_url || result.canonicalUrl || null) : null,
+    ownerType: result ? (result.owner_type || result.ownerType || null) : null,
     resolutionUrl: entry.resolution_url || null,
     // Phase 2's namespace sandbox needs this to tell owner-registry delegation
     // apart from a global-registry fallthrough, so never drop it.

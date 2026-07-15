@@ -576,12 +576,15 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
     );
 
     // Keep the canonical<->repo caches coherent with the search path's bookkeeping.
+    // Index under what was asked, but record OCL's own canonical_url as the repo's
+    // canonical: echoing the request back would store whatever spelling the caller
+    // used rather than the repo's actual identity.
     const canonicalKey = this.#norm(systemUrl);
     if (!this._sourceUrlsByCanonical.has(canonicalKey)) {
       this._sourceUrlsByCanonical.set(canonicalKey, new Set());
     }
     this._sourceUrlsByCanonical.get(canonicalKey).add(resolved.repoUrl);
-    this._canonicalBySourceUrl.set(this.#norm(resolved.repoUrl), systemUrl);
+    this._canonicalBySourceUrl.set(this.#norm(resolved.repoUrl), resolved.canonical || systemUrl);
 
     return resolved.repoUrl;
   }
