@@ -460,7 +460,7 @@ describe('OCLConceptMapProvider $resolveReference integration', () => {
 
   it('uses the resolved repo and skips the heuristic source search', async () => {
     const { provider, httpClient } = makeProvider({
-      post: resolveReferenceReply('/users/joe/sources/S/')
+      post: resolveReferenceReply('/orgs/OtherOrg/sources/S/')
     });
 
     await provider.searchConceptMaps(searchParams);
@@ -468,8 +468,25 @@ describe('OCLConceptMapProvider $resolveReference integration', () => {
     expect(httpClient.post).toHaveBeenCalledTimes(1);
     // The authoritative answer makes the q= text search unnecessary.
     expect(getPaths(httpClient)).not.toContain(SEARCH_ENDPOINT);
-    // ...and a user-owned repo survives, which an /orgs/-only filter would drop.
-    expect(getPaths(httpClient)).toContain('/users/joe/sources/S/concepts/');
+    expect(getPaths(httpClient)).toContain('/orgs/OtherOrg/sources/S/concepts/');
+  });
+
+  it('falls back to the source search when the canonical resolves to a user-owned repo', async () => {
+    // Org-only policy: user artifacts are experimental and not visible through
+    // the terminology service, so the resolver reports them as unresolved.
+    const post = jest.fn(async () => ({
+      data: [{
+        reference_type: 'canonical',
+        resolved: true,
+        result: { url: '/users/joe/sources/S/', owner_type: 'User', canonical_url: 'http://x.org/cs' }
+      }]
+    }));
+    const { provider, httpClient } = makeProvider({ post });
+
+    await provider.searchConceptMaps(searchParams);
+
+    expect(getPaths(httpClient)).not.toContain('/users/joe/sources/S/concepts/');
+    expect(getPaths(httpClient)).toContain(SEARCH_ENDPOINT);
   });
 
   it('falls back to the source search when no token is configured', async () => {

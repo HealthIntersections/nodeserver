@@ -14,9 +14,10 @@
 
 const RESOLVE_PATH = '/$resolveReference/';
 
-// OCL repos are owned by an org OR a user. Matching only /orgs/ silently drops
-// every user-owned repo.
-const REPO_PATH_PATTERN = /^\/(orgs|users)\/[^/]+\//;
+// Org-only visibility policy: an artifact is expected to live in an organization
+// to be visible through the terminology service. User-owned repos (/users/...)
+// are experimental by convention and are excluded from discovery AND resolution.
+const REPO_PATH_PATTERN = /^\/orgs\/[^/]+\//;
 
 // Reference object fields forwarded to OCL. `namespace` is intentionally absent.
 const BODY_FIELDS = [
@@ -32,11 +33,27 @@ const BODY_FIELDS = [
 ];
 
 /**
- * True for a relative OCL repo path under either owner type, e.g.
- * `/orgs/CIEL/sources/CIEL/` or `/users/joe/sources/S/`.
+ * True for a relative OCL repo path the terminology service may serve — i.e. an
+ * organization-owned one (`/orgs/CIEL/sources/CIEL/`). User-owned paths
+ * (`/users/joe/...`) are rejected by policy.
  */
 function isOclRepoPath(value) {
   return REPO_PATH_PATTERN.test(String(value == null ? '' : value).trim());
+}
+
+/**
+ * Org-only policy check for an OCL repo payload or resolve result. Prefers the
+ * explicit owner_type when present; falls back to the path shape.
+ */
+function isOrgOwned(repo) {
+  if (!repo || typeof repo !== 'object') {
+    return false;
+  }
+  const ownerType = repo.owner_type || repo.ownerType || null;
+  if (ownerType) {
+    return ownerType === 'Organization';
+  }
+  return isOclRepoPath(repo.url);
 }
 
 /**
@@ -224,7 +241,16 @@ class OclReferenceResolver {
     }
 
     misses.forEach(({ body, index }, position) => {
-      const value = normalizeResult(payload[position], body);
+      let value = normalizeResult(payload[position], body);
+      // Org-only policy: a canonical resolving to a user-owned repo is treated as
+      // unresolved — user artifacts are experimental and not visible through the
+      // terminology service. Cached: the policy outcome is deterministic.
+      if (value.resolved && !isOrgOwned({ owner_type: value.ownerType, url: value.repoUrl })) {
+        this.#logger.info(
+          `[OCL] $resolveReference resolved ${cacheKey(body)} to a user-owned repo (${value.repoUrl}); org-only policy treats it as unresolved`
+        );
+        value = unresolved(body);
+      }
       this.#cache.set(cacheKey(body), value);
       output[index] = value;
     });
@@ -271,5 +297,6 @@ module.exports = {
   OclReferenceResolver,
   normalizeReference,
   isOclRepoPath,
+  isOrgOwned,
   RESOLVE_PATH
 };

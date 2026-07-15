@@ -2,6 +2,7 @@ const {
   OclReferenceResolver,
   normalizeReference,
   isOclRepoPath,
+  isOrgOwned,
   RESOLVE_PATH
 } = require('../../tx/ocl/resolve/reference-resolver');
 
@@ -77,19 +78,20 @@ function httpError(status, data) {
   return error;
 }
 
-describe('isOclRepoPath', () => {
+describe('isOclRepoPath (org-only policy)', () => {
   it.each([
     ['/orgs/CIEL/sources/CIEL/'],
     ['/orgs/CIEL/sources/CIEL/HEAD/'],
     ['/orgs/CIEL/collections/C/'],
-    // The point: user-owned repos are real and must not be filtered out.
-    ['/users/joe/sources/S/'],
-    ['  /users/joe/sources/S/  ']
+    ['  /orgs/CIEL/sources/CIEL/  ']
   ])('accepts %s', input => {
     expect(isOclRepoPath(input)).toBe(true);
   });
 
   it.each([
+    // User-owned artifacts are experimental by convention: an artifact is
+    // expected to live in an org to be visible through the terminology service.
+    ['/users/joe/sources/S/'],
     ['http://loinc.org'],
     ['/sources/S/'],
     ['/orgs/'],
@@ -100,6 +102,23 @@ describe('isOclRepoPath', () => {
     [undefined]
   ])('rejects %p', input => {
     expect(isOclRepoPath(input)).toBe(false);
+  });
+});
+
+describe('isOrgOwned', () => {
+  it('prefers an explicit owner_type', () => {
+    expect(isOrgOwned({ owner_type: 'Organization', url: '/users/joe/sources/S/' })).toBe(true);
+    expect(isOrgOwned({ owner_type: 'User', url: '/orgs/A/sources/S/' })).toBe(false);
+    expect(isOrgOwned({ ownerType: 'Organization' })).toBe(true);
+  });
+
+  it('falls back to the path shape when owner_type is absent', () => {
+    expect(isOrgOwned({ url: '/orgs/A/sources/S/' })).toBe(true);
+    expect(isOrgOwned({ url: '/users/joe/sources/S/' })).toBe(false);
+  });
+
+  it.each([[null], [undefined], ['x'], [{}]])('rejects %p', input => {
+    expect(isOrgOwned(input)).toBe(false);
   });
 });
 
@@ -251,16 +270,24 @@ describe('OclReferenceResolver resolution', () => {
     expect(r.canonical).toBe('https://terminologia.saude.gov.br/fhir/CodeSystem/BRTabelaSUS');
   });
 
-  it('resolves a user-owned repo (an /orgs/-only filter would drop these)', async () => {
+  it('treats a canonical that resolves to a user-owned repo as unresolved (org-only policy)', async () => {
     const httpClient = {
-      post: jest.fn(async () => ({ data: [oclEntry({ url: '/users/joe/sources/S/' })] }))
+      post: jest.fn(async () => ({
+        data: [oclEntry({ url: '/users/joe/sources/S/', ownerType: 'User', owner: 'joe' })]
+      }))
     };
-    const resolver = makeResolver({ httpClient });
+    const logger = silentLogger();
+    const resolver = makeResolver({ httpClient, logger });
 
-    const result = await resolver.resolve('/users/joe/sources/S/');
+    const result = await resolver.resolve('http://joe.example.org/cs');
 
-    expect(result.repoUrl).toBe('/users/joe/sources/S/');
-    expect(isOclRepoPath(result.repoUrl)).toBe(true);
+    expect(result.resolved).toBe(false);
+    expect(result.repoUrl).toBeNull();
+    expect(logger.info).toHaveBeenCalledWith(expect.stringMatching(/user-owned repo.*org-only policy/));
+
+    // Policy outcome is deterministic: cached, no second round trip.
+    await resolver.resolve('http://joe.example.org/cs');
+    expect(httpClient.post).toHaveBeenCalledTimes(1);
   });
 
   it('returns an empty array and issues no request for no references', async () => {
@@ -312,7 +339,7 @@ describe('OclReferenceResolver resolution', () => {
       post: jest.fn(async () => ({
         data: [{
           resolved: true,
-          result: { url: '/orgs/A/sources/S/', canonicalUrl: 'http://a.org/cs', ownerType: 'User' }
+          result: { url: '/orgs/A/sources/S/', canonicalUrl: 'http://a.org/cs', ownerType: 'Organization' }
         }]
       }))
     };
@@ -321,7 +348,7 @@ describe('OclReferenceResolver resolution', () => {
     const r = await resolver.resolve('/orgs/A/sources/S/');
 
     expect(r.canonical).toBe('http://a.org/cs');
-    expect(r.ownerType).toBe('User');
+    expect(r.ownerType).toBe('Organization');
   });
 
   it("prefers OCL's own request echo over the submitted body", async () => {
