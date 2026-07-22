@@ -64,6 +64,28 @@ function loadTemplate() {
   }
 }
 
+/**
+ * Check if a request wants HTML back (by _format/format param, else Accept header).
+ * Module-level so non-rendering code (e.g. the search worker choosing a default
+ * page size) can make the same call the response renderer will make.
+ */
+function acceptsHtml(req) {
+  let _fmt = req.query._format || req.query.format || req.body?._format;
+  if (_fmt && typeof _fmt !== 'string') {
+    _fmt = null;
+  }
+  if (_fmt && (_fmt == 'html' || _fmt.startsWith('html/'))) {
+    return true;
+  }
+  if (!_fmt) {
+    _fmt = req.headers.accept || '';
+  }
+  if (typeof _fmt !== 'string') {
+    return false;
+  }
+  return _fmt.includes('text/html');
+}
+
 
 class TxHtmlRenderer {
   renderer;
@@ -98,20 +120,7 @@ class TxHtmlRenderer {
    * Check if request accepts HTML
    */
   acceptsHtml(req) {
-    let _fmt = req.query._format || req.query.format || req.body?._format;
-    if (_fmt && typeof _fmt !== 'string') {
-      _fmt = null;
-    }
-    if (_fmt && (_fmt == 'html' || _fmt.startsWith('html/'))) {
-      return true;
-    }
-    if (!_fmt) {
-      _fmt = req.headers.accept || '';
-    }
-    if (typeof _fmt !== 'string') {
-      return false;
-    }
-    return _fmt.includes('text/html');
+    return acceptsHtml(req);
   }
 
   /**
@@ -1362,5 +1371,5 @@ class TxHtmlRenderer {
 }
 
 module.exports = {
-  TxHtmlRenderer, loadTemplate
+  TxHtmlRenderer, loadTemplate, acceptsHtml
 };

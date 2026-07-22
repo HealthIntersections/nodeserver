@@ -10,18 +10,20 @@ class RegistryAPI {
 
   /**
    * Build rows for code system queries
-   * Matches the Pascal buildRowsCS functionality
+   * Build the discovery rows for a code system query
    */
   buildRowsForCodeSystem(params = {}) {
     const {
       registryCode = '',
       serverCode = '',
       version = '',
-      codeSystem = ''
+      codeSystem = '',
+      language = ''
     } = params;
 
     const rows = [];
     const data = this.crawler.getData();
+    const requestLangs = ServerRegistryUtilities.parseAcceptLanguage(language);
 
     data.registries.forEach(registry => {
       if (registryCode && registry.code !== registryCode) return;
@@ -29,13 +31,15 @@ class RegistryAPI {
       registry.servers.forEach(server => {
         if (serverCode && server.code !== serverCode) return;
 
-        // Check if server is authoritative for this code system
-        const isAuth = codeSystem ? ServerRegistryUtilities.hasMatchingCodeSystem(
-          codeSystem,
-          server.authCSList,
-          true, // support wildcards,
-            false // allow version matching
-        ) : false;
+        // Excluded content is hidden from the ecosystem entirely for this server
+        if (codeSystem && server.isExcludedTarget(codeSystem)) return;
+
+        // Check if server is authoritative for this code system, taking language
+        // specific claims into account (maskBase matches hasMatchingCodeSystem semantics)
+        const authMatch = codeSystem
+          ? server.matchAuthCS(codeSystem, requestLangs, true)
+          : { isAuth: false, scoped: false };
+        const isAuth = authMatch.isAuth;
 
         server.versions.forEach(versionInfo => {
           if (version && !ServerRegistryUtilities.versionMatches(version, versionInfo.version)) {
@@ -64,6 +68,9 @@ class RegistryAPI {
               versionInfo,
               isAuth
             );
+            if (authMatch.scoped) {
+              row.languages = [authMatch.tag];
+            }
             rows.push(row);
           }
         });
@@ -75,7 +82,7 @@ class RegistryAPI {
 
   /**
    * Build rows for value set queries
-   * Matches the Pascal buildRowsVS functionality
+   * Build the discovery rows for a value set query
    */
   buildRowsForValueSet(params = {}) {
     const {
@@ -94,7 +101,11 @@ class RegistryAPI {
       registry.servers.forEach(server => {
         if (serverCode && server.code !== serverCode) return;
 
+        // Excluded content is hidden from the ecosystem entirely for this server
+        if (valueSet && server.isExcludedTarget(valueSet)) return;
+
         // Check if server is authoritative for this value set
+        // (value set claims have no language dimension at this time)
         const isAuth = valueSet ? ServerRegistryUtilities.hasMatchingValueSet(
           valueSet,
           server.authVSList,
@@ -129,7 +140,7 @@ class RegistryAPI {
             );
 
             // Include if authoritative OR has the value set
-            // This matches the Pascal logic: if auth or hasMatchingValueSet
+            // if the server is authoritative, all its versions are included
             if (isAuth || hasValueSet) {
               includeRow = true;
             }
@@ -339,13 +350,13 @@ class RegistryAPI {
   /**
    * Find best server for a given code system/value set
    */
-  findBestServer(type, url, version) {
+  findBestServer(type, url, version, language = '') {
     let rows;
 
     if (type === 'codesystem') {
-      rows = this.buildRowsForCodeSystem({ codeSystem: url, version });
+      rows = this.buildRowsForCodeSystem({ codeSystem: url, version, language });
     } else if (type === 'valueset') {
-      rows = this.buildRowsForValueSet({ valueSet: url, version });
+      rows = this.buildRowsForValueSet({ valueSet: url, version, language });
     } else {
       throw new Error(`Unknown type: ${type}`);
     }
@@ -378,9 +389,9 @@ class RegistryAPI {
 
   /**
    * NEW FUNCTION: Resolve the best server for a code system
-   * Based on Pascal resolveCS function
+   * Implements the ecosystem Resolution API for code systems
    */
-  resolveCodeSystem(fhirVersion, codeSystem, authoritativeOnly, usage = '') {
+  resolveCodeSystem(fhirVersion, codeSystem, authoritativeOnly, usage = '', language = '') {
     if (!fhirVersion) {
       throw new Error('A FHIR version is required');
     }
@@ -388,6 +399,7 @@ class RegistryAPI {
       throw new Error('A code system URL is required');
     }
     const normalizedVersion = this._normalizeFhirVersion(fhirVersion);
+    const requestLangs = ServerRegistryUtilities.parseAcceptLanguage(language);
 
     const result = {
       formatVersion: '1',
@@ -397,18 +409,26 @@ class RegistryAPI {
     };
 
     const matchedServers = [];
+    const authMatches = []; // {entry, score} - sorted by language match before returning
     const data = this.crawler.getData();
 
     data.registries.forEach(registry => {
       registry.servers.forEach(server => {
         let added = false;
 
+        // Excluded content is hidden from the ecosystem entirely for this server -
+        // not authoritative, not a candidate
+        if (server.isExcludedTarget(codeSystem)) return;
+
         // Check if server supports the requested usage tag
         if (server.usageList.length === 0 ||
           (usage && server.usageList.includes(usage))) {
 
-          // Check if server is authoritative for this code system
-          const isAuth = server.isAuthCS(codeSystem);
+          // Check if server is authoritative for this code system, taking language
+          // specific claims into account (a language specific claim is invisible to
+          // requests without a matching language)
+          const authMatch = server.matchAuthCS(codeSystem, requestLangs);
+          const isAuth = authMatch.isAuth;
 
           server.versions.forEach(version => {
             if (ServerRegistryUtilities.versionMatches(normalizedVersion, version.version)) {
@@ -425,9 +445,19 @@ class RegistryAPI {
 
               if (hasMatchingCS) {
                 if (isAuth) {
-                  result.authoritative.push(this.createServerEntry(server, version));
+                  authMatches.push({
+                    entry: this.createServerEntry(server, version, null, authMatch),
+                    score: authMatch.score
+                  });
                 } else if (!authoritativeOnly) {
-                  result.candidates.push(this.createServerEntry(server, version, content.content));
+                  const candidate = this.createServerEntry(server, version, content.content);
+                  if (requestLangs) {
+                    // the ecosystem has no knowledge of a candidate's language abilities -
+                    // mark it so clients can apply their wildcard strictness policy
+                    // (see 'Language Specific Claims' in the tx ecosystem IG)
+                    candidate['language-support'] = 'unknown';
+                  }
+                  result.candidates.push(candidate);
                 }
                 added = true;
               }
@@ -442,20 +472,27 @@ class RegistryAPI {
     });
 
     // NEW: Fallback - if no matches found, check for authoritative pattern matches
-    if (result.authoritative.length === 0 && result.candidates.length === 0) {
+    if (authMatches.length === 0 && result.candidates.length === 0) {
       data.registries.forEach(registry => {
         registry.servers.forEach(server => {
+          // Excluded content stays hidden in the fallback path too
+          if (server.isExcludedTarget(codeSystem)) return;
+
           // Check if server supports the requested usage tag
           if (server.usageList.length === 0 ||
             (usage && server.usageList.includes(usage))) {
 
             // Check if server is authoritative for this code system
-            const isAuth = server.isAuthCS(codeSystem);
+            // (taking language specific claims into account)
+            const authMatch = server.matchAuthCS(codeSystem, requestLangs);
 
-            if (isAuth) {
+            if (authMatch.isAuth) {
               server.versions.forEach(version => {
                 if (ServerRegistryUtilities.versionMatches(normalizedVersion, version.version)) {
-                  result.authoritative.push(this.createServerEntry(server, version));
+                  authMatches.push({
+                    entry: this.createServerEntry(server, version, null, authMatch),
+                    score: authMatch.score
+                  });
                   if (!matchedServers.includes(server.code)) {
                     matchedServers.push(server.code);
                   }
@@ -467,6 +504,12 @@ class RegistryAPI {
       });
     }
 
+    // Language specific matches rank before authoritative-list matches, most specific
+    // match first. Array.prototype.sort is stable, so entries with equal scores (e.g.
+    // all matched on the authoritative list) keep their existing (registration) order
+    authMatches.sort((a, b) => a.score - b.score);
+    result.authoritative = authMatches.map(m => m.entry);
+
     return {
       result: this._cleanEmptyArrays(result),
       matches: matchedServers.length > 0 ? matchedServers.join(',') : '--'
@@ -475,9 +518,12 @@ class RegistryAPI {
 
   /**
    * NEW FUNCTION: Resolve the best server for a value set
-   * Based on Pascal resolveVS function
+   * Implements the ecosystem Resolution API for value sets
    */
-  resolveValueSet(fhirVersion, valueSet, authoritativeOnly, usage = '') {
+  resolveValueSet(fhirVersion, valueSet, authoritativeOnly, usage = '', language = '') {
+    // Note: the language parameter is accepted for API symmetry with resolveCodeSystem,
+    // but value set claims have no language dimension at this time (language specific
+    // claims - the languages property - apply to code systems only), so it has no effect
     if (!fhirVersion) {
       throw new Error('A FHIR version is required');
     }
@@ -507,6 +553,10 @@ class RegistryAPI {
     data.registries.forEach(registry => {
       registry.servers.forEach(server => {
         let added = false;
+
+        // Excluded content is hidden from the ecosystem entirely for this server -
+        // not authoritative, not a candidate
+        if (server.isExcludedTarget(valueSet)) return;
 
         // Check if server supports the requested usage tag
         if (server.usageList.length === 0 ||
@@ -562,8 +612,11 @@ class RegistryAPI {
 
   /**
    * Helper function to create a server entry for resolve results
+   * @param {Object} authMatch - optional result of server.matchAuthCS(); when the entry
+   *   was matched on a language specific claim, the claim's language tag is reported so
+   *   the client can tell language routing applied (vs falling through to the default server)
    */
-  createServerEntry(server, version) {
+  createServerEntry(server, version, content = null, authMatch = null) {
     const entry = {
       'server-name': server.name,
       url: version.address
@@ -578,13 +631,16 @@ class RegistryAPI {
     if (version.content) {
       entry.content = version.content;
     }
+    if (authMatch && authMatch.scoped && authMatch.isAuth) {
+      entry.languages = [authMatch.tag];
+    }
 
     return entry;
   }
 
   /**
    * NEW FUNCTION: Render a JSON result as an HTML table
-   * Based on Pascal renderJson function
+   * Renders a discovery result as an HTML table
    */
   renderJsonToHtml(json, path, regCode = '', serverCode = '', versionCode = '') {
     let html = '<table class="grid">\n';
@@ -648,7 +704,7 @@ class RegistryAPI {
 
   /**
    * NEW FUNCTION: Render registry info as HTML
-   * Based on Pascal renderInfo function
+   * Renders the registry tree as HTML
    */
   renderInfoToHtml() {
     const data = this.crawler.getData();

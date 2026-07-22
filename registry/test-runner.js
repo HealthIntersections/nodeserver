@@ -187,7 +187,7 @@ function runTests() {
   if (rows2.length > 0) {
     console.log(`  Versions: ${rows2.map(r => `${r.version} (auth=${r.authoritative})`).join(', ')}`);
   }
-  console.log(`  Test ${rows2.length === 1 && rows2[0].version === '4.0.1' ? '✓ PASSED (strict)' : rows2.length === 2 ? '✓ PASSED (Pascal-style)' : '✗ FAILED'}\n`);
+  console.log(`  Test ${rows2.length === 1 && rows2[0].version === '4.0.1' ? '✓ PASSED (strict)' : rows2.length === 2 ? '✓ PASSED (lenient)' : '✗ FAILED'}\n`);
   
   // Test 3: should rank servers without errors higher
   console.log('Test 3: should not include servers with errors even if authoritative');

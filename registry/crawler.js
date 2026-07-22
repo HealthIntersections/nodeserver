@@ -255,6 +255,20 @@ class RegistryCrawler {
     server.authCSList = (serverConfig.authoritative || []).sort();
     server.authVSList = (serverConfig['authoritative-valuesets'] || []).sort();
     server.usageList = (serverConfig.usage || []).sort();
+    // Content hidden from the ecosystem entirely - also filtered out of the discovered
+    // content lists below, and checked during claim matching (see the tx ecosystem IG)
+    server.exclusions = (serverConfig.exclusions || []).sort();
+    // Language specific authoritative claims: BCP-47 tag -> list of CS masks.
+    // A backwards compatible addition to registry format 1 - see the tx ecosystem IG
+    server.languages = {};
+    if (serverConfig.languages && typeof serverConfig.languages === 'object' && !Array.isArray(serverConfig.languages)) {
+      for (const tag of Object.keys(serverConfig.languages)) {
+        const masks = serverConfig.languages[tag];
+        if (Array.isArray(masks)) {
+          server.languages[tag] = masks.filter(m => typeof m === 'string').sort();
+        }
+      }
+    }
     
     // Process each FHIR version
     const fhirVersions = serverConfig.fhirVersions || [];

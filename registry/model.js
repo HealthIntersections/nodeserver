@@ -86,6 +86,8 @@ class ServerInformation {
     this.authCSList = []; // Authoritative code systems (with wildcards)
     this.authVSList = []; // Authoritative value sets (with wildcards)
     this.usageList = []; // Usage tags
+    this.languages = {}; // Language specific authoritative claims: BCP-47 tag -> list of CS masks
+    this.exclusions = []; // CodeSystem/ValueSet masks hidden from the ecosystem entirely
     this.versions = []; // Array of ServerVersionInformation
   }
 
@@ -100,6 +102,11 @@ class ServerInformation {
     this.authCSList = [...source.authCSList];
     this.authVSList = [...source.authVSList];
     this.usageList = [...source.usageList];
+    this.languages = {};
+    Object.keys(source.languages || {}).forEach(tag => {
+      this.languages[tag] = [...source.languages[tag]];
+    });
+    this.exclusions = [...(source.exclusions || [])];
     
     source.versions.forEach(sourceVersion => {
       const existing = this.getVersion(sourceVersion.version);
@@ -116,11 +123,80 @@ class ServerInformation {
   }
 
   isAuthCS(codeSystem) {
-    return this.authCSList.some(mask => this._passesMask(mask, codeSystem));
+    return !this.isExcludedTarget(codeSystem) &&
+      this.authCSList.some(mask => this._passesMask(mask, codeSystem));
   }
 
   isAuthVS(valueSet) {
-    return this.authVSList.some(mask => this._passesMask(mask, valueSet));
+    return !this.isExcludedTarget(valueSet) &&
+      this.authVSList.some(mask => this._passesMask(mask, valueSet));
+  }
+
+  /**
+   * True if the code system / value set is hidden from the ecosystem for this server
+   * (matches an entry in exclusions). Excluded content is hidden entirely: the server
+   * is never offered for it, neither as authoritative nor as a candidate, even if an
+   * authoritative mask (or language specific claim) would otherwise match it.
+   * Masks are tested against both the full canonical (url|version) and the base url.
+   */
+  isExcludedTarget(value) {
+    return (this.exclusions || []).some(mask => this._passesMaskEx(mask, value, true));
+  }
+
+  /**
+   * Match this server's authoritative claims for a code system, taking language specific
+   * claims (the languages property: BCP-47 tag -> mask list) into account.
+   *
+   * Language specific claims are only visible when the request specifies a language. A
+   * claimed tag is inherently a mask: it covers a request language that is equal to it or
+   * more specific ('de' covers 'de' and 'de-AT'; 'de-AT' does not cover plain 'de'). The
+   * best match is on the earliest (heaviest) request language, then the most specific
+   * claimed tag. Claims in the authoritative list apply irrespective of language, but rank
+   * after all language specific matches (score = MAX_SAFE_INTEGER).
+   *
+   * @param {string} codeSystem - canonical url or url|version
+   * @param {Array|null} requestLangs - parsed Accept-Language list ([{tag, q}] in descending
+   *   weight order, per ServerRegistryUtilities.parseAcceptLanguage), or null for no language
+   * @param {boolean} maskBase - also test masks against the base URL (before '|'), matching
+   *   the semantics of hasMatchingCodeSystem as used for the discovery rows
+   * @returns {Object} {isAuth: boolean, scoped: boolean, tag?: string, score: number}
+   *   score: lower is better - earlier request languages and more specific tags win
+   */
+  matchAuthCS(codeSystem, requestLangs = null, maskBase = false) {
+    // excluded content is hidden entirely - no claim of any kind can match it
+    if (this.isExcludedTarget(codeSystem)) {
+      return { isAuth: false, scoped: false, score: Number.MAX_SAFE_INTEGER };
+    }
+
+    const masksMatch = (masks) => masks.some(mask => this._passesMaskEx(mask, codeSystem, maskBase));
+
+    if (requestLangs && requestLangs.length > 0 && this.languages) {
+      let best = null;
+      for (let i = 0; i < requestLangs.length; i++) {
+        for (const tag of Object.keys(this.languages)) {
+          if (!ServerRegistryUtilities.languageTagCovers(tag, requestLangs[i].tag)) continue;
+          if (!masksMatch(this.languages[tag] || [])) continue;
+          // earlier request language (higher weight) dominates; then longer (more specific) tag
+          const score = i * 1000 + (256 - tag.length);
+          if (!best || score < best.score) {
+            best = { isAuth: true, scoped: true, tag, score };
+          }
+        }
+        if (best) return best; // don't consider later (lighter) request languages
+      }
+    }
+    if (masksMatch(this.authCSList)) {
+      return { isAuth: true, scoped: false, score: Number.MAX_SAFE_INTEGER };
+    }
+    return { isAuth: false, scoped: false, score: Number.MAX_SAFE_INTEGER };
+  }
+
+  _passesMaskEx(mask, value, includeBase) {
+    if (this._passesMask(mask, value)) return true;
+    if (includeBase && value.includes('|')) {
+      return this._passesMask(mask, value.substring(0, value.indexOf('|')));
+    }
+    return false;
   }
 
   _passesMask(mask, value) {
@@ -132,11 +208,34 @@ class ServerInformation {
 
   getDescription() {
     let result = '';
-    
+
     if (this.usageList.length > 0) {
       result = `Usage Tags: ${this.usageList.join(', ')}`;
     }
-    
+
+    const langTags = Object.keys(this.languages || {});
+    if (langTags.length > 0) {
+      if (result) result += '. ';
+      result += 'Authoritative for particular languages: <ul>';
+      langTags.forEach(tag => {
+        (this.languages[tag] || []).forEach(mask => {
+          const escaped = escape(mask).replace(/\*/g, '<b>*</b>');
+          result += `<li>${escape(tag)}: ${escaped}</li>`;
+        });
+      });
+      result += '</ul>';
+    }
+
+    if (this.exclusions && this.exclusions.length > 0) {
+      if (result) result += '. ';
+      result += 'Excluded (hidden from the ecosystem): <ul>';
+      this.exclusions.forEach(mask => {
+        const escaped = escape(mask).replace(/\*/g, '<b>*</b>');
+        result += `<li>${escaped}</li>`;
+      });
+      result += '</ul>';
+    }
+
     if (this.authCSList.length > 0) {
       if (result) result += '. ';
       result += 'Authoritative for the following CodeSystems: <ul>';
@@ -169,6 +268,8 @@ class ServerInformation {
       authoritative: this.authCSList.join(','),
       'authoritative-valuesets': this.authVSList.join(','),
       usageList: this.usageList,
+      languages: this.languages,
+      exclusions: this.exclusions.join(','),
       versions: this.versions.map(v => v.toJSON())
     };
   }
@@ -179,13 +280,20 @@ class ServerInformation {
     instance.name = json.name || '';
     instance.address = json.address || '';
     instance.accessInfo = json['access-info'] || '';
-    instance.authCSList = json.authoritative 
+    instance.authCSList = json.authoritative
       ? json.authoritative.split(',').filter(s => s)
       : [];
-    instance.authVSList = json['authoritative-valuesets'] 
+    instance.authVSList = json['authoritative-valuesets']
       ? json['authoritative-valuesets'].split(',').filter(s => s)
       : [];
     instance.usageList = json.usageList || [];
+    // languages is an object (tag -> mask list); tolerate legacy/absent data
+    instance.languages = (json.languages && typeof json.languages === 'object' && !Array.isArray(json.languages))
+      ? json.languages
+      : {};
+    instance.exclusions = json.exclusions
+      ? json.exclusions.split(',').filter(s => s)
+      : [];
     instance.versions = (json.versions || []).map(v => ServerVersionInformation.fromJSON(v));
     return instance;
   }
@@ -327,6 +435,7 @@ class ServerRow {
     this.systems = 0; // count of code systems
     this.sets = 0; // count of value sets
     this.authoritative = false;
+    this.languages = []; // language tag(s) of the language specific claim matched (empty = none)
   }
 
   toJSON() {
@@ -357,7 +466,10 @@ class ServerRow {
       json['authoritative-valuesets'] = this.authVSList;
     }
 
-    
+    if (this.languages.length > 0) {
+      json.languages = this.languages;
+    }
+
     return json;
   }
 
@@ -378,18 +490,56 @@ class ServerRow {
     instance.authCSList = json.authoritative || [];
     instance.authVSList = json['authoritative-valuesets'] || [];
     instance.security = json['security'] || '';
+    instance.languages = json.languages || [];
 
     return instance;
   }
 }
 
-// Utility functions (similar to TServerRegistryUtilities)
+// Utility functions for registry matching and row building
 class ServerRegistryUtilities {
   static passesMask(mask, value) {
     if (mask.endsWith('*')) {
       return value.startsWith(mask.slice(0, -1));
     }
     return value === mask;
+  }
+
+  /**
+   * Parse an Accept-Language style value ('de', 'de-AT, de;q=0.9, en;q=0.1') into
+   * an ordered list of {tag, q}, highest weight first. Wildcards ('*') and zero-weight
+   * entries are dropped - they don't constrain routing. Returns null when nothing usable.
+   */
+  static parseAcceptLanguage(value) {
+    if (!value || typeof value !== 'string') return null;
+    const items = [];
+    for (const part of value.split(',')) {
+      const pieces = part.trim().split(';').map(p => p.trim());
+      const tag = pieces[0];
+      if (!tag || tag === '*') continue;
+      let q = 1.0;
+      for (let i = 1; i < pieces.length; i++) {
+        const m = /^q\s*=\s*([0-9.]+)$/i.exec(pieces[i]);
+        if (m) q = parseFloat(m[1]);
+      }
+      if (!(q > 0)) continue;
+      items.push({ tag, q });
+    }
+    if (items.length === 0) return null;
+    items.sort((a, b) => b.q - a.q); // stable: preserves order among equal weights
+    return items;
+  }
+
+  /**
+   * BCP-47 tags are hierarchical, so a tag is inherently a mask: a scoped tag covers a
+   * request language that is equal to it, or more specific (on '-' boundaries).
+   * languageTagCovers('de', 'de-AT') = true; ('de', 'dent') = false; ('de-AT', 'de') = false.
+   */
+  static languageTagCovers(scopedTag, requestTag) {
+    if (!scopedTag || !requestTag) return false;
+    const s = scopedTag.toLowerCase();
+    const r = requestTag.toLowerCase();
+    return r === s || r.startsWith(s + '-');
   }
 
   static hasMatchingCodeSystem(cs, list, supportMask, content, noVersionIndependentMatching = false) {
