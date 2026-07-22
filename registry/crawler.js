@@ -427,7 +427,7 @@ class RegistryCrawler {
   async fetchValueSets(version, server, exclusions) {
     // Initial search URL
     let count = 0;
-    let searchUrl = `${version.address}/ValueSet?_elements=url,version`+(version.address.includes("fhir.org") ? "&_count=200" : "");
+    let searchUrl = `${version.address}/ValueSet?_elements=url,version&_count=1000`;
     try {
       // Set of URLs to avoid duplicates
       const valueSetUrls = new Set();
