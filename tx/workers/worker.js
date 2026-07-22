@@ -661,6 +661,20 @@ class TerminologyWorker {
       // specific coded issue rather than silently auto-creating a fresh cache and
       // then failing obscurely later when a by-reference resource can't be found.
       if (!this.opContext.resourceCache.has(cacheId)) {
+        // A comma in the cache-id means the request carried multiple X-Cache-Id
+        // headers (Node joins duplicate headers with ", "): server-minted ids are
+        // single uuids. This happens when a client attaches a new cache-id header
+        // without clearing the old one (e.g. IG publisher builds where a second
+        // client context wrapped the same HTTP client) - report that specifically,
+        // because the generic "unknown cache" message sends people looking for an
+        // expiry problem that isn't there.
+        if (cacheId.includes(',')) {
+          throw new Issue('error', 'invalid', null, 'CACHE_ID_DUPLICATE',
+            `The request carried multiple ${CACHE_ID_HEADER} headers (combined value '${cacheId}'). ` +
+            'This is a client error: each request must carry exactly one cache-id. It usually means the client ' +
+            'started a second cache on a connection that already had one, without removing the first header.',
+            'cache-id-duplicate', 400);
+        }
         throw new Issue('error', 'not-found', null, 'CACHE_ID_UNKNOWN',
           this.i18n.translate('CACHE_ID_UNKNOWN', this.opContext.langs, [cacheId]),
           'cache-id-unknown', 404);

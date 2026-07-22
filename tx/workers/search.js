@@ -8,6 +8,7 @@
 const { TerminologyWorker } = require('./worker');
 const {Utilities} = require("../../library/utilities");
 const {debugLog} = require("../operation-context");
+const {acceptsHtml} = require("../tx-html");
 
 class SearchWorker extends TerminologyWorker {
   /**
@@ -84,7 +85,12 @@ class SearchWorker extends TerminologyWorker {
           break;
       }
 
-      const count = summary === 'count' ? 0 : Math.min(elements ? 2000 : 200, params._count && Utilities.isInteger(params._count) ? parseInt(params._count) : 20);
+      // Default page size depends on the return format: browsers get small pages
+      // (20), while API clients (json/xml) get big ones (1000) - they just want
+      // the data, and small pages make crawlers (e.g. the tx registry) painfully
+      // slow. An explicit _count always wins, subject to the caps.
+      const defaultCount = acceptsHtml(req) ? 20 : 1000;
+      const count = summary === 'count' ? 0 : Math.min(elements ? 2000 : 200, params._count && Utilities.isInteger(params._count) ? parseInt(params._count) : defaultCount);
       const sort = params._sort || "id";
 
       // Get matching resources

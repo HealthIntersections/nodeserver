@@ -178,6 +178,10 @@ Servers can be marked as authoritative for specific code systems or value sets. 
 - Authoritative servers are always ranked first
 - Wildcards are supported (e.g., `http://loinc.org*`)
 - Non-authoritative servers are still returned but ranked lower
+- Language specific claims (`languages`: BCP-47 tag -> mask list) make a server authoritative for
+  requests in that language only; matched entries rank ahead of language independent claims
+- `exclusions` hides matching code systems/value sets from the ecosystem entirely (never
+  authoritative, never a candidate)
 
 ## Testing
 
@@ -205,18 +209,6 @@ Start development server with auto-reload:
 npm run dev
 ```
 
-## Migration from Pascal
-
-This module is a JavaScript port of a Pascal implementation. Key differences:
-
-| Pascal | JavaScript |
-|--------|------------|
-| TStringList | Array |
-| TFslList<T> | Array |
-| set of TServerSecurity | Set |
-| TFslDateTime | Date |
-| class methods | static methods |
-
 ## Security Models
 
 The crawler detects the following security models:
@@ -230,4 +222,4 @@ The crawler detects the following security models:
 
 ## License
 
-BSD-3-Clause (matching the original Pascal implementation)
+BSD-3-Clause

@@ -299,7 +299,7 @@ class RegistryModule {
 
   /**
    * Get status text about crawling
-   * Based on Pascal status function
+   * Describes the crawl schedule state
    */
   getStatusText() {
     if (this.crawlInProgress) {
@@ -331,7 +331,7 @@ class RegistryModule {
 
   /**
    * Format a time period in milliseconds to a human-readable string
-   * Based on Pascal DescribePeriod function
+  
    */
   describePeriod(milliseconds) {
     const seconds = Math.floor(milliseconds / 1000);
@@ -552,35 +552,43 @@ class RegistryModule {
 
     if (!data || !data.registries) return [];
 
-    // Gather all authoritative code systems
+    // Gather all authoritative code systems - both the language independent claims
+    // (authoritative) and the language specific claims (languages: tag -> mask list)
+    const addClaim = (server, csMask, languageTag) => {
+      if (!authCSMap.has(csMask)) {
+        authCSMap.set(csMask, {
+          mask: csMask,
+          servers: new Map()
+        });
+      }
+
+      // Key by server code + language tag, so a server's language independent and
+      // language specific claims for the same mask show as separate rows
+      const csEntry = authCSMap.get(csMask);
+      const key = `${server.code}|${languageTag || ''}`;
+      if (!csEntry.servers.has(key)) {
+        csEntry.servers.set(key, {
+          name: server.name,
+          url: server.address,
+          languages: languageTag ? [languageTag] : [],
+          versions: new Set()
+        });
+      }
+
+      // Add version info for this server
+      const serverEntry = csEntry.servers.get(key);
+      server.versions.forEach(version => {
+        if (!version.error) {
+          serverEntry.versions.add(version.version);
+        }
+      });
+    };
+
     data.registries.forEach(registry => {
       registry.servers.forEach(server => {
-        server.authCSList.forEach(csMask => {
-          // Create or update entry for this code system mask
-          if (!authCSMap.has(csMask)) {
-            authCSMap.set(csMask, {
-              mask: csMask,
-              servers: new Map()
-            });
-          }
-
-          // Add server info
-          const csEntry = authCSMap.get(csMask);
-          if (!csEntry.servers.has(server.name)) {
-            csEntry.servers.set(server.name, {
-              name: server.name,
-              url: server.address,
-              versions: new Set()
-            });
-          }
-
-          // Add version info for this server
-          const serverEntry = csEntry.servers.get(server.name);
-          server.versions.forEach(version => {
-            if (!version.error) {
-              serverEntry.versions.add(version.version);
-            }
-          });
+        server.authCSList.forEach(csMask => addClaim(server, csMask, null));
+        Object.keys(server.languages || {}).forEach(tag => {
+          (server.languages[tag] || []).forEach(csMask => addClaim(server, csMask, tag));
         });
       });
     });
@@ -626,18 +634,19 @@ class RegistryModule {
             });
           }
 
-          // Add server info
+          // Add server info (value set claims have no language dimension at this time)
           const vsEntry = authVSMap.get(vsMask);
-          if (!vsEntry.servers.has(server.name)) {
-            vsEntry.servers.set(server.name, {
+          if (!vsEntry.servers.has(server.code)) {
+            vsEntry.servers.set(server.code, {
               name: server.name,
               url: server.address,
+              languages: [],
               versions: new Set()
             });
           }
 
           // Add version info for this server
-          const serverEntry = vsEntry.servers.get(server.name);
+          const serverEntry = vsEntry.servers.get(server.code);
           server.versions.forEach(version => {
             if (!version.error) {
               serverEntry.versions.add(version.version);
@@ -789,6 +798,19 @@ class RegistryModule {
   }
 
   /**
+   * Render the language tag(s) of a language specific claim (empty string when the
+   * claim is language independent)
+   * @param {Object} serverEntry - entry with a languages array
+   * @returns {string} HTML fragment
+   */
+  _renderLanguageScope(serverEntry) {
+    if (!serverEntry.languages || serverEntry.languages.length === 0) {
+      return '';
+    }
+    return ` <span class="badge badge-info" title="This claim applies to requests in these languages only">${escape(serverEntry.languages.join(', '))}</span>`;
+  }
+
+  /**
    * Render HTML table for authoritative code systems
    * @returns {string} HTML string
    */
@@ -821,7 +843,7 @@ class RegistryModule {
       const rowspan = cs.servers.length;
       html += '<tr>';
       html += `<td rowspan="${rowspan}">${this._highlightWildcard(escape(formattedMask))}</td>`;
-      html += `<td><a href="${escape(cs.servers[0].url)}" target="_blank">${escape(cs.servers[0].url)}</a></td>`;
+      html += `<td><a href="${escape(cs.servers[0].url)}" target="_blank">${escape(cs.servers[0].url)}</a>${this._renderLanguageScope(cs.servers[0])}</td>`;
 
       // Format versions as R3/R4/R5
       const formattedVersions = cs.servers[0].versions.map(v => this._formatFhirVersion(v));
@@ -831,7 +853,7 @@ class RegistryModule {
       // Additional rows for this code system (if any)
       for (let i = 1; i < cs.servers.length; i++) {
         html += '<tr>';
-        html += `<td><a href="${escape(cs.servers[i].url)}" target="_blank">${escape(cs.servers[i].url)}</a></td>`;
+        html += `<td><a href="${escape(cs.servers[i].url)}" target="_blank">${escape(cs.servers[i].url)}</a>${this._renderLanguageScope(cs.servers[i])}</td>`;
 
         // Format versions as R3/R4/R5
         const formattedVersions = cs.servers[i].versions.map(v => this._formatFhirVersion(v));
@@ -877,7 +899,7 @@ class RegistryModule {
       const rowspan = vs.servers.length;
       html += '<tr>';
       html += `<td rowspan="${rowspan}">${this._highlightWildcard(escape(vs.mask))}</td>`;
-      html += `<td><a href="${escape(vs.servers[0].url)}" target="_blank">${escape(vs.servers[0].url)}</a></td>`;
+      html += `<td><a href="${escape(vs.servers[0].url)}" target="_blank">${escape(vs.servers[0].url)}</a>${this._renderLanguageScope(vs.servers[0])}</td>`;
 
       // Format versions as R3/R4/R5
       const formattedVersions = vs.servers[0].versions.map(v => this._formatFhirVersion(v));
@@ -887,7 +909,7 @@ class RegistryModule {
       // Additional rows for this value set (if any)
       for (let i = 1; i < vs.servers.length; i++) {
         html += '<tr>';
-        html += `<td><a href="${escape(vs.servers[i].url)}" target="_blank">${escape(vs.servers[i].url)}</a></td>`;
+        html += `<td><a href="${escape(vs.servers[i].url)}" target="_blank">${escape(vs.servers[i].url)}</a>${this._renderLanguageScope(vs.servers[i])}</td>`;
 
         // Format versions as R3/R4/R5
         const formattedVersions = vs.servers[i].versions.map(v => this._formatFhirVersion(v));
@@ -976,7 +998,7 @@ class RegistryModule {
 
       try {
         const params = this._normalizeQueryParams(req.query);
-        const {fhirVersion, valueSet, usage, version} = params;
+        const {fhirVersion, valueSet, usage, version, language} = params;
         let {url} = params;
 
         // If a version was supplied separately, fold it into the code system
@@ -1050,16 +1072,16 @@ class RegistryModule {
 
         if (valueSet) {
           // Value set resolve
-          const resolveResult = this.api.resolveValueSet(fhirVersion, valueSet, authoritativeOnly, usage);
+          const resolveResult = this.api.resolveValueSet(fhirVersion, valueSet, authoritativeOnly, usage, language);
           result = resolveResult.result;
           matches = resolveResult.matches;
-          this.logger.info(`Resolved ValueSet ${valueSet} for FHIR ${fhirVersion} (usage=${usage}): ${matches}`);
+          this.logger.info(`Resolved ValueSet ${valueSet} for FHIR ${fhirVersion} (usage=${usage}, language=${language || 'none'}): ${matches}`);
         } else {
           // Code system resolve
-          const resolveResult = this.api.resolveCodeSystem(fhirVersion, url, authoritativeOnly, usage);
+          const resolveResult = this.api.resolveCodeSystem(fhirVersion, url, authoritativeOnly, usage, language);
           result = resolveResult.result;
           matches = resolveResult.matches;
-          this.logger.info(`Resolved CodeSystem ${url} for FHIR ${fhirVersion} (usage=${usage}): ${matches}`);
+          this.logger.info(`Resolved CodeSystem ${url} for FHIR ${fhirVersion} (usage=${usage}, language=${language || 'none'}): ${matches}`);
         }
 
         // If only authoritative servers are requested, filter results
@@ -1076,7 +1098,7 @@ class RegistryModule {
               htmlServer.loadTemplate('registry', templatePath);
             }
 
-            const content = this.buildResolveResultContent(result, fhirVersion, url || valueSet, usage);
+            const content = this.buildResolveResultContent(result, fhirVersion, url || valueSet, usage, language);
             const stats = this.api.getStatistics();
             stats.processingTime = Date.now() - startTime;
 
@@ -1104,7 +1126,7 @@ class RegistryModule {
     }
   }
 
-  buildResolveResultContent(result, fhirVersion, resourceUrl, usage) {
+  buildResolveResultContent(result, fhirVersion, resourceUrl, usage, language) {
     let html = '';
 
     // Query information section
@@ -1118,6 +1140,9 @@ class RegistryModule {
     html += `<p><strong>Registry URL:</strong> <a href="${result['registry-url']}" target="_blank">${escape(result['registry-url'])}</a></p>`;
     if (usage) {
       html += `<p><strong>Usage:</strong> ${escape(usage)}</p>`;
+    }
+    if (language) {
+      html += `<p><strong>Language:</strong> ${escape(language)}</p>`;
     }
     html += '</div>';
     html += '</div>';
@@ -1136,6 +1161,7 @@ class RegistryModule {
       html += '<th>Server Name</th>';
       html += '<th>URL</th>';
       html += '<th>Security</th>';
+      html += '<th>Languages</th>';
       html += '<th>Access Info</th>';
       html += '</tr>';
       html += '</thead>';
@@ -1146,6 +1172,7 @@ class RegistryModule {
         html += `<td>${escape(server['server-name'])}</td>`;
         html += `<td><a href="${server.url}" target="_blank">${escape(server.url)}</a></td>`;
         html += `<td>${this.renderSecurityTags(server)}</td>`;
+        html += `<td>${server.languages ? escape(server.languages.join(', ')) : ''}</td>`;
         html += `<td>${server.access_info ? escape(server.access_info) : ''}</td>`;
         html += '</tr>';
       });
@@ -1173,6 +1200,7 @@ class RegistryModule {
       html += '<th>Server Name</th>';
       html += '<th>URL</th>';
       html += '<th>Security</th>';
+      html += '<th>Languages</th>';
       html += '<th>Access Info</th>';
       html += '<th>Content</th>';
       html += '</tr>';
@@ -1184,6 +1212,11 @@ class RegistryModule {
         html += `<td>${escape(server['server-name'])}</td>`;
         html += `<td><a href="${server.url}" target="_blank">${escape(server.url)}</a></td>`;
         html += `<td>${this.renderSecurityTags(server)}</td>`;
+        if (server['language-support'] === 'unknown') {
+          html += '<td><span class="text-muted" title="This server hosts the code system, but the ecosystem does not know whether it can supply the requested language">unknown</span></td>';
+        } else {
+          html += `<td>${server.languages ? escape(server.languages.join(', ')) : ''}</td>`;
+        }
         html += `<td>${server.access_info ? escape(server.access_info) : ''}</td>`;
         html += `<td>${server.content ? escape(server.content) : ''}</td>`;
         html += '</tr>';
@@ -1229,6 +1262,7 @@ class RegistryModule {
     const url = queryParams.url || '';
     const version = queryParams.version || '';
     const valueSet = queryParams.valueSet || '';
+    const language = queryParams.language || '';
     const authoritativeOnly = queryParams.authoritativeOnly === 'true';
 
     let html = '';
@@ -1271,6 +1305,13 @@ class RegistryModule {
     html += '</p>';
     html += '<p class="text-muted small">Example: http://hl7.org/fhir/ValueSet/observation-codes</p>';
 
+    // Language field (optional)
+    html += '<p>';
+    html += '<label for="language" class="form-label fw-bold">Language</label>';
+    html += `<input type="text" class="form-control" id="language" name="language"
+           value="${escape(language)}">`;
+    html += '</p>';
+    html += '<p class="text-muted small">Optional. The language of the request being routed, in Accept-Language syntax. Examples: de or de-AT, de;q=0.9, en;q=0.1</p>';
 
     // Authoritative Only checkbox
     html += '<p>';

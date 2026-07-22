@@ -174,13 +174,7 @@ class Provider {
     for (const resource of resources) {
       const cs = new CodeSystem(await contentLoader.loadFile(resource, contentLoader.fhirVersion()));
       cs.sourcePackage = contentLoader.pid();
-      const existing = this.codeSystems.get(cs.url);
-      if (!existing || cs.isMoreRecent(existing)) {
-        this.codeSystems.set(cs.url, cs);
-      }
-      if (cs.version) {
-        this.codeSystems.set(cs.vurl, cs);
-      }
+      this.addCodeSystem(cs);
     }
     const vs = new PackageValueSetProvider(contentLoader);
     await vs.initialize();
@@ -486,12 +480,37 @@ class Provider {
     }
   }
 
+  /**
+   * True if the source package id (e.g. "hl7.terminology.r4#6.0.2") is a
+   * terminology.hl7.org (THO/UTG) package.
+   */
+  static #isTHOPackage(pid) {
+    return pid != null && pid.startsWith("hl7.terminology");
+  }
+
   addCodeSystem(cs) {
+    // Special case, mirroring CanonicalResourceManager.see() in the Java core:
+    // when content moved from the FHIR core packages to terminology.hl7.org,
+    // the versions went backwards (e.g. coverage-selfpay is 4.0.1 in
+    // hl7.fhir.r4.core (2019) but 1.0.1 in hl7.terminology (2024)), so plain
+    // version precedence would leave the stale core copy as the default. A
+    // resource from an hl7.terminology package displaces any same-URL
+    // resource that came from a FHIR core package, regardless of version.
+    if (Provider.#isTHOPackage(cs.sourcePackage)) {
+      for (const [key, t] of [...this.codeSystems]) {
+        if (t.url === cs.url && VersionUtilities.isCorePackage(t.sourcePackage)) {
+          this.codeSystems.delete(key);
+        }
+      }
+    }
     const existing = this.codeSystems.get(cs.url);
-    if (!existing || cs.isMoreRecent(existing)) {
+    // the reverse guard: a core-package resource never displaces a THO one
+    const yieldsToTHO = existing && Provider.#isTHOPackage(existing.sourcePackage)
+      && VersionUtilities.isCorePackage(cs.sourcePackage);
+    if (!existing || (!yieldsToTHO && cs.isMoreRecent(existing))) {
       this.codeSystems.set(cs.url, cs);
     }
-    if (cs.version) {
+    if (cs.version && !yieldsToTHO) {
       this.codeSystems.set(cs.vurl, cs);
     }
   }
