@@ -520,6 +520,7 @@ class RegistryAPI {
    * NEW FUNCTION: Resolve the best server for a value set
    * Implements the ecosystem Resolution API for value sets
    */
+  // eslint-disable-next-line no-unused-vars -- language is accepted for API symmetry (see note below)
   resolveValueSet(fhirVersion, valueSet, authoritativeOnly, usage = '', language = '') {
     // Note: the language parameter is accepted for API symmetry with resolveCodeSystem,
     // but value set claims have no language dimension at this time (language specific
@@ -628,8 +629,12 @@ class RegistryAPI {
     if (server.accessInfo) {
       entry.access_info = server.accessInfo;
     }
-    if (version.content) {
-      entry.content = version.content;
+    // Report the content mode of the matched code system, if the server provided one
+    // (per the resolve API in the tx ecosystem IG, candidates report content when known).
+    // This was previously read from version.content, which doesn't exist - the value
+    // passed by resolveCodeSystem was silently dropped.
+    if (content) {
+      entry.content = content;
     }
     if (authMatch && authMatch.scoped && authMatch.isAuth) {
       entry.languages = [authMatch.tag];
