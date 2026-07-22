@@ -251,11 +251,15 @@ class Renderer {
     }
   }
 
+  // Inline phrases inherited from the Java core translations (RES_REND_VER = "version: {0}"
+  // etc) are not table labels; when rendering into a name/value table we use the dedicated
+  // *_NAME / *_VALUE phrases instead, and leave the inline phrases to the Java code.
+
   renderMetadataVersion(res, tbl) {
     if (res.meta?.version) {
       let tr = tbl.tr();
-      tr.td().b().tx(this.translate('RES_REND_VER'));
-      tr.td().tx(res.meta.version);
+      tr.td().b().tx(this.translate('RES_REND_VER_NAME'));
+      tr.td().tx(this.translate('RES_REND_VER_VALUE', [res.meta.version]));
     }
   }
 
@@ -263,9 +267,8 @@ class Renderer {
     if (res.meta?.lastUpdated) {
       this._requireValidDate(res.meta.lastUpdated, 'meta.lastUpdated');
       let tr = tbl.tr();
-      // RES_REND_UPDATED is "Last updated: {0}" — supply the formatted date as
-      // the {0} parameter so the placeholder is substituted.
-      tr.td().b().tx(this.translate('RES_REND_UPDATED', [this.displayDate(res.meta.lastUpdated)]));
+      tr.td().b().tx(this.translate('RES_REND_UPDATED_NAME'));
+      tr.td().tx(this.translate('RES_REND_UPDATED_VALUE', [this.displayDate(res.meta.lastUpdated)]));
     }
   }
 
@@ -326,8 +329,8 @@ class Renderer {
   renderMetadataSource(res, tbl) {
     if (res.meta?.source) {
       let tr = tbl.tr();
-      tr.td().b().tx(this.translate('RES_REND_INFO_SOURCE'));
-      tr.td().tx(res.meta.source);
+      tr.td().b().tx(this.translate('RES_REND_INFO_SOURCE_NAME'));
+      tr.td().tx(this.translate('RES_REND_INFO_SOURCE_VALUE', [res.meta.source]));
     }
   }
 
