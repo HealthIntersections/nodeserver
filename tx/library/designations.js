@@ -214,7 +214,8 @@ const DisplayDifference = {
 const DesignationUse = {
   DISPLAY: {
     system: 'http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra', // http://terminology.hl7.org/CodeSystem/designation-use',
-    code: 'preferredForLanguage' // 'display'
+    code: 'preferredForLanguage', // 'display'
+    display: 'Preferred For Language'
   },
   FSN: {
     system: 'http://snomed.info/sct',
@@ -356,10 +357,7 @@ class Designations {
     designation.status = status;
 
     if (isDisplay) {
-      designation.use = {
-        system: DesignationUse.DISPLAY.system,
-        code: DesignationUse.DISPLAY.code
-      };
+      designation.use = { ...DesignationUse.DISPLAY };
     } else if (use) {
       designation.use = use;
     }
