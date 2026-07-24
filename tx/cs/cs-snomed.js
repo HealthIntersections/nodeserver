@@ -229,6 +229,83 @@ class SnomedServices {
     }
   }
 
+  // Key concept indexes used for preferred-term selection, resolved once per
+  // loaded edition. US English (900000000000509007) is the global default
+  // language reference set for display.
+  _displayConstants() {
+    if (this._dispConst) return this._dispConst;
+    const idx = (id) => { const r = this.concepts.findConcept(id); return r.found ? r.index : -1; };
+    this._dispConst = {
+      usRefset: idx(900000000000509007n),   // US English language reference set
+      preferred: idx(900000000000548007n),  // Preferred
+      synonym: idx(900000000000013009n),    // Synonym
+      fsn: idx(900000000000003001n)         // Fully specified name
+    };
+    return this._dispConst;
+  }
+
+  // Ordered display language reference set(s) for the loaded edition. SNOMED's
+  // default display language differs by edition, and a concept can carry a
+  // preferred synonym in more than one dialect at once (the International
+  // edition ships both US English 509007 and GB English 508004, each marking a
+  // different synonym Preferred). The edition default decides which term is
+  // shown. Editions not listed here fall back to "preferred synonym in any
+  // language refset" (the historical behaviour), so no edition regresses.
+  _displayRefsetOrder() {
+    if (this._dispOrder) return this._dispOrder;
+    const idx = (id) => { const r = this.concepts.findConcept(id); return r.found ? r.index : -1; };
+    const US = 900000000000509007n;   // US English
+    const GB = 900000000000508004n;   // GB English
+    const byEdition = {
+      '900000000000207008': [US],       // International Edition (US English is the default)
+      '731000124108': [US],             // US Edition
+      '5991000124107': [US],            // US Edition (with ICD-10-CM maps)
+      '83821000000107': [GB],           // UK Edition
+      '999000021000000109': [GB]        // UK Clinical Edition
+    };
+    const ids = byEdition[String(this.edition)] || [];
+    this._dispOrder = ids.map(idx).filter((i) => i >= 0);
+    return this._dispOrder;
+  }
+
+  // Acceptability (a concept index, e.g. Preferred/Acceptable) of a description
+  // within the given language reference set, or -1 if it is not a member.
+  _descAcceptability(description, refsetIndex) {
+    if (!description.refsets || !description.valueses) return -1;
+    const refsets = this.refs.getReferences(description.refsets);
+    const valueses = this.refs.getReferences(description.valueses);
+    if (!refsets || !valueses) return -1;
+    for (let i = 0; i < refsets.length; i++) {
+      if (refsets[i] === refsetIndex) {
+        const vals = this.refs.getReferences(valueses[i]); // [acceptabilityIndex, type]
+        return (vals && vals.length > 0) ? vals[0] : -1;
+      }
+    }
+    return -1;
+  }
+
+  // True if the description is a synonym marked Preferred (900000000000548007)
+  // in ANY of its language reference sets. Editions use different English
+  // language refsets (International US-English 509007, GB 508004, US extension,
+  // ...), so we accept a preferred marking in any of them rather than a single
+  // hard-coded refset. (Multi-language dialect selection is a separate concern.)
+  _synonymIsPreferred(description) {
+    const K = this._displayConstants();
+    if (description.kind !== K.synonym) return false;
+    if (!description.valueses) return false;
+    const valueses = this.refs.getReferences(description.valueses);
+    if (!valueses) return false;
+    for (let i = 0; i < valueses.length; i++) {
+      const vals = this.refs.getReferences(valueses[i]); // [acceptabilityIndex, type]
+      if (vals && vals.length > 0 && vals[0] === K.preferred) return true;
+    }
+    return false;
+  }
+
+  // Return a concept's display: the synonym marked Preferred in the US English
+  // language reference set; failing that the FSN; failing that the first active
+  // description. Previously this returned the first active description outright,
+  // which is only the preferred term by accident of import order.
   getDisplayName(reference = 0) {
     try {
       const concept = this.concepts.getConcept(reference);
@@ -239,17 +316,40 @@ class SnomedServices {
       }
 
       const descriptionIndices = this.refs.getReferences(descriptionsRef);
+      const K = this._displayConstants();
 
-      // Look for preferred term, then any active description
-      for (const descIndex of descriptionIndices) {
-        const description = this.descriptions.getDescription(descIndex);
-        if (description.active) {
-          const term = this.strings.getEntry(description.iDesc);
-          return term.trim();
+      // 1. Preferred synonym in the edition's default display refset(s), tried
+      //    in priority order. This is what disambiguates dialects: on the
+      //    International edition a concept may be Preferred in both US and GB
+      //    English, and the edition default (US English) must win.
+      for (const refsetIdx of this._displayRefsetOrder()) {
+        for (const descIndex of descriptionIndices) {
+          const description = this.descriptions.getDescription(descIndex);
+          if (!description.active || description.kind !== K.synonym) continue;
+          if (this._descAcceptability(description, refsetIdx) === K.preferred) {
+            return this.strings.getEntry(description.iDesc).trim();
+          }
         }
       }
 
-      return '';
+      // 2. Fallback: preferred synonym in ANY language refset; then FSN; then
+      //    the first active description. Used for editions without a mapped
+      //    default refset, and for concepts with no preferred synonym there.
+      let fsnTerm = '';
+      let firstActive = '';
+      for (const descIndex of descriptionIndices) {
+        const description = this.descriptions.getDescription(descIndex);
+        if (!description.active) continue;
+        const term = this.strings.getEntry(description.iDesc).trim();
+        if (firstActive === '') firstActive = term;
+        if (this._synonymIsPreferred(description)) {
+          return term; // preferred synonym (any English language refset)
+        }
+        if (description.kind === K.fsn && fsnTerm === '') {
+          fsnTerm = term;
+        }
+      }
+      return fsnTerm || firstActive || '';
     } catch (error) {
       return '';
     }
@@ -503,7 +603,15 @@ class SnomedServices {
       result = this._evalECLNode(ast, opContext);
     } catch (err) {
       debugLog(err);
-      throw new Issue('error', 'invalid', null, 'UNSUPPORTED_ECL', opContext.i18n.translate('UNSUPPORTED_ECL', opContext.langs, [eclExpression, err.message]), 'vs-invalid').handleAsOO(400);
+      // Distinguish an *invalid* ECL expression (a malformed SCTID, or a
+      // reference to a concept that does not exist - the expression can never
+      // be valid) from an *unsupported* one (a well-formed expression using a
+      // feature this server does not implement). The tx-ecosystem test suite
+      // expects INVALID_ECL for the former, UNSUPPORTED_ECL for the latter.
+      const emsg = (err && err.message) ? err.message : String(err);
+      const invalid = /is not known/.test(emsg) || /Cannot convert .* to a BigInt/i.test(emsg);
+      const msgId = invalid ? 'INVALID_ECL' : 'UNSUPPORTED_ECL';
+      throw new Issue('error', 'invalid', null, msgId, opContext.i18n.translate(msgId, opContext.langs, [eclExpression, err.message]), 'vs-invalid').handleAsOO(400);
     }
     // Wildcard + iteration: the `eclWildcard` flag is only consulted by the
     // per-concept membership checks (filterCheck/filterLocate). For an $expand
@@ -522,12 +630,24 @@ class SnomedServices {
    * @returns {number[]}
    */
   _eclEnumerateActiveConcepts = function (opContext) {
+    // The wildcard `*` enumerates the SNOMED CT concept hierarchy: the root
+    // 138875005 |SNOMED CT Concept| and its descendants. This excludes the
+    // foundation-metadata concepts that appear in a subset's concept table
+    // (referenced by the RF2 files as module / type / acceptability ... ids)
+    // without their is-a relationships, so they are not reachable from the root
+    // and are not returned by `*` (matching Snowstorm). On a full edition every
+    // real concept is under the root, so nothing is lost.
+    const rootRes = this.concepts.findConcept(138875005n);
+    if (rootRes && rootRes.found) {
+      return this.filterIsA(138875005n, true).descendants;
+    }
+    // Fallback (no recognisable root): every active concept.
     const all = [];
     const n = this.concepts.count();
     for (let i = 0; i < n; i++) {
       if (opContext) opContext.deadCheck('ecl:enumerateActiveConcepts');
       const concept = this.concepts.getConceptByCount(i);
-      if ((concept.flags & 0x0F) === 0) { // active
+      if ((concept.flags & 0x0F) === 0) {
         all.push(concept.index);
       }
     }
@@ -700,8 +820,9 @@ class SnomedServices {
    * resolved to a set of candidate reference-set concepts, and the result is the
    * union of their active concept members' referenced components.
    *
-   * When the operand is a bare, explicitly-named concept that is not a reference
-   * set, this throws (the caller asked for an error in that case). When the
+   * When the operand concept is not a reference set the result is empty (a
+   * non-refset concept simply has no members - this matches Snowstorm and the
+   * tx-ecosystem test suite). When the
    * operand is a computed expression (e.g. ^(<<900000000000455006)), concepts in
    * the resolved set that are not reference sets are simply skipped — the closure
    * of "Reference set" necessarily includes the non-refset parent itself.
@@ -711,7 +832,6 @@ class SnomedServices {
    * @returns {SnomedFilterContext}
    */
   _evalMemberOf = function (memberOfNode, opContext) {
-    const operandIsBareRef = memberOfNode.refSet.type === ECLNodeType.CONCEPT_REFERENCE;
     const refsetConcepts = this._eclResolveSet(this._evalECLNode(memberOfNode.refSet, opContext), opContext);
 
     const members = new Set();
@@ -719,11 +839,10 @@ class SnomedServices {
       if (opContext) opContext.deadCheck('ecl:memberOf');
       const membersRef = this._findRefSetMembersRef(refsetIdx);
       if (membersRef === null) {
-        if (operandIsBareRef) {
-          const code = this.concepts.getConceptId(refsetIdx).toString();
-          throw new Error(`The SNOMED CT Concept ${code} is not a reference set`);
-        }
-        continue; // computed operand: ignore concepts that aren't reference sets
+        // Operand concept is not a reference set: yield no members for it
+        // (empty result) rather than erroring. Applies to both a bare concept
+        // reference (e.g. "^ 10200004") and a computed operand.
+        continue;
       }
       if (membersRef === 0 || membersRef === 0xFFFFFFFF) {
         continue; // a reference set with no members
@@ -917,20 +1036,24 @@ class SnomedServices {
     const valueSet = resolved.valueSet;
 
     const relIdxs = this.getConceptRelationships(conceptIdx);
-    // ECL cardinality counts non-redundant matching attributes — i.e. distinct
-    // matching values — not raw relationship rows. The same (type, value) can
-    // appear in multiple role groups; counting rows over-counts and makes e.g.
-    // [1..1] fail and [2..*] succeed for a concept with a single morphology.
-    const matchedTargets = new Set();
+    // ECL cardinality counts OCCURRENCES of a matching attribute, per role group
+    // — not distinct values. ECL runs against the necessary normal form, where a
+    // role group has no redundant attributes, so the same (type, value) in two
+    // different role groups counts as two occurrences (confirmed by the SNOMED
+    // Computable Languages Group; ECL 6.3 "non-redundant" refers to the normal
+    // form, not to de-duplicating across groups). We therefore count distinct
+    // (group, target) pairs: within a group filter this is the matching values
+    // in that group; ungrouped it is the total occurrences across all groups.
+    const matched = new Set();
     for (const relIdx of relIdxs) {
       if (opContext) opContext.deadCheck('ecl:countAttributeMatches');
       const rel = this.relationships.getRelationship(relIdx);
       if (!rel.active) continue;
       if (rel.relType !== attrTypeIdx) continue;
       if (groupFilter !== null && rel.group !== groupFilter) continue;
-      if (valueSet.has(rel.target)) matchedTargets.add(rel.target);
+      if (valueSet.has(rel.target)) matched.add(rel.group + ':' + rel.target);
     }
-    return matchedTargets.size;
+    return matched.size;
   };
 
   /**
@@ -1065,16 +1188,10 @@ class SnomedServices {
     const rightSet = new Set(this._eclToIndexArray(right));
 
     if (left.eclWildcard) {
-      // Enumerate all active concepts minus the right set
-      const all = [];
-      for (let i = 0; i < this.concepts.count(); i++) {
-        if (opContext) opContext.deadCheck('ecl:minus');
-        const concept = this.concepts.getConceptByCount(i);
-        if (this.isActive(concept.index) && !rightSet.has(concept.index)) {
-          all.push(concept.index);
-        }
-      }
-      result.descendants = all;
+      // Wildcard minus the right set: use the shared active-concept enumeration
+      // (the root hierarchy) so `*` behaves consistently everywhere.
+      result.descendants = this._eclEnumerateActiveConcepts(opContext)
+        .filter(idx => !rightSet.has(idx));
       return result;
     }
 
@@ -1279,7 +1396,7 @@ class SnomedProvider extends BaseCSServices {
     return this.sct.isActive(ctxt.getReference()) ? 'active' : 'inactive';
   }
 
-  async designations(context, displays) {
+  async designations(context, displays, significantOnly = false) {
 
     const ctxt = await this.#ensureContext(context);
 
@@ -1300,17 +1417,53 @@ class SnomedProvider extends BaseCSServices {
 
           if (descriptionsRef !== 0) {
             const descriptionIndices = this.sct.refs.getReferences(descriptionsRef);
+            const K = this.sct._displayConstants();
 
-            for (const descIndex of descriptionIndices) {
-              const description = this.sct.descriptions.getDescription(descIndex);
-              const term = this.sct.strings.getEntry(description.iDesc).trim();
-              const langCode = this.getLanguageCode(description.lang);
-              const kind = this.sct.concepts.getConcept(description.kind);
-              const kid = String(kind.identity);
-              const kdesc = this.sct.getDisplayName(description.kind);
-              let use = { system: 'http://snomed.info/sct', code: kid, display : kdesc};
-
-              displays.addDesignation(false, description.active ? 'active' : 'inactive', langCode, use, term);
+            if (significantOnly) {
+              // $expand: emit the "significant" designations only — the FSN plus
+              // the preferred synonym (US English), active descriptions only.
+              // The preferred synonym is also the display, so it is added as the
+              // display designation (which the expand worker selects for
+              // `display` and skips from the emitted list) and additionally as a
+              // Synonym designation so it still appears in the designation array.
+              let fsn = null, prefSyn = null;
+              for (const descIndex of descriptionIndices) {
+                const description = this.sct.descriptions.getDescription(descIndex);
+                if (!description.active) continue;
+                const term = this.sct.strings.getEntry(description.iDesc).trim();
+                const langCode = this.getLanguageCode(description.lang);
+                const kind = this.sct.concepts.getConcept(description.kind);
+                const use = { system: 'http://snomed.info/sct', code: String(kind.identity), display: this.sct.getDisplayName(description.kind) };
+                if (description.kind === K.fsn) {
+                  if (!fsn) fsn = { langCode, use, term };
+                } else if (this.sct._synonymIsPreferred(description)) {
+                  if (!prefSyn) prefSyn = { langCode, use, term };
+                }
+              }
+              const display = this.sct.getDisplayName(ctxt.getReference());
+              if (display) displays.addDesignation(true, 'active', 'en-US', null, display);
+              if (fsn) displays.addDesignation(false, 'active', fsn.langCode, fsn.use, fsn.term);
+              if (prefSyn) displays.addDesignation(false, 'active', prefSyn.langCode, prefSyn.use, prefSyn.term);
+            } else {
+              // $lookup: emit every description (preferred synonym first so the
+              // display resolves correctly; order is not otherwise significant).
+              const orderedIndices = descriptionIndices.slice().sort((a, b) => {
+                const da = this.sct.descriptions.getDescription(a);
+                const db = this.sct.descriptions.getDescription(b);
+                const pa = this.sct._synonymIsPreferred(da) ? 0 : 1;
+                const pb = this.sct._synonymIsPreferred(db) ? 0 : 1;
+                return pa - pb;
+              });
+              for (const descIndex of orderedIndices) {
+                const description = this.sct.descriptions.getDescription(descIndex);
+                const term = this.sct.strings.getEntry(description.iDesc).trim();
+                const langCode = this.getLanguageCode(description.lang);
+                const kind = this.sct.concepts.getConcept(description.kind);
+                const kid = String(kind.identity);
+                const kdesc = this.sct.getDisplayName(description.kind);
+                let use = { system: 'http://snomed.info/sct', code: kid, display : kdesc};
+                displays.addDesignation(false, description.active ? 'active' : 'inactive', langCode, use, term);
+              }
             }
           }
         } catch (error) {
@@ -1467,8 +1620,11 @@ class SnomedProvider extends BaseCSServices {
     if (ctxt) {
       if (!(ctxt instanceof SnomedExpressionContext) || ctxt.expression?.concepts.length == 1) {
         const time = this.sct.concepts.getConcept(ctxt.getReference()).effectiveTime;
-        const pascalEpoch = new Date(1899, 11, 30);
-        const date = new Date(pascalEpoch.getTime() + time * 86400000);
+        // Pascal TDateTime epoch (1899-12-30) computed in UTC so the formatted
+        // date is timezone-independent. new Date(1899,11,30) is LOCAL midnight,
+        // which in zones ahead of UTC rolls the ISO date back by one day.
+        const pascalEpochUTC = Date.UTC(1899, 11, 30);
+        const date = new Date(pascalEpochUTC + time * 86400000);
         const dateStr = date.toISOString().slice(0, 10);
         this._addDateTimeProperty(params, 'property', 'effectiveTime', dateStr);
 

@@ -372,11 +372,21 @@ class CodeSystemProvider {
   }
 
   /**
+   * List the designations for a concept, adding them to `displays`.
+   *
    * @param {string | CodeSystemProviderContext} code
-   * @param {ConceptDesignations} designation list
+   * @param {ConceptDesignations} displays - designation list to add to
+   * @param {boolean} [significantOnly=false] - when true, emit only the
+   *   designations that are significant for a value set expansion (the display,
+   *   and - for code systems that distinguish them - the fully specified name
+   *   and the preferred term), rather than every designation in every language.
+   *   The $expand worker passes true; $lookup uses the default (false) to return
+   *   the complete set. Providers that do not distinguish significant
+   *   designations may ignore this parameter and return all designations either
+   *   way.
    * @returns {Designation[]} whatever designations exist (in all languages)
    */
-  async designations(code, displays) { return null; }
+  async designations(code, displays, significantOnly = false) { return null; }
 
   _listSupplementDesignations(code, displays) {
     assert(typeof code === 'string', 'code must be string');

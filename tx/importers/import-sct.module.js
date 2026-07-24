@@ -2407,6 +2407,16 @@ class SnomedImporter {
       const refSet = new RefSet(refSetId);
       refSet.title = displayName;
       refSet.isLangRefset = isLangRefset;
+      // Set the reference set's defining-concept index at creation time, using
+      // this refset's own id. Doing it here (rather than once after the member
+      // loop) is essential when a single RF2 file contains members for more than
+      // one reference set (e.g. the association file carries both 734139008 and
+      // 900000000000526001) — otherwise only the last refset in the file gets a
+      // valid index and the others collapse to index 0.
+      const refSetConcept = this.conceptMap.get(BigInt(refSetId));
+      if (refSetConcept) {
+        refSet.index = refSetConcept.index;
+      }
       this.refSets.set(refSetId, refSet);
     }
     return this.refSets.get(refSetId);
@@ -2585,6 +2595,14 @@ class SnomedImporter {
 
     // Index concepts - optimized version
     for (const concept of this.conceptList) {
+      // Store the concept's module (resolved to its concept index) so that
+      // $lookup can report the 'module' property. Modules whose concept is not
+      // part of the subset are skipped (moduleId stays 0 / property omitted).
+      const moduleConcept = this.conceptMap.get(concept.moduleId);
+      if (moduleConcept && moduleConcept.index != null) {
+        this.concepts.setModuleId(concept.index, moduleConcept.index);
+      }
+
       const refSetRefs = [];
       const refSetValues = [];
 

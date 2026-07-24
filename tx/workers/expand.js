@@ -220,7 +220,7 @@ class ValueSetExpander {
   }
 
   async listDisplaysFromProvider(displays, cs, context) {
-    await cs.designations(context, displays);
+    await cs.designations(context, displays, true);
     displays.source = cs;
   }
 
