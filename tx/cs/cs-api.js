@@ -119,6 +119,19 @@ class CodeSystemProvider {
   totalCount() { throw new Error("Must override"); }
 
   /**
+   * The number of codes an "all codes" expansion of this code system would
+   * contain, computed WITHOUT materialising them - used by the count=0 (count
+   * only) expansion fast path. `excludeInactive` mirrors the expansion's
+   * active-only handling. Defaults to totalCount(); providers that distinguish
+   * active from inactive override this to honour excludeInactive.
+   * @param {boolean} excludeInactive
+   * @returns {integer}
+   */
+  countAllCodes(excludeInactive) {  // eslint-disable-line no-unused-vars
+    return this.totalCount();
+  }
+
+  /**
    * @returns {CodeSystem.property[]} defined properties for the code system
    */
   propertyDefinitions() { return null; }

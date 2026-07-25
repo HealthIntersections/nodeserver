@@ -199,6 +199,21 @@ class SnomedServices {
     }
   }
 
+  // Count of active concepts (status nibble == 0), computed once and cached.
+  // Concepts are fixed-size records addressed by byte offset, so iterate by
+  // ordinal via getConceptByCount. Used by the count=0 expansion fast path.
+  activeConceptCount() {
+    if (this._activeConceptCount != null) return this._activeConceptCount;
+    let n = 0;
+    const total = this.concepts.count();
+    for (let ord = 0; ord < total; ord++) {
+      const c = this.concepts.getConceptByCount(ord);
+      if ((c.flags & 0x0F) === 0) n++;
+    }
+    this._activeConceptCount = n;
+    return n;
+  }
+
   isPrimitive(reference) {
     try {
       const concept = this.concepts.getConcept(reference);
@@ -1443,6 +1458,10 @@ class SnomedProvider extends BaseCSServices {
     return this.sct.totalCount;
   }
 
+  countAllCodes(excludeInactive) {
+    return excludeInactive ? this.sct.activeConceptCount() : this.sct.totalCount;
+  }
+
   contentMode() {
     return CodeSystemContentMode.Complete;
   }
@@ -1998,6 +2017,11 @@ class SnomedProvider extends BaseCSServices {
   }
 
   async filterSize(filterContext, set) {
+    // A wildcard (`*`) set is lazy - it carries the eclWildcard flag rather than a
+    // materialised descendant list - so count the active concepts it denotes.
+    if (set.eclWildcard && (!set.descendants || set.descendants.length === 0)) {
+      return this.sct._eclEnumerateActiveConcepts(this.opContext).length;
+    }
     if (set.matches && set.matches.length > 0) {
       return set.matches.length;
     } else if (set.members && set.members.length > 0) {
