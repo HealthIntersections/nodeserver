@@ -766,7 +766,7 @@ class ValueSetExpander {
               // additional filters: report the code count directly rather than
               // enumerating - which for a poly-hierarchy (e.g. SNOMED) is both
               // expensive and pointless when no codes are being materialised.
-              this.addToTotal(cs.countAllCodes(excludeInactive));
+              this.addToTotal(await cs.countAllCodes(excludeInactive));
             } else {
               const iter = await cs.iterator(null);
               if (valueSets.length === 0 && this.limitCount > 0 && (iter && iter.total > this.limitCount) && this.offset < 0) {

@@ -1458,7 +1458,7 @@ class SnomedProvider extends BaseCSServices {
     return this.sct.totalCount;
   }
 
-  countAllCodes(excludeInactive) {
+  async countAllCodes(excludeInactive) {
     return excludeInactive ? this.sct.activeConceptCount() : this.sct.totalCount;
   }
 

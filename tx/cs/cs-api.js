@@ -127,8 +127,8 @@ class CodeSystemProvider {
    * @param {boolean} excludeInactive
    * @returns {integer}
    */
-  countAllCodes(excludeInactive) {  // eslint-disable-line no-unused-vars
-    return this.totalCount();
+  async countAllCodes(excludeInactive) {  // eslint-disable-line no-unused-vars
+    return await this.totalCount();
   }
 
   /**
