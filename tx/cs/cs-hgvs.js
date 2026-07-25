@@ -42,6 +42,10 @@ class HGVSServices extends CodeSystemProvider {
     return null;
   }
 
+  canBeExpanded() {
+    return false; // HGVS is a grammar validated externally; its codes cannot be iterated
+  }
+
   defaultToLatest() {
     return true;
   }

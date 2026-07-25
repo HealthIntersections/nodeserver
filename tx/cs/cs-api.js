@@ -132,6 +132,18 @@ class CodeSystemProvider {
   }
 
   /**
+   * returns false if the code system cannot be iterated / enumerated in any
+   * meaningful sense - as distinct from isNotClosed(), which marks a code system
+   * that has a grammar whose base set may still be partially expanded. An
+   * expansion that would need to iterate a system for which this is false
+   * returns an OperationOutcome rather than attempting the iteration.
+   * @returns {boolean}
+   */
+  canBeExpanded() {
+    return true;
+  }
+
+  /**
    * returns true if the code system is case sensitive when comparing codes.
    * this is true by default
    *

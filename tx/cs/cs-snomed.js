@@ -621,6 +621,9 @@ class SnomedServices {
       result.descendants = this._eclEnumerateActiveConcepts(opContext);
       delete result.eclWildcard;
     }
+    // Keep the parsed AST so validate-code can test a post-coordinated
+    // expression's membership against the constraint (see _eclExpressionSatisfies).
+    result.eclAst = ast;
     return result;
   };
 
@@ -936,7 +939,7 @@ class SnomedServices {
     const matching = [];
     for (const conceptIdx of baseSet) {
       if (opContext) opContext.deadCheck('ecl:refined');
-      if (this._refinementMatches(conceptIdx, node.refinement, opContext)) {
+      if (this._refinementMatches(this._conceptRelRecords(conceptIdx), node.refinement, opContext)) {
         matching.push(conceptIdx);
       }
     }
@@ -952,17 +955,17 @@ class SnomedServices {
    * @param {object} refinement
    * @returns {boolean}
    */
-  _refinementMatches = function (conceptIdx, refinement, opContext) {
+  _refinementMatches = function (rels, refinement, opContext) {
     switch (refinement.type) {
       case ECLNodeType.ATTRIBUTE:
-        return this._attributeMatches(conceptIdx, refinement, null, opContext);
+        return this._attributeMatches(rels, refinement, null, opContext);
       case ECLNodeType.ATTRIBUTE_SET:
         for (const a of refinement.attributes) {
-          if (!this._refinementMatches(conceptIdx, a, opContext)) return false;
+          if (!this._refinementMatches(rels, a, opContext)) return false;
         }
         return true;
       case ECLNodeType.ATTRIBUTE_GROUP:
-        return this._attributeGroupMatches(conceptIdx, refinement, opContext);
+        return this._attributeGroupMatches(rels, refinement, opContext);
       default:
         throw new Error(`Unsupported refinement node type: ${refinement.type}`);
     }
@@ -978,7 +981,7 @@ class SnomedServices {
    * @param {number|null} groupFilter
    * @returns {boolean}
    */
-  _attributeMatches = function (conceptIdx, attr, groupFilter, opContext) {
+  _attributeMatches = function (rels, attr, groupFilter, opContext) {
     if (attr.reverse) {
       throw new Error('ECL reverse attributes (R) are not yet supported');
     }
@@ -995,7 +998,7 @@ class SnomedServices {
       throw new Error('ECL refinements only support plain concept-reference attribute names');
     }
 
-    const count = this._countAttributeMatches(conceptIdx, attr, groupFilter, opContext);
+    const count = this._countAttributeMatches(rels, attr, groupFilter, opContext);
 
     if (attr.cardinality) {
       return this._cardinalityAccepts(attr.cardinality, count);
@@ -1012,7 +1015,7 @@ class SnomedServices {
    * @param {number|null} groupFilter
    * @returns {number}
    */
-  _countAttributeMatches = function (conceptIdx, attr, groupFilter, opContext) {
+  _countAttributeMatches = function (rels, attr, groupFilter, opContext) {
     // The attribute type and the value set depend only on the (static) AST node,
     // not on the concept being tested, so resolve them once per refinement
     // attribute and reuse across the whole base set. Without this memo the value
@@ -1035,7 +1038,6 @@ class SnomedServices {
     const attrTypeIdx = resolved.attrTypeIdx;
     const valueSet = resolved.valueSet;
 
-    const relIdxs = this.getConceptRelationships(conceptIdx);
     // ECL cardinality counts OCCURRENCES of a matching attribute, per role group
     // — not distinct values. ECL runs against the necessary normal form, where a
     // role group has no redundant attributes, so the same (type, value) in two
@@ -1045,9 +1047,8 @@ class SnomedServices {
     // (group, target) pairs: within a group filter this is the matching values
     // in that group; ungrouped it is the total occurrences across all groups.
     const matched = new Set();
-    for (const relIdx of relIdxs) {
+    for (const rel of rels) {
       if (opContext) opContext.deadCheck('ecl:countAttributeMatches');
-      const rel = this.relationships.getRelationship(relIdx);
       if (!rel.active) continue;
       if (rel.relType !== attrTypeIdx) continue;
       if (groupFilter !== null && rel.group !== groupFilter) continue;
@@ -1081,11 +1082,9 @@ class SnomedServices {
    * @param {object} group
    * @returns {boolean}
    */
-  _attributeGroupMatches = function (conceptIdx, group, opContext) {
-    const relIdxs = this.getConceptRelationships(conceptIdx);
+  _attributeGroupMatches = function (rels, group, opContext) {
     const groupNumbers = new Set();
-    for (const relIdx of relIdxs) {
-      const rel = this.relationships.getRelationship(relIdx);
+    for (const rel of rels) {
       if (rel.active && rel.group > 0) {
         groupNumbers.add(rel.group);
       }
@@ -1096,7 +1095,7 @@ class SnomedServices {
       if (opContext) opContext.deadCheck('ecl:attributeGroup');
       let allMatch = true;
       for (const attr of group.attributes) {
-        if (!this._attributeMatches(conceptIdx, attr, g, opContext)) {
+        if (!this._attributeMatches(rels, attr, g, opContext)) {
           allMatch = false;
           break;
         }
@@ -1112,6 +1111,139 @@ class SnomedServices {
       return this._cardinalityAccepts(group.cardinality, matchingGroupCount);
     }
     return false;
+  };
+
+  // Materialise a concept's relationships as plain records {active, relType,
+  // target, group} — the shape the refinement matchers consume. Sharing this
+  // shape lets the same matchers run against a post-coordinated expression's
+  // relationships (see _expressionRelRecords).
+  _conceptRelRecords = function (conceptIdx) {
+    const relIdxs = this.getConceptRelationships(conceptIdx);
+    const out = [];
+    for (const relIdx of relIdxs) {
+      out.push(this.relationships.getRelationship(relIdx));
+    }
+    return out;
+  };
+
+  // Turn one parsed expression refinement (name = attribute concept, value =
+  // sub-expression) into a relationship record in the given group, or null if it
+  // is not a plain concept = concept pair.
+  _refinementToRel = function (refinement, group) {
+    const relType = (refinement.name && refinement.name.reference != null)
+      ? refinement.name.reference : NO_REFERENCE;
+    let target = NO_REFERENCE;
+    const val = refinement.value;
+    if (val && val.concepts && val.concepts.length > 0) {
+      target = val.concepts[0].reference;
+    }
+    if (relType === NO_REFERENCE || target === NO_REFERENCE) return null;
+    return { active: true, relType, target, group };
+  };
+
+  // Effective relationships of a post-coordinated expression: the focus
+  // concept(s) stated relationships (inherited) plus the expression's own
+  // refinements. Stated ungrouped refinements go in group 0; each stated
+  // refinement group gets a fresh group number beyond any inherited group so the
+  // two never collide. This is sufficient for the common single-focus
+  // expressions; it is not a full necessary normal form (no redundancy pruning
+  // across inherited and stated attributes).
+  _expressionRelRecords = function (expression) {
+    const rels = [];
+    for (const c of expression.concepts || []) {
+      if (c.reference != null && c.reference !== NO_REFERENCE && c.reference >= 0) {
+        for (const rel of this._conceptRelRecords(c.reference)) rels.push(rel);
+      }
+    }
+    let maxGroup = 0;
+    for (const r of rels) if (r.group > maxGroup) maxGroup = r.group;
+    for (const ref of expression.refinements || []) {
+      const rec = this._refinementToRel(ref, 0);
+      if (rec) rels.push(rec);
+    }
+    let g = maxGroup;
+    for (const grp of expression.refinementGroups || []) {
+      g += 1;
+      for (const ref of grp.refinements || []) {
+        const rec = this._refinementToRel(ref, g);
+        if (rec) rels.push(rec);
+      }
+    }
+    return rels;
+  };
+
+  // Does a post-coordinated expression satisfy an ECL constraint? Unlike the
+  // enumerating evaluator (_evalECLNode), this tests a single expression by its
+  // focus subsumption and its (normal-form) relationships, so validate-code can
+  // accept a composed expression that is a *member* of an ECL value set even
+  // though it never appears in the (precoordinated) expansion.
+  _eclExpressionSatisfies = function (exprContext, node, opContext) {
+    const expr = exprContext.expression;
+    const rels = this._expressionRelRecords(expr);
+    return this._eclExprNode(expr, rels, node, opContext);
+  };
+
+  _eclExprNode = function (expr, rels, node, opContext) {
+    if (!node) return false;
+    if (opContext) opContext.deadCheck('ecl:exprSatisfies');
+    switch (node.type) {
+      case ECLNodeType.SUB_EXPRESSION_CONSTRAINT: {
+        const focus = node.focus;
+        if (focus.type === ECLNodeType.WILDCARD) return true;
+        if (focus.type === ECLNodeType.MEMBER_OF) return false; // an expression is not a refset member
+        if (focus.type === ECLNodeType.CONCEPT_REFERENCE) {
+          return this._complexExprSatisfiesConcept(expr, focus.conceptId, node.operator);
+        }
+        return this._eclExprNode(expr, rels, focus, opContext); // parenthesised
+      }
+      case ECLNodeType.COMPOUND_EXPRESSION_CONSTRAINT: {
+        const l = this._eclExprNode(expr, rels, node.left, opContext);
+        const r = this._eclExprNode(expr, rels, node.right, opContext);
+        switch (node.operator) {
+          case ECLNodeType.CONJUNCTION: return l && r;
+          case ECLNodeType.DISJUNCTION: return l || r;
+          case ECLNodeType.EXCLUSION:   return l && !r;
+          default: throw new Error(`Unsupported ECL compound operator: ${node.operator}`);
+        }
+      }
+      case ECLNodeType.REFINED_EXPRESSION_CONSTRAINT:
+        return this._eclExprNode(expr, rels, node.base, opContext)
+            && this._refinementMatches(rels, node.refinement, opContext);
+      case ECLNodeType.CONCEPT_REFERENCE:
+        return this._complexExprSatisfiesConcept(expr, node.conceptId, null);
+      case ECLNodeType.WILDCARD:
+        return true;
+      case ECLNodeType.MEMBER_OF:
+        return false;
+      default:
+        throw new Error(`Unsupported ECL node type for expression membership: ${node.type}`);
+    }
+  };
+
+  // Whether a post-coordinated expression's focus stands in the given hierarchy
+  // relation to conceptId. A refined expression is always strictly more specific
+  // than its focus, so it can never be an ancestor/self/parent/child edge — only
+  // the descendant operators (<, <<) hold, via focus subsumption.
+  _complexExprSatisfiesConcept = function (expr, conceptId, operator) {
+    const cr = this.concepts.findConcept(conceptId);
+    if (!cr.found) {
+      throw new Error(`The SNOMED CT Concept ${conceptId} is not known`);
+    }
+    const target = cr.index;
+    const focusRefs = (expr.concepts || [])
+      .map(c => c.reference)
+      .filter(r => r != null && r !== NO_REFERENCE && r >= 0);
+    if (focusRefs.length === 0) return false;
+    const subsumed = focusRefs.every(f => this.subsumes(target, f));
+    switch (operator) {
+      case ECLTokenType.DESCENDANT_OR_SELF_OF: // <<
+      case ECLTokenType.DESCENDANT_OF:         // <
+        return subsumed;
+      // exact / ancestors / parents / children: a refined expression has no such
+      // materialised standing, so it is not a member.
+      default:
+        return false;
+    }
   };
 
 // ── Set operation helpers ────────────────────────────────────────────────────
@@ -1580,12 +1712,22 @@ class SnomedProvider extends BaseCSServices {
 
 
     if (!context) {
-      // Iterate all active root concepts
+      // Iterate all active root concepts; the walk descends into each root's
+      // children via includeCodeAndDescendants. `total` reports the real concept
+      // count (not the root count) so the expansion size cap is meaningful, while
+      // `keys` are the roots and nextContext bounds on keys.length.
+      // activeRoots holds concept *ids* (BigInt); map them to concept indices so
+      // the contexts and the getConceptChildren descent work (which key on index).
+      const rootKeys = [];
+      for (const rootId of this.sct.activeRoots) {
+        const r = this.sct.concepts.findConcept(rootId);
+        if (r.found) rootKeys.push(r.index);
+      }
       return {
         context: null,
-        keys: this.sct.activeRoots.slice(),
+        keys: rootKeys,
         current: 0,
-        total: this.sct.activeRoots.length
+        total: this.sct.totalCount
       };
     } else {
       const ctxt = await this.#ensureContext(context);
@@ -1605,7 +1747,7 @@ class SnomedProvider extends BaseCSServices {
   }
 
   async nextContext(iteratorContext) {
-    if (iteratorContext.current >= iteratorContext.total) {
+    if (iteratorContext.current >= iteratorContext.keys.length) {
       return null;
     }
 
@@ -1902,11 +2044,19 @@ class SnomedProvider extends BaseCSServices {
       return conceptResult.message;
     }
 
+    const ctxt = conceptResult.context;
+    const reference = ctxt.getReference();
+
     if (set.eclWildcard) {
       return this.sct.isActive(reference) ? ctxt : null;
     }
-    const ctxt = conceptResult.context;
-    const reference = ctxt.getReference();
+
+    // A post-coordinated expression validated against an ECL value set: test the
+    // expression's membership against the constraint directly (subsumption +
+    // refinements), rather than collapsing it to its focus concept.
+    if (set.eclAst && ctxt.isComplex()) {
+      return this.sct._eclExpressionSatisfies(ctxt, set.eclAst, this.opContext) ? ctxt : null;
+    }
     let found = false;
 
     if (set.inactive !== undefined) {

@@ -666,7 +666,11 @@ class ValueSetExpander {
                 Extensions.addBoolean(exp, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
                 Extensions.addString(exp, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason", 'The code System "' + cs.system() + " has a grammar and so has infinite members. This extension is based on " + cs.specialEnumeration());
               } else {
-                throw new Issue("error", "too-costly", null, null, 'The code System "' + cs.system() + '" has a grammar, and cannot be enumerated directly', null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+                // Grammar code system with no special enumeration (e.g. SNOMED CT):
+                // enumerate the precoordinated concepts we can, and mark the
+                // expansion incomplete rather than refusing it.
+                Extensions.addBoolean(exp, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
+                Extensions.addString(exp, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason", 'The code System "' + cs.system() + " has a grammar and so has infinite members");
               }
             }
             if (!imp && this.limitCount > 0 && cs.totalCount > this.limitCount) {
@@ -749,6 +753,8 @@ class ValueSetExpander {
             Extensions.addString(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason", 'The code System "' + cs.system() + " has a grammar and so has infinite members. This extension is based on " + cs.specialEnumeration());
             await this.importValueSet(base, expansion, valueSets, 0);
             notClosed.value = true;
+          } else if (!cs.canBeExpanded()) {
+            throw new Issue("error", "not-supported", null, 'CODESYSTEM_NOT_ENUMERABLE', this.worker.i18n.translate('CODESYSTEM_NOT_ENUMERABLE', this.params.httpLanguages, [cs.system()]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
           } else if (filter.isNull) {
             this.worker.opContext.log('add whole code system');
             if (cs.isNotClosed()) {
@@ -756,7 +762,11 @@ class ValueSetExpander {
                 Extensions.addBoolean(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
                 Extensions.addString(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason", 'The code System "' + cs.system() + " has a grammar and so has infinite members. This extension is based on " + cs.specialEnumeration());
               } else {
-                throw new Issue("error", "too-costly", null, null, 'The code System "' + cs.system() + '" has a grammar, and cannot be enumerated directly', null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+                // Grammar code system with no special enumeration (e.g. SNOMED CT):
+                // enumerate the precoordinated concepts we can, and mark the
+                // expansion incomplete rather than refusing it.
+                Extensions.addBoolean(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
+                Extensions.addString(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason", 'The code System "' + cs.system() + " has a grammar and so has infinite members");
               }
               notClosed.value = true;
             }
@@ -1005,7 +1015,11 @@ class ValueSetExpander {
                 Extensions.addBoolean(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
                 Extensions.addString(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason", 'The code System "' + cs.system() + " has a grammar and so has infinite members. This extension is based on " + cs.specialEnumeration());
               } else {
-                throw new Issue("error", "too-costly", null, null, 'The code System "' + cs.system() + '" has a grammar, and cannot be enumerated directly', null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+                // Grammar code system with no special enumeration (e.g. SNOMED CT):
+                // enumerate the precoordinated concepts we can, and mark the
+                // expansion incomplete rather than refusing it.
+                Extensions.addBoolean(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed", true);
+                Extensions.addString(expansion, "http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason", 'The code System "' + cs.system() + " has a grammar and so has infinite members");
               }
             }
 

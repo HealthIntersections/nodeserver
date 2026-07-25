@@ -188,6 +188,10 @@ class MimeTypeServices extends CodeSystemProvider {
     return true;
   }
 
+  canBeExpanded() {
+    return false; // MIME types cannot be iterated / enumerated
+  }
+
 }
 
 class MimeTypeServicesFactory extends CodeSystemFactoryProvider {
