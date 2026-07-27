@@ -617,9 +617,27 @@ class CodeSystemProvider {
    * @param {boolean} forIteration - whether this filter is going to be iterated
    * @param {String} prop
    * @param {ValueSetFilterOperator} op
-   * @param {String} prop
+   * @param {String} value
+   * @param {Object} [fc] the ValueSet compose filter element
+   *   (ValueSet.compose.include.filter) this filter was derived from. It is a stable
+   *   sub-object of the (cached) ValueSet resource, so a provider MAY use it as a place
+   *   to memoise the resolved analysis of this filter (e.g. the enumerated concept set),
+   *   which is then reused on subsequent expand/validate calls for as long as the
+   *   ValueSet stays cached - trading memory for the cost of re-preparing the filter.
+   *
+   *   Two rules govern any such cache:
+   *   - It MUST be pinned to the resolved code system VERSION. The same ValueSet can be
+   *     resolved against different versions/editions, and a resolved filter (a set of
+   *     version-specific concept references) is only valid for the version it was
+   *     computed against.
+   *   - It must NOT be pinned to forIteration. The same ValueSet is used both ways
+   *     (iterated for $expand, non-iterated for validate), so if the iterated and
+   *     non-iterated resolved forms differ, store BOTH rather than assuming one.
+   *
+   *   Providers that gain nothing from this (the SQL-backed providers, and the trivial
+   *   in-memory enumerations) simply ignore fc.
    **/
-  async filter(filterContext, forIteration, prop, op, value) { throw new Error("Must override"); } // well, only if any filters are actually supported
+  async filter(filterContext, forIteration, prop, op, value, fc) { throw new Error("Must override"); } // well, only if any filters are actually supported
 
   /**
    * called once all the filters have been handled, and iteration is about to happen.

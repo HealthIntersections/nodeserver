@@ -1695,7 +1695,7 @@ class ValueSetChecker {
         if (!fc.value) {
           throw new Issue('error', 'invalid', null, 'UNABLE_TO_HANDLE_SYSTEM_FILTER_WITH_NO_VALUE', this.worker.i18n.translate('UNABLE_TO_HANDLE_SYSTEM_FILTER_WITH_NO_VALUE', this.params.HTTPLanguages, [cs.system(), fc.property, fc.op]));
         }
-        await cs.filter(prep, false, fc.property, fc.op, fc.value);
+        await cs.filter(prep, false, fc.property, fc.op, fc.value, (vs && vs.isCached) ? fc : null);
         // if (f === null) {
         //   throw new Issue('error', 'not-supported', null, 'FILTER_NOT_UNDERSTOOD', this.worker.i18n.translate('FILTER_NOT_UNDERSTOOD', this.params.HTTPLanguages, [fc.property, fc.op, fc.value, vs.vurl, cs.system()]) + ' (2)', 'vs-invalid');
         // }

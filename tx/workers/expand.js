@@ -881,7 +881,7 @@ class ValueSetExpander {
               throw new Issue('error', 'invalid', path + ".filter[" + i + "]", 'UNABLE_TO_HANDLE_SYSTEM_FILTER_WITH_NO_VALUE', this.worker.i18n.translate('UNABLE_TO_HANDLE_SYSTEM_FILTER_WITH_NO_VALUE', this.params.httpLanguages, [cs.system(), fc.property, fc.op]), 'vs-invalid', 400);
             }
             Extensions.checkNoModifiers(fc, 'ValueSetExpander.processCodes', 'filter', vsSrc.vurl);
-            await cs.filter(prep, i == 0, fc.property, fc.op, fc.value);
+            await cs.filter(prep, i == 0, fc.property, fc.op, fc.value, vsSrc.isCached ? fc : null);
           }
 
           const fset = await cs.executeFilters(prep);
@@ -1078,7 +1078,7 @@ class ValueSetExpander {
           for (let fc of cset.filter) {
             this.worker.deadCheck('processCodes#4a');
             Extensions.checkNoModifiers(fc, 'ValueSetExpander.processCodes', 'filter', vsSrc.vurl);
-            await cs.filter(prep, first, fc.property, fc.op, fc.value);
+            await cs.filter(prep, first, fc.property, fc.op, fc.value, vsSrc.isCached ? fc : null);
             first = false;
           }
 

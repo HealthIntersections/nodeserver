@@ -17,6 +17,17 @@ const {ECLLexer, ECLParser, ECLNodeType, ECLTokenType} = require("../sct/ecl");
 const {Issue} = require("../library/operation-outcome");
 const {debugLog} = require("../operation-context");
 
+// Symbol key under which a resolved ECL filter analysis is memoised directly on
+// the ValueSet compose.include.filter element (`fc`). Symbol-keyed and defined
+// non-enumerable, so it never serialises, clones, or spreads into a response;
+// it lives and dies with the filter element (and thus the cached ValueSet).
+// Value: Map(codeSystemUrl|version -> {descendants, members, matches, eclAst}).
+// SNOMED editions vary the url (and always have a version), so both url and
+// version are part of the key. Only iteration-INSENSITIVE ECL is cached (see
+// _cacheEcl): a wildcard's materialised form depends on forIteration and is not
+// shared - it simply recomputes.
+const SNOMED_FILTER_ANALYSIS = Symbol('snomedFilterAnalysis');
+
 // Context kinds matching Pascal enum
 const SnomedProviderContextKind = {
   CODE: 0,
@@ -238,7 +249,26 @@ class SnomedServices {
       }
 
       const descendants = this.refs.getReferences(closureRef);
-      return descendants && descendants.includes(childRef);
+      if (!descendants) {
+        return false;
+      }
+      // The closure array is stored sorted ascending (see the importer's
+      // buildConceptClosure), so membership is a binary search rather than a
+      // linear scan - this is the hot path for is-a and ECL refinement checks.
+      let lo = 0;
+      let hi = descendants.length - 1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        const v = descendants[mid];
+        if (v === childRef) {
+          return true;
+        } else if (v < childRef) {
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
+      }
+      return false;
     } catch (error) {
       return false;
     }
@@ -635,6 +665,9 @@ class SnomedServices {
     if (forIteration && result.eclWildcard && (!result.descendants || result.descendants.length === 0)) {
       result.descendants = this._eclEnumerateActiveConcepts(opContext);
       delete result.eclWildcard;
+      // The materialised wildcard form differs from the lazy (eclWildcard) form,
+      // so mark it: the filter cache must not share it across iteration modes.
+      result.iterationSensitive = true;
     }
     // Keep the parsed AST so validate-code can test a post-coordinated
     // expression's membership against the constraint (see _eclExpressionSatisfies).
@@ -1899,7 +1932,56 @@ class SnomedProvider extends BaseCSServices {
     return new SnomedPrep(); // Simple filter context
   }
 
-  async filter(filterContext, forIteration, prop, op, value) {
+  // Cache key pinning resolved analysis to the SNOMED edition url + version.
+  // SNOMED always has both; the url varies across editions (incl. the test set).
+  _snomedFilterCacheKey() {
+    return this.system() + '|' + this.version();
+  }
+
+  // Return a fresh filter context wrapping a cached ECL analysis, or null on
+  // miss. The concept arrays are shared read-only (nothing mutates them for an
+  // ECL set); only the cursor state is per-context.
+  _getCachedEcl(fc) {
+    if (!fc) {
+      return null;
+    }
+    const byVersion = fc[SNOMED_FILTER_ANALYSIS];
+    if (!byVersion) {
+      return null;
+    }
+    const data = byVersion.get(this._snomedFilterCacheKey());
+    if (!data) {
+      return null;
+    }
+    const ctx = new SnomedFilterContext();
+    ctx.descendants = data.descendants;
+    ctx.members = data.members;
+    ctx.matches = data.matches;
+    ctx.eclAst = data.eclAst;
+    return ctx;
+  }
+
+  // Memoise an ECL analysis on fc, keyed by url+version. Skips iteration-
+  // sensitive results (wildcards): their materialised form is not valid for the
+  // other iteration mode, and their lazy form is cheap to recompute anyway.
+  _cacheEcl(fc, resolved) {
+    if (!fc || !resolved || resolved.eclWildcard || resolved.iterationSensitive) {
+      return;
+    }
+    let byVersion = fc[SNOMED_FILTER_ANALYSIS];
+    if (!byVersion) {
+      byVersion = new Map();
+      Object.defineProperty(fc, SNOMED_FILTER_ANALYSIS, { value: byVersion, enumerable: false, configurable: true, writable: true });
+    }
+    byVersion.set(this._snomedFilterCacheKey(), {
+      descendants: resolved.descendants,
+      members: resolved.members,
+      matches: resolved.matches,
+      eclAst: resolved.eclAst,
+    });
+  }
+
+  async filter(filterContext, forIteration, prop, op, value, fc) {
 
     if (prop === 'concept') {
       const id = this.sct.stringToIdOrZero(value);
@@ -1953,7 +2035,18 @@ class SnomedProvider extends BaseCSServices {
     }
 
     if (prop === 'constraint' && op === '=') {
-      filterContext.filters.push(await this.sct.filterECL(value, forIteration, this.opContext));
+      // Reuse a previously resolved ECL analysis for this same cached value set
+      // filter against the same code system (url+version). ECL resolution is the
+      // expensive SNOMED filter to prepare; the resolved concept list is shared
+      // read-only, wrapped in a fresh context so the iteration cursor is per-use.
+      const cached = this._getCachedEcl(fc);
+      if (cached) {
+        filterContext.filters.push(cached);
+        return null;
+      }
+      const resolved = await this.sct.filterECL(value, forIteration, this.opContext);
+      this._cacheEcl(fc, resolved);
+      filterContext.filters.push(resolved);
       return null;
     }
 
@@ -2101,6 +2194,9 @@ class SnomedProvider extends BaseCSServices {
         }
       }
     } else if (set.matches && set.matches.length > 0) {
+      // filterLocate is only ever called once per set (single code, validate
+      // path), so a Set would cost O(n) to build for one lookup - a plain scan
+      // is the right call here. filterCheck, which is looped, uses the Sets.
       found = set.matches.some(m => m.index === reference);
     } else if (set.members && set.members.length > 0) {
       found = set.members.some(m => m.ref === reference);
@@ -2145,16 +2241,44 @@ class SnomedProvider extends BaseCSServices {
     }
 
     if (set.matches && set.matches.length > 0) {
-      return set.matches.some(m => m.index === reference);
+      return this.#matchesHas(set, reference);
     } else if (set.members && set.members.length > 0) {
-      return set.members.some(m => m.ref === reference);
+      return this.#membersHas(set, reference);
     } else if (set.descendants && set.descendants.length > 0) {
-      return set.descendants.includes(reference);
+      return this.#descendantsHas(set, reference);
     }
     if (set.eclWildcard) {
       return this.sct.isActive(reference);
     }
     return false;
+  }
+
+  // Lazily build and cache a membership Set on the filter context so repeated
+  // filterLocate/filterCheck calls test membership in O(1) instead of scanning
+  // the descendants/members/matches array each time. The length guard rebuilds
+  // the Set if the underlying array was mutated (e.g. by #ensurePopulated).
+  #descendantsHas(set, reference) {
+    if (!set._descSet || set._descSetLen !== set.descendants.length) {
+      set._descSet = new Set(set.descendants);
+      set._descSetLen = set.descendants.length;
+    }
+    return set._descSet.has(reference);
+  }
+
+  #membersHas(set, reference) {
+    if (!set._memberSet || set._memberSetLen !== set.members.length) {
+      set._memberSet = new Set(set.members.map(m => m.ref));
+      set._memberSetLen = set.members.length;
+    }
+    return set._memberSet.has(reference);
+  }
+
+  #matchesHas(set, reference) {
+    if (!set._matchSet || set._matchSetLen !== set.matches.length) {
+      set._matchSet = new Set(set.matches.map(m => m.index));
+      set._matchSetLen = set.matches.length;
+    }
+    return set._matchSet.has(reference);
   }
 
   #ensurePopulated(set) {

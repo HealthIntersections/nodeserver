@@ -139,6 +139,18 @@ class ResourceCache {
   add(cacheId, resources) {
     if (!resources || resources.length === 0) return;
 
+    // These resources are being retained under a cache-id (they persist across
+    // the batch), so mark them cached: their filter elements survive, and a
+    // provider may memoise resolved filter analysis on them (see filter()/fc).
+    // Inline tx-resources that never enter this pool stay unmarked.
+    for (const resource of resources) {
+      if (resource) {
+        // non-enumerable: internal marker only, must never serialise into a
+        // response or be copied by structuredClone/spread when a VS is cloned.
+        Object.defineProperty(resource, 'isCached', { value: true, enumerable: false, configurable: true, writable: true });
+      }
+    }
+
     const entry = this.cache.get(cacheId) || { resources: [], lastUsed: Date.now(), concepts: 0 };
 
     // Merge resources, avoiding duplicates by url+version. Keep the entry's concept
@@ -176,6 +188,15 @@ class ResourceCache {
    */
   set(cacheId, resources, sealed = false) {
     this.log.info(`cache-id '${cacheId}': set (replace all, sealed=${!!sealed}) with ${resources.length} resource(s): ${resources.map(r => this._resourceKey(r)).join(', ')}`);
+    // Retained under a cache-id - mark cached so providers may memoise resolved
+    // filter analysis on their filter elements (see filter()/fc).
+    for (const resource of resources) {
+      if (resource) {
+        // non-enumerable: internal marker only, must never serialise into a
+        // response or be copied by structuredClone/spread when a VS is cloned.
+        Object.defineProperty(resource, 'isCached', { value: true, enumerable: false, configurable: true, writable: true });
+      }
+    }
     // Drop the old entry's contribution, then count the replacement.
     const existing = this.cache.get(cacheId);
     if (existing) {
