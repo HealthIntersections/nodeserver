@@ -176,9 +176,9 @@ describe('simple-cases', () => {
     await runTest({"suite":"simple-cases","test":"simple-expand-contained"}, "5.0");
   });
 
-  // it("simple-expand-contained" + 'R4', async () => {
-  //   await runTest({"suite":"simple-cases","test":"simple-expand-contained"}, "4.0");
-  // });
+  it("simple-expand-contained" + 'R4', async () => {
+    await runTest({"suite":"simple-cases","test":"simple-expand-contained"}, "4.0");
+  });
 
 });
 
@@ -4193,6 +4193,14 @@ describe('tho', () => {
     await runTest({"suite":"tho","test":"act-class-activeonly"}, "4.0");
   });
 
+  it("act-exclusion" + 'R5', async () => {
+    await runTest({"suite":"tho","test":"act-exclusion"}, "5.0");
+  });
+
+  it("act-exclusion" + 'R4', async () => {
+    await runTest({"suite":"tho","test":"act-exclusion"}, "4.0");
+  });
+
 });
 
 describe('exclude', () => {
@@ -4547,6 +4555,14 @@ describe('tx.fhir.org', () => {
 
   it("loinc-expand-all" + 'R4', async () => {
     await runTest({"suite":"tx.fhir.org","test":"loinc-expand-all"}, "4.0");
+  });
+
+  it("hgvs-expand-all" + 'R5', async () => {
+    await runTest({"suite":"tx.fhir.org","test":"hgvs-expand-all"}, "5.0");
+  });
+
+  it("hgvs-expand-all" + 'R4', async () => {
+    await runTest({"suite":"tx.fhir.org","test":"hgvs-expand-all"}, "4.0");
   });
 
   it("loinc-expand-all-limited" + 'R5', async () => {
@@ -4994,20 +5010,20 @@ describe('snomed', () => {
     await runTest({"suite":"snomed","test":"snomed-inactive-display"}, "4.0");
   });
 
-  it("snomed-isa-in-display" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-isa-in-display"}, "5.0");
+  it("snomed-isa-in" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"snomed-isa-in"}, "5.0");
   });
 
-  it("snomed-isa-in-display" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-isa-in-display"}, "4.0");
+  it("snomed-isa-in" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"snomed-isa-in"}, "4.0");
   });
 
-  it("snomed-isa-out-display" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-isa-out-display"}, "5.0");
+  it("snomed-isa-out" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"snomed-isa-out"}, "5.0");
   });
 
-  it("snomed-isa-out-display" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-isa-out-display"}, "4.0");
+  it("snomed-isa-out" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"snomed-isa-out"}, "4.0");
   });
 
   it("snomed-expand-inactive" + 'R5', async () => {
@@ -5026,260 +5042,12 @@ describe('snomed', () => {
     await runTest({"suite":"snomed","test":"snomed-expand-isa"}, "4.0");
   });
 
-  it("snomed-expand-ecl-descOrSelf" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-descOrSelf"}, "5.0");
+  it("snomed-expand-count-all" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"snomed-expand-count-all"}, "5.0");
   });
 
-  it("snomed-expand-ecl-descOrSelf" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-descOrSelf"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-descendents" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-descendents"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-descendents" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-descendents"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-ancestors" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-ancestors"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-ancestors" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-ancestors"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-ancOrSelf" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-ancOrSelf"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-ancOrSelf" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-ancOrSelf"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-childrenOrSelf" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-childrenOrSelf"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-childrenOrSelf" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-childrenOrSelf"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-children" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-children"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-children" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-children"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-parents" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-parents"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-parents" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-parents"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-parentsOrSelf" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-parentsOrSelf"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-parentsOrSelf" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-parentsOrSelf"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-wildcard" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-wildcard"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-wildcard" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-wildcard"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-memberOf-refset" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-memberOf-refset"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-memberOf-refset" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-memberOf-refset"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-memberOf-nonRefset" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-memberOf-nonRefset"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-memberOf-nonRefset" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-memberOf-nonRefset"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-or" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-or"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-or" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-or"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-and" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-and"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-and" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-and"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-minus" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-minus"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-minus" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-minus"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-minus-empty" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-minus-empty"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-minus-empty" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-minus-empty"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-wildcard-minus" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-wildcard-minus"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-wildcard-minus" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-wildcard-minus"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-parens-precedence" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-parens-precedence"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-parens-precedence" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-parens-precedence"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-left-associative" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-left-associative"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-left-associative" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-left-associative"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-term-match" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-term-match"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-term-match" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-term-match"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-term-mismatch" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-term-mismatch"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-term-mismatch" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-term-mismatch"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-term-with-operator" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-term-with-operator"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-term-with-operator" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-term-with-operator"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-unknown-concept" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-unknown-concept"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-unknown-concept" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-unknown-concept"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-invalid-sctid" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-invalid-sctid"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-invalid-sctid" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-invalid-sctid"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-missing-focus" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-missing-focus"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-missing-focus" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-missing-focus"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-trailing-tokens" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-trailing-tokens"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-trailing-tokens" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-trailing-tokens"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-nested-parens" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-nested-parens"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-nested-parens" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-nested-parens"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-refinement-simple" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-simple"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-refinement-simple" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-simple"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-refinement-morphology" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-morphology"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-refinement-morphology" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-morphology"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-refinement-wildcard" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-wildcard"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-refinement-wildcard" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-wildcard"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-refinement-group" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-group"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-refinement-group" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-group"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-refinement-cardinality" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-cardinality"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-refinement-cardinality" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-cardinality"}, "4.0");
-  });
-
-  it("snomed-expand-ecl-dotted" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-dotted"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-dotted" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-dotted"}, "4.0");
+  it("snomed-expand-count-all" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"snomed-expand-count-all"}, "4.0");
   });
 
   it("snomed-expand-too-big" + 'R5', async () => {
@@ -5346,12 +5114,12 @@ describe('snomed', () => {
     await runTest({"suite":"snomed","test":"validate-code-pc-list"}, "4.0");
   });
 
-  it("validate-code-pc-list-no-pc" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"validate-code-pc-list-no-pc"}, "5.0");
+  it("validate-code-pc-list-bad" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-list-bad"}, "5.0");
   });
 
-  it("validate-code-pc-list-no-pc" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"validate-code-pc-list-no-pc"}, "4.0");
+  it("validate-code-pc-list-bad" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-list-bad"}, "4.0");
   });
 
   it("validate-code-pc-filter" + 'R5', async () => {
@@ -5416,6 +5184,835 @@ describe('snomed', () => {
 
   it("validate-code-implied-2b" + 'R4', async () => {
     await runTest({"suite":"snomed","test":"validate-code-implied-2b"}, "4.0");
+  });
+
+});
+
+describe('sct-ecl', () => {
+  // SNOMED CT ECL tests (expand + validate-code), split out of the snomed suite for manageability. Files live in sct/ecl/.
+
+  it("snomed-validate-ecl-descendents-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descendents-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descendents-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descendents-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-descendents-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descendents-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descendents-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descendents-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-descendents-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descendents-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descendents-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descendents-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-descendents-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descendents-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descendents-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descendents-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-descOrSelf-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descOrSelf-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descOrSelf-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descOrSelf-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-descOrSelf-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descOrSelf-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descOrSelf-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descOrSelf-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-descOrSelf-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descOrSelf-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descOrSelf-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descOrSelf-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-descOrSelf-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descOrSelf-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descOrSelf-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descOrSelf-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-children-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-children-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-children-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-children-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-children-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-children-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-children-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-children-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-children-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-children-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-children-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-children-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-children-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-children-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-children-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-children-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-childrenOrSelf-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-childrenOrSelf-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-childrenOrSelf-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-childrenOrSelf-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-childrenOrSelf-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-childrenOrSelf-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-childrenOrSelf-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-childrenOrSelf-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-childrenOrSelf-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-childrenOrSelf-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-childrenOrSelf-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-childrenOrSelf-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-childrenOrSelf-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-childrenOrSelf-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-childrenOrSelf-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-childrenOrSelf-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-ancestors-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancestors-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-ancestors-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancestors-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-ancestors-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancestors-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-ancestors-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancestors-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-ancestors-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancestors-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-ancestors-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancestors-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-ancOrSelf-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancOrSelf-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-ancOrSelf-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancOrSelf-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-ancOrSelf-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancOrSelf-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-ancOrSelf-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancOrSelf-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-ancOrSelf-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancOrSelf-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-ancOrSelf-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancOrSelf-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-parents-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parents-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-parents-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parents-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-parents-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parents-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-parents-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parents-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-parents-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parents-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-parents-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parents-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-parentsOrSelf-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parentsOrSelf-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-parentsOrSelf-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parentsOrSelf-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-parentsOrSelf-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parentsOrSelf-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-parentsOrSelf-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parentsOrSelf-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-parentsOrSelf-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parentsOrSelf-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-parentsOrSelf-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parentsOrSelf-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-simple-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-simple-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-simple-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-simple-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-simple-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-simple-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-simple-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-simple-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-simple-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-simple-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-simple-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-simple-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-simple-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-simple-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-simple-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-simple-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-group-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-group-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-group-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-group-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-group-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-group-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-group-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-group-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-group-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-group-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-group-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-group-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-morphology-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-morphology-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-morphology-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-morphology-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-morphology-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-morphology-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-morphology-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-morphology-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-morphology-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-morphology-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-morphology-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-morphology-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-morphology-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-morphology-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-morphology-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-morphology-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-wildcard-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-wildcard-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-wildcard-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-wildcard-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-wildcard-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-wildcard-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-wildcard-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-wildcard-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-wildcard-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-wildcard-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-wildcard-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-wildcard-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-wildcard-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-wildcard-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-wildcard-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-wildcard-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-grouped-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-grouped-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-grouped-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-grouped-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-grouped-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-grouped-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-grouped-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-grouped-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-grouped-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-grouped-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-grouped-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-grouped-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-grouped-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-grouped-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-grouped-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-grouped-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-rolegroup-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-rolegroup-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-rolegroup-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-rolegroup-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-rolegroup-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-rolegroup-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-rolegroup-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-rolegroup-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-rolegroup-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-rolegroup-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-rolegroup-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-rolegroup-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-rolegroup-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-rolegroup-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-rolegroup-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-rolegroup-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-memberOf-refset-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-memberOf-refset-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-memberOf-refset-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-memberOf-refset-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-memberOf-refset-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-memberOf-refset-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-memberOf-refset-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-memberOf-refset-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-memberOf-refset-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-memberOf-refset-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-memberOf-refset-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-memberOf-refset-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-minus-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-minus-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-minus-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-minus-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-minus-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-minus-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-minus-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-minus-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-minus-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-minus-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-minus-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-minus-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-minus-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-minus-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-minus-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-minus-expr-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-minus-code-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-minus-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-minus-code-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-minus-code-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-minus-code-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-minus-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-minus-code-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-minus-code-out"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-minus-expr-in" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-minus-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-minus-expr-in" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-minus-expr-in"}, "4.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-minus-expr-out" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-minus-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-minus-expr-out" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-minus-expr-out"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-descOrSelf" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-descOrSelf"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-descOrSelf" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-descOrSelf"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-descendents" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-descendents"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-descendents" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-descendents"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-ancestors" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-ancestors"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-ancestors" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-ancestors"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-ancOrSelf" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-ancOrSelf"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-ancOrSelf" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-ancOrSelf"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-childrenOrSelf" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-childrenOrSelf"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-childrenOrSelf" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-childrenOrSelf"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-children" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-children"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-children" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-children"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-parents" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-parents"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-parents" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-parents"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-parentsOrSelf" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-parentsOrSelf"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-parentsOrSelf" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-parentsOrSelf"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-wildcard" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-wildcard"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-wildcard" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-wildcard"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-memberOf-refset" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-memberOf-refset"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-memberOf-refset" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-memberOf-refset"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-memberOf-nonRefset" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-memberOf-nonRefset"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-memberOf-nonRefset" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-memberOf-nonRefset"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-or" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-or"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-or" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-or"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-and" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-and"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-and" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-and"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-minus" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-minus"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-minus" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-minus"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-minus-empty" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-minus-empty"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-minus-empty" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-minus-empty"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-wildcard-minus" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-wildcard-minus"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-wildcard-minus" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-wildcard-minus"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-grouped-or" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-grouped-or"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-grouped-or" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-grouped-or"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-grouped-and" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-grouped-and"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-grouped-and" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-grouped-and"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-ambiguous-precedence" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-ambiguous-precedence"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-ambiguous-precedence" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-ambiguous-precedence"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-term-match" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-term-match"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-term-match" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-term-match"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-term-mismatch" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-term-mismatch"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-term-mismatch" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-term-mismatch"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-term-with-operator" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-term-with-operator"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-term-with-operator" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-term-with-operator"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-unknown-concept" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-unknown-concept"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-unknown-concept" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-unknown-concept"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-invalid-sctid" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-invalid-sctid"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-invalid-sctid" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-invalid-sctid"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-missing-focus" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-missing-focus"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-missing-focus" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-missing-focus"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-trailing-tokens" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-trailing-tokens"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-trailing-tokens" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-trailing-tokens"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-nested-parens" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-nested-parens"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-nested-parens" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-nested-parens"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-refinement-simple" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-simple"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-simple" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-simple"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-refinement-morphology" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-morphology"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-morphology" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-morphology"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-refinement-wildcard" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-wildcard"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-wildcard" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-wildcard"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-refinement-group" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-group"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-group" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-group"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-refinement-cardinality" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-cardinality"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-cardinality" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-cardinality"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-refinement-cardinality-grouped" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-cardinality-grouped"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-cardinality-grouped" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-cardinality-grouped"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-refinement-cardinality-rolegroup" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-cardinality-rolegroup"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-cardinality-rolegroup" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-cardinality-rolegroup"}, "4.0");
+  });
+
+  it("snomed-expand-ecl-dotted" + 'R5', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-dotted"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-dotted" + 'R4', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-dotted"}, "4.0");
   });
 
 });
@@ -6840,6 +7437,19 @@ describe('related2', () => {
 
   it("related-ver-import-version-cascade" + 'R4', async () => {
     await runTest({"suite":"related2","test":"related-ver-import-version-cascade"}, "4.0");
+  });
+
+});
+
+describe('langcodes', () => {
+  // IETF language code (BCP-47) test cases
+
+  it("expand-langcodes-all" + 'R5', async () => {
+    await runTest({"suite":"langcodes","test":"expand-langcodes-all"}, "5.0");
+  });
+
+  it("expand-langcodes-all" + 'R4', async () => {
+    await runTest({"suite":"langcodes","test":"expand-langcodes-all"}, "4.0");
   });
 
 });
@@ -8985,6 +9595,10 @@ describe('tho', () => {
     await runTest({"suite":"tho","test":"act-class-activeonly"}, "5.0");
   });
 
+  it("act-exclusion" + 'R5-cached', async () => {
+    await runTest({"suite":"tho","test":"act-exclusion"}, "5.0");
+  });
+
 });
 
 describe('exclude', () => {
@@ -9171,6 +9785,10 @@ describe('tx.fhir.org', () => {
 
   it("loinc-expand-all" + 'R5-cached', async () => {
     await runTest({"suite":"tx.fhir.org","test":"loinc-expand-all"}, "5.0");
+  });
+
+  it("hgvs-expand-all" + 'R5-cached', async () => {
+    await runTest({"suite":"tx.fhir.org","test":"hgvs-expand-all"}, "5.0");
   });
 
   it("loinc-expand-all-limited" + 'R5-cached', async () => {
@@ -9398,12 +10016,12 @@ describe('snomed', () => {
     await runTest({"suite":"snomed","test":"snomed-inactive-display"}, "5.0");
   });
 
-  it("snomed-isa-in-display" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-isa-in-display"}, "5.0");
+  it("snomed-isa-in" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"snomed-isa-in"}, "5.0");
   });
 
-  it("snomed-isa-out-display" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-isa-out-display"}, "5.0");
+  it("snomed-isa-out" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"snomed-isa-out"}, "5.0");
   });
 
   it("snomed-expand-inactive" + 'R5-cached', async () => {
@@ -9414,132 +10032,8 @@ describe('snomed', () => {
     await runTest({"suite":"snomed","test":"snomed-expand-isa"}, "5.0");
   });
 
-  it("snomed-expand-ecl-descOrSelf" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-descOrSelf"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-descendents" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-descendents"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-ancestors" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-ancestors"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-ancOrSelf" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-ancOrSelf"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-childrenOrSelf" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-childrenOrSelf"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-children" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-children"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-parents" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-parents"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-parentsOrSelf" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-parentsOrSelf"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-wildcard" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-wildcard"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-memberOf-refset" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-memberOf-refset"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-memberOf-nonRefset" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-memberOf-nonRefset"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-or" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-or"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-and" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-and"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-minus" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-minus"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-minus-empty" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-minus-empty"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-wildcard-minus" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-wildcard-minus"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-parens-precedence" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-parens-precedence"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-left-associative" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-left-associative"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-term-match" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-term-match"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-term-mismatch" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-term-mismatch"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-term-with-operator" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-term-with-operator"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-unknown-concept" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-unknown-concept"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-invalid-sctid" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-invalid-sctid"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-missing-focus" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-missing-focus"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-trailing-tokens" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-trailing-tokens"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-nested-parens" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-nested-parens"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-refinement-simple" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-simple"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-refinement-morphology" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-morphology"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-refinement-wildcard" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-wildcard"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-refinement-group" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-group"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-refinement-cardinality" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-refinement-cardinality"}, "5.0");
-  });
-
-  it("snomed-expand-ecl-dotted" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-expand-ecl-dotted"}, "5.0");
+  it("snomed-expand-count-all" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"snomed-expand-count-all"}, "5.0");
   });
 
   it("snomed-expand-too-big" + 'R5-cached', async () => {
@@ -9574,8 +10068,8 @@ describe('snomed', () => {
     await runTest({"suite":"snomed","test":"validate-code-pc-list"}, "5.0");
   });
 
-  it("validate-code-pc-list-no-pc" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"validate-code-pc-list-no-pc"}, "5.0");
+  it("validate-code-pc-list-bad" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-list-bad"}, "5.0");
   });
 
   it("validate-code-pc-filter" + 'R5-cached', async () => {
@@ -9608,6 +10102,423 @@ describe('snomed', () => {
 
   it("validate-code-implied-2b" + 'R5-cached', async () => {
     await runTest({"suite":"snomed","test":"validate-code-implied-2b"}, "5.0");
+  });
+
+});
+
+describe('sct-ecl', () => {
+  // SNOMED CT ECL tests (expand + validate-code), split out of the snomed suite for manageability. Files live in sct/ecl/.
+
+  it("snomed-validate-ecl-descendents-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descendents-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descendents-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descendents-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descendents-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descendents-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descendents-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descendents-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descOrSelf-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descOrSelf-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descOrSelf-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descOrSelf-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descOrSelf-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descOrSelf-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-descOrSelf-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-descOrSelf-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-children-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-children-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-children-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-children-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-children-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-children-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-children-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-children-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-childrenOrSelf-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-childrenOrSelf-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-childrenOrSelf-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-childrenOrSelf-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-childrenOrSelf-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-childrenOrSelf-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-childrenOrSelf-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-childrenOrSelf-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-ancestors-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancestors-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-ancestors-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancestors-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-ancestors-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancestors-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-ancOrSelf-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancOrSelf-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-ancOrSelf-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancOrSelf-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-ancOrSelf-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-ancOrSelf-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-parents-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parents-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-parents-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parents-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-parents-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parents-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-parentsOrSelf-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parentsOrSelf-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-parentsOrSelf-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parentsOrSelf-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-parentsOrSelf-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-parentsOrSelf-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-simple-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-simple-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-simple-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-simple-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-simple-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-simple-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-simple-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-simple-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-group-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-group-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-group-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-group-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-group-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-group-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-morphology-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-morphology-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-morphology-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-morphology-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-morphology-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-morphology-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-morphology-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-morphology-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-wildcard-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-wildcard-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-wildcard-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-wildcard-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-wildcard-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-wildcard-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-wildcard-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-wildcard-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-grouped-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-grouped-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-grouped-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-grouped-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-grouped-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-grouped-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-grouped-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-grouped-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-rolegroup-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-rolegroup-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-rolegroup-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-rolegroup-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-rolegroup-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-rolegroup-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-refinement-cardinality-rolegroup-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-refinement-cardinality-rolegroup-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-memberOf-refset-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-memberOf-refset-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-memberOf-refset-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-memberOf-refset-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-memberOf-refset-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-memberOf-refset-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-minus-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-minus-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-minus-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-minus-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-minus-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-minus-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-minus-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-minus-expr-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-minus-code-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-minus-code-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-minus-code-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-minus-code-out"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-minus-expr-in" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-minus-expr-in"}, "5.0");
+  });
+
+  it("snomed-validate-ecl-wildcard-minus-expr-out" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-validate-ecl-wildcard-minus-expr-out"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-descOrSelf" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-descOrSelf"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-descendents" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-descendents"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-ancestors" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-ancestors"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-ancOrSelf" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-ancOrSelf"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-childrenOrSelf" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-childrenOrSelf"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-children" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-children"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-parents" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-parents"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-parentsOrSelf" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-parentsOrSelf"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-wildcard" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-wildcard"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-memberOf-refset" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-memberOf-refset"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-memberOf-nonRefset" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-memberOf-nonRefset"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-or" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-or"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-and" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-and"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-minus" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-minus"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-minus-empty" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-minus-empty"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-wildcard-minus" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-wildcard-minus"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-grouped-or" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-grouped-or"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-grouped-and" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-grouped-and"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-ambiguous-precedence" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-ambiguous-precedence"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-term-match" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-term-match"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-term-mismatch" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-term-mismatch"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-term-with-operator" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-term-with-operator"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-unknown-concept" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-unknown-concept"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-invalid-sctid" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-invalid-sctid"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-missing-focus" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-missing-focus"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-trailing-tokens" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-trailing-tokens"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-nested-parens" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-nested-parens"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-simple" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-simple"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-morphology" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-morphology"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-wildcard" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-wildcard"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-group" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-group"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-cardinality" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-cardinality"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-cardinality-grouped" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-cardinality-grouped"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-refinement-cardinality-rolegroup" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-refinement-cardinality-rolegroup"}, "5.0");
+  });
+
+  it("snomed-expand-ecl-dotted" + 'R5-cached', async () => {
+    await runTest({"suite":"sct-ecl","test":"snomed-expand-ecl-dotted"}, "5.0");
   });
 
 });
@@ -10348,6 +11259,15 @@ describe('related2', () => {
 
   it("related-ver-import-version-cascade" + 'R5-cached', async () => {
     await runTest({"suite":"related2","test":"related-ver-import-version-cascade"}, "5.0");
+  });
+
+});
+
+describe('langcodes', () => {
+  // IETF language code (BCP-47) test cases
+
+  it("expand-langcodes-all" + 'R5-cached', async () => {
+    await runTest({"suite":"langcodes","test":"expand-langcodes-all"}, "5.0");
   });
 
 });

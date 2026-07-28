@@ -40,6 +40,7 @@ sources:
   - npm:us.cdc.phinvads
   - npm:hl7.fhir.uv.sdc
   - internal:vsac
+  - folder:/Users/grahame/archive/terminologies/icd-11
 
 ignored:
   - urn:iso:std:iso:3166#20210120
