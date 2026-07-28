@@ -1534,6 +1534,33 @@ class SnomedExpressionServices {
    * List all display names for a concept
    * Equivalent to Pascal ListDisplayNames procedure
    */
+  // Key concept indexes for preferred-term selection (US English is the global
+  // default language reference set). Mirrors the logic in cs-snomed.js so both
+  // display paths agree.
+  _displayConstants() {
+    if (this._dispConst) return this._dispConst;
+    const idx = (id) => { const r = this.concepts.findConcept(id); return r.found ? r.index : -1; };
+    this._dispConst = {
+      usRefset: idx(900000000000509007n),
+      preferred: idx(900000000000548007n),
+      synonym: idx(900000000000013009n)
+    };
+    return this._dispConst;
+  }
+
+  _isPreferredSynonym(description) {
+    const K = this._displayConstants();
+    if (description.kind !== K.synonym) return false;
+    if (!description.valueses) return false;
+    const valueses = this.refs.getReferences(description.valueses);
+    if (!valueses) return false;
+    for (let i = 0; i < valueses.length; i++) {
+      const vals = this.refs.getReferences(valueses[i]); // [acceptabilityIndex, type]
+      if (vals && vals.length > 0 && vals[0] === K.preferred) return true;
+    }
+    return false;
+  }
+
   listDisplayNames(conceptIndex, languageFilter = 0) {
     const designations = [];
 
@@ -1558,7 +1585,7 @@ class SnomedExpressionServices {
             const term = this.strings.getEntry(description.iDesc).trim();
 
             designations.push({
-              isPreferred: i === 0, // First description is considered preferred
+              isPreferred: this._isPreferredSynonym(description), // preferred synonym in US English
               isActive: true,
               languageCode: this.codeForLanguage(description.lang),
               term: term,

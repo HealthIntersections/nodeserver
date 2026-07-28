@@ -5,6 +5,42 @@ All notable changes to the Health Intersections Node Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-mm-dd
+
+### Added
+
+- Upgrade the tx registry module to support exclusions and languages
+- Add support for sealed caches 
+
+### Changed
+
+- rework caching
+- Remember filter analysis on cached value sets 
+- Improved Rendering for CodeSystem and ValueSets
+- Update ECL & tests given ECL functionality confirmations
+- Update snomed subset from test IG
+- improved error when multiple cache-id headers passed to the server
+- fix slow crawling for FHIRsmith servers by the tx registry
+- make tx search page size default to 1000 for json/xml and leave it at 20 for html
+- rework batch processing for caches
+
+### Fixed
+
+- Report the FIRST matching coding, not the last, and only one message about status
+- rework how expansions on complex codesystems are handled
+- better handling of expansions on grammar based systems
+- (SNOMED CT) consistent use of designations
+- give preferredForLanguage a display in expansions
+- fix various ECL processing bugs
+- fix precedence order problem loading THO content after core content
+- fix links in metadata statements 
+- fix unhandled promises 
+- fix handling of properties in R4 expansions
+
+### Tx Conformance Statement
+
+(paste)
+
 
 ## [v0.10.1] - 2026-06-27
 

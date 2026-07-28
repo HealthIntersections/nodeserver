@@ -226,7 +226,14 @@ class Logger {
 
     if (messageOrError instanceof Error) {
       message = messageOrError.message;
-      stack = messageOrError.stack;
+      // Expected, client-facing errors - an OperationOutcome/Issue carrying a 4xx
+      // statusCode (e.g. "code not found", "cache-id unknown") - are routine and
+      // don't warrant a stack trace in the log. Keep the stack for genuinely
+      // unexpected errors (5xx, or no statusCode at all), and for everything when
+      // debug logging is enabled.
+      const sc = messageOrError.statusCode;
+      const expected = typeof sc === 'number' && sc >= 400 && sc < 500;
+      stack = (expected && !this._shouldLog('debug')) ? undefined : messageOrError.stack;
     } else {
       message = String(messageOrError);
       stack = meta?.stack;

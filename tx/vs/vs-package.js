@@ -51,6 +51,17 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
     }
 
     this.valueSetMap = await this.database.loadAllValueSets(this.sourcePackage());
+    // Mark each value set as cached as it enters the store: it is retained in
+    // memory for the process lifetime, so its compose.include.filter elements
+    // persist and a provider may memoise resolved filter analysis on them
+    // (see CodeSystemProvider.filter()'s `fc` parameter).
+    for (const vs of this.valueSetMap.values()) {
+      if (vs) {
+        // non-enumerable: internal marker only, must never serialise into a
+        // response or be copied by structuredClone/spread when a VS is cloned.
+        Object.defineProperty(vs, 'isCached', { value: true, enumerable: false, configurable: true, writable: true });
+      }
+    }
     this.initialized = true;
   }
 

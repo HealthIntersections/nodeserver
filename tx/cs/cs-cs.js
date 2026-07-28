@@ -8,6 +8,17 @@ const {Extensions} = require("../library/extensions");
 const {BaseCSServices} = require("./cs-base");
 const regexUtilities = require("../../library/regex-utilities");
 
+// Symbol key under which resolved filter analysis is memoised directly on the
+// ValueSet compose.include.filter element (`fc`). Symbol-keyed and defined
+// non-enumerable, so it never serialises, clones (structuredClone), or spreads
+// into a response - it simply lives and dies with the filter element (and thus
+// the cached ValueSet). The value is Map(codeSystemVersionKey -> concepts[]):
+// the resolved concept list is only valid for the code system version it was
+// computed against. Only the expensive full-scan / subtree-walk filters are
+// cached (see _isCacheableFilter); cheap ones (=, in, child-of) are not. cs-cs
+// filter results do not depend on forIteration, so one form is stored per version.
+const FILTER_ANALYSIS = Symbol('filterAnalysis');
+
 /**
  * Context class for FHIR CodeSystem provider concepts
  */
@@ -1218,40 +1229,70 @@ class FhirCodeSystemProvider extends BaseCSServices {
    * @param {string} value - Filter value
    * @returns {Promise<FhirCodeSystemProviderFilterContext>} Filter results
    */
-  async filter(filterContext, forIteration, prop, op, value) {
-    
-
+  async filter(filterContext, forIteration, prop, op, value, fc) {
     let results = null;
 
-    // Handle concept/code hierarchy filters
-    if ((prop === 'concept' || prop === 'code')) {
-      results = await this._handleConceptFilter(filterContext, prop, op, value);
-    }
-
-    // Handle child existence filter
-    if (prop === 'child' && op === 'exists') {
-      results = await this._handleChildExistsFilter(filterContext, value);
-    }
-
-    // Handle property-based filters
-    const propertyDefs = this.propertyDefinitions();
-    if (propertyDefs) {
-      const propertyDef = propertyDefs.find(p => p.code === prop);
-      if (propertyDef) {
-        results = await this._handlePropertyFilter(filterContext, propertyDef, op, value);
+    // Reuse previously resolved analysis when this same cached value set filter
+    // is resolved again against the same code system version (see filter()/fc).
+    // Only expensive filters are cached; the concept list is shared read-only,
+    // wrapped in a fresh context so iteration state (the cursor) is per-use.
+    // Caching needs a stable code system identity. When the code system has no
+    // url (odd corner cases) _filterCacheVersionKey returns null and caching is
+    // skipped entirely - there's no safe key to store or look up under.
+    const vkey = fc ? this._filterCacheVersionKey() : null;
+    const cacheable = vkey !== null && this._isCacheableFilter(prop, op);
+    if (cacheable) {
+      const byVersion = fc[FILTER_ANALYSIS];
+      const cachedConcepts = byVersion ? byVersion.get(vkey) : null;
+      if (cachedConcepts) {
+        results = new FhirCodeSystemProviderFilterContext();
+        results.concepts = cachedConcepts; // immutable: read-only from here
       }
     }
 
-    // Handle known special properties
-    const knownProperties = ['notSelectable', 'status', 'inactive', 'deprecated'];
-    if (knownProperties.includes(prop)) {
-      results = await this._handleKnownPropertyFilter(filterContext, prop, op, value);
+    if (!results) {
+      // Handle concept/code hierarchy filters
+      if ((prop === 'concept' || prop === 'code')) {
+        results = await this._handleConceptFilter(filterContext, prop, op, value);
+      }
+
+      // Handle child existence filter
+      if (prop === 'child' && op === 'exists') {
+        results = await this._handleChildExistsFilter(filterContext, value);
+      }
+
+      // Handle property-based filters
+      const propertyDefs = this.propertyDefinitions();
+      if (propertyDefs) {
+        const propertyDef = propertyDefs.find(p => p.code === prop);
+        if (propertyDef) {
+          results = await this._handlePropertyFilter(filterContext, propertyDef, op, value);
+        }
+      }
+
+      // Handle known special properties
+      const knownProperties = ['notSelectable', 'status', 'inactive', 'deprecated'];
+      if (knownProperties.includes(prop)) {
+        results = await this._handleKnownPropertyFilter(filterContext, prop, op, value);
+      }
+
+      if (!results) {
+        throw new Issue('error', 'exception', null, 'FILTER_NOT_UNDERSTOOD',
+              this.opContext.i18n.translate('FILTER_NOT_UNDERSTOOD', this.opContext.langs, [prop, op, value]), 'vs-invalid', 422);
+      }
+
+      // Store a private copy of the resolved concept list for reuse. A slice
+      // isolates the cache from any later mutation of this request's context.
+      if (cacheable) {
+        let byVersion = fc[FILTER_ANALYSIS];
+        if (!byVersion) {
+          byVersion = new Map();
+          Object.defineProperty(fc, FILTER_ANALYSIS, { value: byVersion, enumerable: false, configurable: true, writable: true });
+        }
+        byVersion.set(vkey, results.concepts.slice());
+      }
     }
 
-    if (!results) {
-      throw new Issue('error', 'exception', null, 'FILTER_NOT_UNDERSTOOD',
-            this.opContext.i18n.translate('FILTER_NOT_UNDERSTOOD', this.opContext.langs, [prop, op, value]), 'vs-invalid', 422);
-    }
     // Add to filter context
     if (!filterContext.filters) {
       filterContext.filters = [];
@@ -1259,6 +1300,38 @@ class FhirCodeSystemProvider extends BaseCSServices {
     filterContext.filters.push(results);
 
     return results;
+  }
+
+  /**
+   * Whether a filter is expensive enough to be worth memoising: the full-scan
+   * or subtree-walk families. Cheap lookups (=, in on a code list, child-of)
+   * are not cached. Mirrors the dispatch in filter().
+   * @private
+   */
+  _isCacheableFilter(prop, op) {
+    if (prop === 'concept' || prop === 'code') {
+      return op === 'is-a' || op === 'descendent-of' || op === 'is-not-a' || op === 'regex';
+    }
+    if (prop === 'child' && op === 'exists') {
+      return true;
+    }
+    const propertyDefs = this.propertyDefinitions();
+    if (propertyDefs && propertyDefs.find(p => p.code === prop)) {
+      return true;
+    }
+    return ['notSelectable', 'status', 'inactive', 'deprecated'].includes(prop);
+  }
+
+  /**
+   * Cache key pinning resolved analysis to the code system identity + version.
+   * @private
+   */
+  _filterCacheVersionKey() {
+    const url = this.codeSystem.jsonObj.url;
+    if (!url) {
+      return null;
+    }
+    return url + '|' + (this.codeSystem.jsonObj.version || '');
   }
 
   /**

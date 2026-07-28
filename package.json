@@ -109,7 +109,8 @@
     "fast-xml-parser": "^5.3.4",
     "inquirer": {
       "lodash": "4.18.1"
-    }
+    },
+    "brace-expansion": "^5.0.8"
   },
   "bin": {
     "tx-import": "./tx/importers/tx-import.js",

@@ -430,6 +430,14 @@ class IETFLanguageCodeProvider extends CodeSystemProvider {
     return null;
   }
 
+  specialEnumeration() {
+    // The BCP-47 language grammar is unbounded, but a useful base expansion is
+    // the common languages enumerated by the THO "Languages" value set. A whole-
+    // code-system expansion returns that value set marked as an incomplete
+    // (unclosed) expansion, mirroring how UCUM uses its common-units value set.
+    return 'http://terminology.hl7.org/ValueSet/Languages';
+  }
+
   isNotClosed() {
     return true;
   }

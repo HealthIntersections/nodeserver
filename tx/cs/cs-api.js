@@ -119,6 +119,19 @@ class CodeSystemProvider {
   totalCount() { throw new Error("Must override"); }
 
   /**
+   * The number of codes an "all codes" expansion of this code system would
+   * contain, computed WITHOUT materialising them - used by the count=0 (count
+   * only) expansion fast path. `excludeInactive` mirrors the expansion's
+   * active-only handling. Defaults to totalCount(); providers that distinguish
+   * active from inactive override this to honour excludeInactive.
+   * @param {boolean} excludeInactive
+   * @returns {integer}
+   */
+  async countAllCodes(excludeInactive) {  // eslint-disable-line no-unused-vars
+    return await this.totalCount();
+  }
+
+  /**
    * @returns {CodeSystem.property[]} defined properties for the code system
    */
   propertyDefinitions() { return null; }
@@ -129,6 +142,18 @@ class CodeSystemProvider {
    */
   isNotClosed() {
     return false;
+  }
+
+  /**
+   * returns false if the code system cannot be iterated / enumerated in any
+   * meaningful sense - as distinct from isNotClosed(), which marks a code system
+   * that has a grammar whose base set may still be partially expanded. An
+   * expansion that would need to iterate a system for which this is false
+   * returns an OperationOutcome rather than attempting the iteration.
+   * @returns {boolean}
+   */
+  canBeExpanded() {
+    return true;
   }
 
   /**
@@ -372,11 +397,21 @@ class CodeSystemProvider {
   }
 
   /**
+   * List the designations for a concept, adding them to `displays`.
+   *
    * @param {string | CodeSystemProviderContext} code
-   * @param {ConceptDesignations} designation list
+   * @param {ConceptDesignations} displays - designation list to add to
+   * @param {boolean} [significantOnly=false] - when true, emit only the
+   *   designations that are significant for a value set expansion (the display,
+   *   and - for code systems that distinguish them - the fully specified name
+   *   and the preferred term), rather than every designation in every language.
+   *   The $expand worker passes true; $lookup uses the default (false) to return
+   *   the complete set. Providers that do not distinguish significant
+   *   designations may ignore this parameter and return all designations either
+   *   way.
    * @returns {Designation[]} whatever designations exist (in all languages)
    */
-  async designations(code, displays) { return null; }
+  async designations(code, displays, significantOnly = false) { return null; }
 
   _listSupplementDesignations(code, displays) {
     assert(typeof code === 'string', 'code must be string');
@@ -582,9 +617,27 @@ class CodeSystemProvider {
    * @param {boolean} forIteration - whether this filter is going to be iterated
    * @param {String} prop
    * @param {ValueSetFilterOperator} op
-   * @param {String} prop
+   * @param {String} value
+   * @param {Object} [fc] the ValueSet compose filter element
+   *   (ValueSet.compose.include.filter) this filter was derived from. It is a stable
+   *   sub-object of the (cached) ValueSet resource, so a provider MAY use it as a place
+   *   to memoise the resolved analysis of this filter (e.g. the enumerated concept set),
+   *   which is then reused on subsequent expand/validate calls for as long as the
+   *   ValueSet stays cached - trading memory for the cost of re-preparing the filter.
+   *
+   *   Two rules govern any such cache:
+   *   - It MUST be pinned to the resolved code system VERSION. The same ValueSet can be
+   *     resolved against different versions/editions, and a resolved filter (a set of
+   *     version-specific concept references) is only valid for the version it was
+   *     computed against.
+   *   - It must NOT be pinned to forIteration. The same ValueSet is used both ways
+   *     (iterated for $expand, non-iterated for validate), so if the iterated and
+   *     non-iterated resolved forms differ, store BOTH rather than assuming one.
+   *
+   *   Providers that gain nothing from this (the SQL-backed providers, and the trivial
+   *   in-memory enumerations) simply ignore fc.
    **/
-  async filter(filterContext, forIteration, prop, op, value) { throw new Error("Must override"); } // well, only if any filters are actually supported
+  async filter(filterContext, forIteration, prop, op, value, fc) { throw new Error("Must override"); } // well, only if any filters are actually supported
 
   /**
    * called once all the filters have been handled, and iteration is about to happen.

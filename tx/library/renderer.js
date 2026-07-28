@@ -173,6 +173,7 @@ class Renderer {
     this.renderProperty(tbl, 'CANON_REND_COMMITTEE', Extensions.readString(res, 'http://hl7.org/fhir/StructureDefinition/structuredefinition-wg'));
     this.renderPropertyCopy(tbl, 'GENERAL_COPYRIGHT', res.copyright);
     this.renderProperty(tbl, 'EXT_FMM_LEVEL', Extensions.readString(res, 'http://hl7.org/fhir/StructureDefinition/structuredefinition-fmm'));
+    this.renderProperty(tbl, 'EXT_STANDARDS_STATUS', Extensions.readString(res, 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status'));
     this.renderProperty(tbl, 'PAT_PERIOD', res.effectivePeriod);
     this.renderPropertyLink(tbl, 'WEB_SOURCE', Extensions.readString(res, 'http://hl7.org/fhir/StructureDefinition/web-source'));
     this.renderProperty(tbl, 'GENERAL_SOURCE', sourcePackage);
@@ -657,7 +658,7 @@ class Renderer {
     await this.renderMetadataTable(cs, div_.table("grid"), sourcePackage);
 
     // Code system properties
-    const hasProps = this.generateProperties(div_, cs);
+    const hasProps = await this.generateProperties(div_, cs);
 
     // Filters
     this.generateFilters(div_, cs);
@@ -776,18 +777,22 @@ class Renderer {
     }
   }
 
-  generateProperties(x, cs) {
+  async generateProperties(x, cs) {
     if (!cs.property || cs.property.length === 0) {
       return false;
     }
 
+    const EXT_PROPERTY_VALUESET = 'http://hl7.org/fhir/StructureDefinition/codesystem-property-valueset';
+
     // Check what columns we need
     let hasURI = false;
     let hasDescription = false;
+    let hasValueSet = false;
 
     for (const p of cs.property) {
       hasURI = hasURI || !!p.uri;
       hasDescription = hasDescription || !!p.description;
+      hasValueSet = hasValueSet || !!Extensions.has(p, EXT_PROPERTY_VALUESET);
     }
 
     x.para().b().tx(this.translate('GENERAL_PROPS'));
@@ -803,6 +808,9 @@ class Renderer {
     if (hasDescription) {
       tr.th().tx(this.translate('GENERAL_DESC'));
     }
+    if (hasValueSet) {
+      tr.th().tx(this.translate('GENERAL_VALUESET'));
+    }
 
     for (const p of cs.property) {
       const row = tbl.tr();
@@ -813,6 +821,13 @@ class Renderer {
       row.td().tx(p.type || '');
       if (hasDescription) {
         row.td().tx(p.description || '');
+      }
+      if (hasValueSet) {
+        const td = row.td();
+        const vsUrl = Extensions.readString(p, EXT_PROPERTY_VALUESET);
+        if (vsUrl) {
+          await this.renderLink(td, vsUrl);
+        }
       }
     }
 
@@ -882,6 +897,9 @@ class Renderer {
     if (columnInfo.hasDefinition) {
       headerRow.th().tx(this.translate('GENERAL_DEFINITION'));
     }
+    if (columnInfo.hasComment) {
+      headerRow.th().tx(this.translate('GENERAL_COMMENTS'));
+    }
     if (columnInfo.hasDeprecated) {
       headerRow.th().tx(this.translate('CODESYSTEM_DEPRECATED'));
     }
@@ -889,6 +907,11 @@ class Renderer {
     // Property columns
     for (const prop of columnInfo.properties) {
       headerRow.th().tx(this.getDisplayForProperty(prop) || prop.code);
+    }
+
+    // Designation columns (by use + language)
+    for (const desig of columnInfo.designations) {
+      headerRow.th().tx(this.formatDesignationHeader(desig));
     }
 
     // Render concepts recursively
@@ -916,17 +939,23 @@ class Renderer {
   }
 
   analyzeConceptColumns(cs) {
+    const EXT_CS_COMMENT = 'http://hl7.org/fhir/StructureDefinition/codesystem-concept-comments';
+    const EXT_DISPLAY_HINT = 'http://hl7.org/fhir/StructureDefinition/structuredefinition-display-hint';
     const info = {
       hasHierarchy: false,
       hasDisplay: false,
       hasDefinition: false,
       hasDeprecated: false,
       hasComment: false,
-      properties: []
+      properties: [],
+      designations: [],
+      useMarkdown: this.hasMarkdownInDefinitions(cs)
     };
 
     // Check which properties are actually used
     const usedProperties = new Set();
+    // Track distinct designations, keyed by use + language.
+    const usedDesignations = new Map();
 
     const analyzeConceptList = (concepts) => {
       for (const c of concepts) {
@@ -946,10 +975,25 @@ class Renderer {
           info.hasDeprecated = true;
         }
 
+        // Check for concept comments
+        if (Extensions.has(c, EXT_CS_COMMENT)) {
+          info.hasComment = true;
+        }
+
         // Track used properties
         if (c.property) {
           for (const prop of c.property) {
             usedProperties.add(prop.code);
+          }
+        }
+
+        // Track distinct designations (by use + language)
+        if (c.designation) {
+          for (const desig of c.designation) {
+            const key = this.getDesignationKey(desig);
+            if (!usedDesignations.has(key)) {
+              usedDesignations.set(key, { use: desig.use, language: desig.language });
+            }
           }
         }
       }
@@ -957,19 +1001,33 @@ class Renderer {
 
     analyzeConceptList(cs.concept || []);
 
+    // If any property carries a display-hint extension, switch to "manual"
+    // column selection: only properties explicitly hinted display/no-link show.
+    const isManual = (cs.property || []).some(p => Extensions.has(p, EXT_DISPLAY_HINT));
+
     // Filter to properties that are actually used
     if (cs.property) {
       for (const prop of cs.property) {
-        if (usedProperties.has(prop.code) && this.showPropertyInTable(prop)) {
+        if (usedProperties.has(prop.code) && this.showPropertyInTable(prop, isManual)) {
           info.properties.push(prop);
         }
       }
     }
 
+    // Convert designation map to array, sorted for stable ordering
+    info.designations = Array.from(usedDesignations.values()).sort((a, b) => {
+      return this.getDesignationKey(a).localeCompare(this.getDesignationKey(b));
+    });
+
     return info;
   }
 
-  showPropertyInTable(prop) {
+  showPropertyInTable(prop, isManual = false) {
+    if (isManual) {
+      // Manual mode: only show properties explicitly hinted display/no-link.
+      const hint = Extensions.readString(prop, 'http://hl7.org/fhir/StructureDefinition/structuredefinition-display-hint');
+      return hint === 'display' || hint === 'no-link';
+    }
     // Skip certain internal properties
     const skipCodes = ['status', 'inactive', 'deprecated', 'notSelectable'];
     return !skipCodes.includes(prop.code);
@@ -978,6 +1036,60 @@ class Renderer {
   getDisplayForProperty(prop) {
     // Could look up a display name for well-known properties
     return prop.description || prop.code;
+  }
+
+  /**
+   * Translations of a concept's definition, carried as translation extensions
+   * on the definition primitive (the sibling _definition element in JSON).
+   * Returns [{lang, value}]. Display translations are intentionally NOT read
+   * here - display variants belong in designations.
+   */
+  definitionTranslations(concept) {
+    const el = concept._definition;
+    if (!el || !el.extension) {
+      return [];
+    }
+    const out = [];
+    for (const ext of el.extension) {
+      if (ext.url === 'http://hl7.org/fhir/StructureDefinition/translation') {
+        const lang = Extensions.readString(ext, 'lang');
+        const value = Extensions.readString(ext, 'content');
+        if (value) {
+          out.push({ lang: lang || '', value });
+        }
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Whether concept definitions should be rendered as markdown. Honours the
+   * codesystem-use-markdown extension; otherwise auto-detects common markdown
+   * constructs in any definition.
+   */
+  hasMarkdownInDefinitions(cs) {
+    const flag = Extensions.readValue(cs, 'http://hl7.org/fhir/StructureDefinition/codesystem-use-markdown');
+    if (flag && typeof flag.valueBoolean === 'boolean') {
+      return flag.valueBoolean;
+    }
+    const looksMarkdown = (str) => {
+      if (!str) {
+        return false;
+      }
+      return /\]\([^)]*\)|^\s*#{1,6}\s+|^\s*[-*+]\s+|^\s*\d+\.\s+/m.test(str);
+    };
+    const walk = (concepts) => {
+      for (const c of concepts || []) {
+        if (looksMarkdown(c.definition)) {
+          return true;
+        }
+        if (c.concept && walk(c.concept)) {
+          return true;
+        }
+      }
+      return false;
+    };
+    return walk(cs.concept || []);
   }
 
   isDeprecated(concept) {
@@ -989,6 +1101,12 @@ class Renderer {
           return true;
         }
       }
+    }
+    // The valueset-deprecated extension (on compose.include.concept or
+    // expansion.contains) marks a concept as deprecated within this value set.
+    const ext = Extensions.has(concept, 'http://hl7.org/fhir/StructureDefinition/valueset-deprecated');
+    if (ext && ext.valueBoolean === true) {
+      return true;
     }
     return false;
   }
@@ -1034,7 +1152,35 @@ class Renderer {
 
     // Definition column
     if (columnInfo.hasDefinition) {
-      tr.td().tx(concept.definition || '');
+      const td = tr.td();
+      const useMarkdown = columnInfo.useMarkdown;
+      if (concept.definition) {
+        if (useMarkdown) {
+          td.markdown(concept.definition);
+        } else {
+          td.tx(concept.definition);
+        }
+      }
+      // Translations of the definition (translation extension on the
+      // definition primitive) are rendered below the definition, same cell.
+      for (const t of this.definitionTranslations(concept)) {
+        td.br();
+        td.i().tx('(' + t.lang + ') ');
+        if (useMarkdown) {
+          td.markdown(t.value);
+        } else {
+          td.tx(t.value);
+        }
+      }
+    }
+
+    // Comment column
+    if (columnInfo.hasComment) {
+      const td = tr.td();
+      const comment = Extensions.readString(concept, 'http://hl7.org/fhir/StructureDefinition/codesystem-concept-comments');
+      if (comment) {
+        td.tx(comment);
+      }
     }
 
     // Deprecated column
@@ -1043,11 +1189,36 @@ class Renderer {
       if (this.isDeprecated(concept)) {
         td.tx(this.translate('CODESYSTEM_DEPRECATED_TRUE'));
 
-        // Check for replacement
-        const replacedBy = this.getPropertyValue(concept, 'replacedBy');
-        if (replacedBy) {
+        // Replacement: prefer the codesystem-replacedby extension (a Coding),
+        // then fall back to a 'replacedBy' property value.
+        const replacedByExt = Extensions.readValue(concept, 'http://hl7.org/fhir/StructureDefinition/codesystem-replacedby');
+        const replacedByCoding = replacedByExt && replacedByExt.valueCoding;
+        const replacedByProp = this.getPropertyValue(concept, 'replacedBy');
+        if (replacedByCoding) {
           td.tx(' ' + this.translate('CODESYSTEM_REPLACED_BY') + ' ');
-          td.code().tx(replacedBy);
+          const link = this.linkResolver ?
+            await this.linkResolver.resolveCode(this.opContext, replacedByCoding.system, replacedByCoding.version, replacedByCoding.code) : null;
+          if (link) {
+            td.ah(link.link).tx(replacedByCoding.code);
+          } else {
+            td.code().tx(replacedByCoding.code);
+          }
+          if (replacedByCoding.display) {
+            td.tx(' "' + replacedByCoding.display + '"');
+          }
+        } else if (replacedByProp) {
+          td.tx(' ' + this.translate('CODESYSTEM_REPLACED_BY') + ' ');
+          td.code().tx(replacedByProp.value);
+        } else {
+          // No replacement: show the concept-level standards-status reason.
+          const ssExt = Extensions.readValue(concept, 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status');
+          if (ssExt) {
+            const reason = Extensions.readString(ssExt, 'http://hl7.org/fhir/StructureDefinition/structuredefinition-standards-status-reason');
+            if (reason) {
+              td.tx(' ');
+              td.markdown(reason);
+            }
+          }
         }
       }
     }
@@ -1055,6 +1226,7 @@ class Renderer {
     // Property columns
     for (const prop of columnInfo.properties) {
       const td = tr.td();
+      const noLink = Extensions.readString(prop, 'http://hl7.org/fhir/StructureDefinition/structuredefinition-display-hint') === 'no-link';
       const values = this.getPropertyValues(concept, prop.code);
 
       let first = true;
@@ -1064,7 +1236,16 @@ class Renderer {
         }
         first = false;
 
-        await this.renderPropertyValue(td, val, prop, cs);
+        await this.renderPropertyValue(td, val, prop, cs, noLink);
+      }
+    }
+
+    // Designation columns (by use + language)
+    for (const desigDef of columnInfo.designations) {
+      const td = tr.td();
+      const value = this.getDesignationValue(concept, desigDef);
+      if (value) {
+        td.tx(value);
       }
     }
 
@@ -1101,13 +1282,13 @@ class Renderer {
     return null;
   }
 
-  async renderPropertyValue(td, val, propDef, cs) {
+  async renderPropertyValue(td, val, propDef, cs, noLink = false) {
     if (!val) return;
 
     switch (val.type) {
       case 'code': {
         // If it's a parent reference, link to it
-        if (propDef.code === 'parent' || propDef.code === 'child') {
+        if ((propDef.code === 'parent' || propDef.code === 'child') && !noLink) {
           td.ah('#' + cs.id + '-' + val.value).tx(val.value);
         } else {
           td.code().tx(val.value);
@@ -1116,7 +1297,7 @@ class Renderer {
       }
       case 'coding': {
         const coding = val.value;
-        const link = this.linkResolver ?
+        const link = (!noLink && this.linkResolver) ?
             await this.linkResolver.resolveCode(this.opContext, coding.system, coding.version, coding.code) : null;
         if (link) {
           td.ah(link.link).tx(coding.code);
@@ -1134,7 +1315,7 @@ class Renderer {
       }
       case 'string': {
         // Check if it's a URL
-        if (val.value.startsWith('http://') || val.value.startsWith('https://')) {
+        if (!noLink && (val.value.startsWith('http://') || val.value.startsWith('https://'))) {
           td.ah(val.value).tx(val.value);
         } else {
           td.tx(val.value);
@@ -1218,6 +1399,19 @@ class Renderer {
   }
 
   async renderExpansion(x, vs, tbl) {
+    // Surface expansion-level status extensions as prominent warnings: the
+    // expansion may not contain every code in the value set.
+    if (Extensions.has(vs.expansion, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed')) {
+      const reason = Extensions.readString(vs.expansion, 'http://hl7.org/fhir/StructureDefinition/valueset-unclosed-reason');
+      const p = x.para();
+      p.b().tx('Warning: ');
+      p.tx('This expansion is not closed - it may not contain all the codes in the value set.' + (reason ? ' ' + reason : ''));
+    }
+    if (Extensions.has(vs.expansion, 'http://hl7.org/fhir/StructureDefinition/valueset-toocostly')) {
+      const p = x.para();
+      p.b().tx('Warning: ');
+      p.tx('This expansion is incomplete - a complete expansion was too costly to produce.');
+    }
     this.renderProperty(tbl, 'Expansion Identifier', vs.expansion.identifier);
     this.renderProperty(tbl, 'Expansion Timestamp', vs.expansion.timestamp);
     this.renderProperty(tbl, 'Expansion Total', vs.expansion.total);

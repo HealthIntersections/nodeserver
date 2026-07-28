@@ -22,6 +22,8 @@
 74400008 |Appendicitis (disorder)|
 155729003 |Appendicitis (disorder)|
 307530000 |Appendicitis NOS (disorder)|
+42463004 |Genus Opisthorchis (organism)|
+71650008 |Opisthorchis viverrini (organism)|
 116676008 |Associated morphology (attribute)|
 128045006 |Cellulitis (disorder)|
 20946005 |Fracture, closed (morphologic abnormality)|
@@ -34,14 +36,49 @@
 6990005 |Fracture of shaft of tibia (disorder)|
 <<128241005 |Inflammatory disease of liver (disorder)|
 <<10200004 |Liver structure (body structure)|
+<<90140006 |Structure of intrahepatic biliary tree (body structure)|
 <<364159005 |Liver observable (observable entity)|
 <<227014008 |Liver pate (substance)|
 <<249565005 |Liver finding (finding)|
 <<406459008 |Product containing halibut liver oil (medicinal product)|
 <<776168003 |Product containing only halibut liver oil (medicinal product)|
-<<776168003 |Product containing only halibut liver oil (medicinal product)|
 <<309399009 |Hospital-based dietitian (occupation)|
 <<421813008 |Class Hepaticopsida (organism)|
-<<441802002 |Imaging of liver (procedure)|
+<<441802002 |Computed tomography of liver (procedure)|
 <<119383005 |Specimen from liver (specimen)|
 129433002 |Inspection|
+367430006 |Repair of tendon of hand (procedure)|
+119657005 |Hand repair (procedure)|
+274059009 |Hand tendon operation (procedure)|
+281760001 |Repair of tendon of upper limb (procedure)|
+18701002 |Repair of tendon of hand with graft (procedure)|
+214433003 |Repair of ruptured tendon of hand (procedure)|
+243234005 |Repair of tendon of hand by transfer or transplantation (procedure)|
+26731003 |Repair of tendon of hand by suture (procedure)|
+27106001 |Reconstruction of tendon pulley of hand (procedure)|
+45810006 |Reattachment of tendon of hand (procedure)|
+709291000 |Repair of flexor tendon of hand (procedure)|
+712638006 |Repair of extensor tendon of hand (procedure)|
+76340004 |Plication of tendon of hand (procedure)|
+90650008 |Lengthening of tendon of hand (procedure)|
+90907001 |Shortening of tendon of hand (procedure)|
+91092007 |Myotenontoplasty of hand (procedure)|
+118632007 |Structure of tendon within hand (body structure)|
+13024002 |Tendon structure (body structure)|
+245098002 |Structure of tendon within upper limb (body structure)|
+85562004 |Hand structure (body structure)|
+#Referenced in request
+734139008 |Anatomy structure and part association reference set (foundation metadata concept)|
+#For snomed-procedure-in-display test
+#Required by: validate-code-isa-in-response.json
+41271000119108 |Infective arthritis caused by virus and co-occurrent with hepatitis (disorder)|
+#Required by: expand-ecl-ancOrSelf-response.json, expand-ecl-ancestors-response.json, expand-ecl-parents-response.json, expand-ecl-parentsOrSelf-response.json
+303270005 |Liver and biliary structure (body structure)|
+699602007 |Structure of viscus of abdomen proper (body structure)|
+#Required by: expand-ecl-ancOrSelf-response.json, expand-ecl-ancestors-response.json
+420473002 |Structure of subregion of trunk (body structure)|
+49596003 |Digestive organ (body structure)|
+86762007 |Digestive system (body structure)|
+1197039003 |Structure of lymphatic vessel of liver (body structure)|
+#Required by: lookup-procedure-pc-response.json
+24028007 |Right (qualifier value)|

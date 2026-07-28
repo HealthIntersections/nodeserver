@@ -131,9 +131,12 @@ function valueSetR5ToR4(r5Obj) {
         });
       }
       delete exp.property;
-      convertContainsPropertyR5ToR4(exp.contains);
-
     }
+
+    // ValueSet.expansion.contains.property is R5-only too, and must be converted
+    // whether or not the expansion declares expansion-level property definitions:
+    // a contained code can carry a property with no expansion.property present.
+    convertContainsPropertyR5ToR4(exp.contains);
   }
 
   return r5Obj;

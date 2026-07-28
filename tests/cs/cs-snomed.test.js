@@ -127,9 +127,9 @@ describe('SNOMED CT Module Import', () => {
     const config = {
       source: testSourceDir,
       dest: testCachePath,
-      edition: '900000000000207008', // International edition
-      version: '20250814',
-      uri: 'http://snomed.info/sct/900000000000207008/version/20250814',
+      edition: '31000003106', // International edition
+      version: '20250909',
+      uri: 'http://snomed.info/sct/31000003106/version/20250909',
       language: 'en-US',
       verbose: false, // Suppress console output during tests
       overwrite: true,
@@ -155,8 +155,8 @@ describe('SNOMED CT Module Import', () => {
 
     // Verify basic metadata
     expect(data.cacheVersion).toBeDefined();
-    expect(data.versionUri).toBe('http://snomed.info/xsct/900000000000207008/version/20250814');
-    expect(data.versionDate).toBe('20250814');
+    expect(data.versionUri).toBe('http://snomed.info/xsct/31000003106/version/20250909');
+    expect(data.versionDate).toBe('20250909');
     expect(data.edition).toBeDefined();
     expect(data.version).toBeDefined();
 

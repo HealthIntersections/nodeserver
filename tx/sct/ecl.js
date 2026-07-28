@@ -472,8 +472,21 @@ class ECLParser {
   parseCompoundExpressionConstraint() {
     let left = this.parseRefinedExpressionConstraint();
 
+    // ECL 6.4: conjunction (AND), disjunction (OR) and exclusion (MINUS)
+    // operators must not be mixed within a single ungrouped compound expression;
+    // round brackets are mandatory to disambiguate. Track the operator used in
+    // this compound sequence and reject a mix (e.g. "<< A OR << B AND << C").
+    let compoundOp = null;
+
     while (this.match(ECLTokenType.AND, ECLTokenType.OR, ECLTokenType.MINUS)) {
       const operator = this.current;
+      if (compoundOp !== null && operator.type !== compoundOp) {
+        throw new Error(
+          'Ambiguous ECL expression: conjunction, disjunction and exclusion ' +
+          'operators cannot be mixed without parentheses (ECL 6.4). ' +
+          'Use round brackets to disambiguate.');
+      }
+      compoundOp = operator.type;
       this.advance();
       const right = this.parseRefinedExpressionConstraint();
 
@@ -616,12 +629,19 @@ class ECLParser {
     const attributes = [];
 
     do {
+      // A leading cardinality may prefix either a single attribute
+      // ([m..n] attr = v) or an attribute group ([m..n] { ... }). Parse it once,
+      // then dispatch on whether a group ({) or an attribute follows.
+      let cardinality = null;
+      if (this.match(ECLTokenType.LBRACKET)) {
+        cardinality = this.parseCardinality();
+      }
       if (this.match(ECLTokenType.LBRACE)) {
         // Attribute group
-        attributes.push(this.parseAttributeGroup());
+        attributes.push(this.parseAttributeGroup(cardinality));
       } else {
         // Single attribute
-        attributes.push(this.parseAttribute());
+        attributes.push(this.parseAttribute(cardinality));
       }
     } while (this.match(ECLTokenType.COMMA) && (this.advance(), true));
 
@@ -635,11 +655,10 @@ class ECLParser {
     };
   }
 
-  parseAttributeGroup() {
-    let cardinality = null;
-
-    // Check for cardinality before {
-    if (this.match(ECLTokenType.LBRACKET)) {
+  parseAttributeGroup(cardinality = null) {
+    // Cardinality may have been parsed by the caller (parseAttributeSet); if
+    // not, check for it here (before the opening brace).
+    if (cardinality === null && this.match(ECLTokenType.LBRACKET)) {
       cardinality = this.parseCardinality();
     }
 
@@ -659,12 +678,12 @@ class ECLParser {
     };
   }
 
-  parseAttribute() {
-    let cardinality = null;
+  parseAttribute(cardinality = null) {
     let reverse = false;
 
-    // Check for cardinality first - this must come before attribute name
-    if (this.match(ECLTokenType.LBRACKET)) {
+    // Cardinality may have been parsed by the caller (parseAttributeSet); if
+    // not, check for it here (it must come before the attribute name).
+    if (cardinality === null && this.match(ECLTokenType.LBRACKET)) {
       cardinality = this.parseCardinality();
     }
 

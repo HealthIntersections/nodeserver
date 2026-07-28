@@ -32,26 +32,27 @@ describe('ECL Validator Test Suite', () => {
     eclValidator = new ECLValidator(snomedServices);
   });
 
-  describe('ECL cardinality counts distinct values (issue #230 bug 3)', () => {
+  describe('ECL cardinality counts per-group occurrences (SNOMED CLG ruling)', () => {
     const expandCodes = (ecl) => {
       const ctx = snomedServices.filterECL(ecl, true, opContext);
       return new Set((ctx.descendants || []).map(i => snomedServices.concepts.getConceptId(i).toString()));
     };
 
-    // 192008 has two raw 116676008 (Associated morphology) relationship rows but
-    // only ONE distinct value — the local analog of the issue's 903008. It must
-    // satisfy [1..1] and [1..*], and must NOT satisfy [2..*]. Counting raw rows
-    // (the bug) gave the opposite.
-    test('a single distinct morphology satisfies [1..1]/[1..*], not [2..*]', () => {
+    // 192008 states Associated morphology 442021009 in TWO different role groups.
+    // ECL cardinality counts occurrences per role group (confirmed by the SNOMED
+    // Computable Languages Group), so that is TWO matching attributes: it must
+    // satisfy [2..*] and [1..*], and must NOT satisfy [1..1]. (Previously we
+    // counted distinct values and asserted the opposite — issue #230 bug 3.)
+    test('a morphology stated in two role groups satisfies [2..*]/[1..*], not [1..1]', () => {
       const one = expandCodes('* : [1..1] 116676008 = *');
       const atLeastOne = expandCodes('* : [1..*] 116676008 = *');
       const two = expandCodes('* : [2..*] 116676008 = *');
-      expect(one.has('192008')).toBe(true);
+      expect(one.has('192008')).toBe(false);
       expect(atLeastOne.has('192008')).toBe(true);
-      expect(two.has('192008')).toBe(false);
+      expect(two.has('192008')).toBe(true);
     });
 
-    test('[1..1] and [2..*] partition [1..*] (distinct-value counting is consistent)', () => {
+    test('[1..1] and [2..*] partition [1..*] (occurrence counting is consistent)', () => {
       const one = expandCodes('* : [1..1] 116676008 = *');
       const two = expandCodes('* : [2..*] 116676008 = *');
       const atLeastOne = expandCodes('* : [1..*] 116676008 = *');
@@ -61,18 +62,17 @@ describe('ECL Validator Test Suite', () => {
       }
     });
 
-    // Value-constrained form, matching the shape of the external case
-    // `< 64572001 : [1..1] 363698007 = << 10200004` whose count rose once
-    // distinct counting was applied. 192008 has Associated morphology 442021009
-    // in two raw rows but one distinct value, so it satisfies [1..1] (not [2..*])
-    // for that specific value.
-    test('value-constrained [1..1] includes a concept with one distinct value stated across rows', () => {
+    // Value-constrained form, matching the external case
+    // `< 64572001 : [1..1] 363698007 = << 10200004` (573, not 653). 192008 states
+    // Associated morphology 442021009 in two role groups = two occurrences, so it
+    // satisfies [2..*] (not [1..1]) for that specific value.
+    test('value-constrained [1..1] excludes a concept stating one value in two groups', () => {
       const one = expandCodes('* : [1..1] 116676008 = 442021009');
       const atLeastOne = expandCodes('* : [1..*] 116676008 = 442021009');
       const two = expandCodes('* : [2..*] 116676008 = 442021009');
-      expect(one.has('192008')).toBe(true);
+      expect(one.has('192008')).toBe(false);
       expect(atLeastOne.has('192008')).toBe(true);
-      expect(two.has('192008')).toBe(false);
+      expect(two.has('192008')).toBe(true);
     });
   });
 
@@ -83,12 +83,14 @@ describe('ECL Validator Test Suite', () => {
     };
     const codesOf = (ecl) => expand(ecl).map(i => snomedServices.concepts.getConceptId(i).toString());
 
-    // Bug 1: a bare ^<concept that is not a reference set> must be rejected with
-    // an error that names the concept (was: returned the fabricated 0xFFFFFFFF
-    // sentinel / the concept itself).
-    test('bare ^<non-reference-set> is rejected with a value-identifying error', () => {
-      expect(() => snomedServices.filterECL('^404684003', true, opContext))
-        .toThrow(/404684003 is not a reference set/);
+    // ^<concept that is not a reference set> yields an EMPTY result (a non-refset
+    // concept simply has no members) rather than an error. Aligns with Snowstorm
+    // and the HL7 tx-ecosystem test suite (PR #49); previously a bare non-refset
+    // operand was rejected with "is not a reference set".
+    test('bare ^<non-reference-set> yields an empty result (not an error)', () => {
+      let ctx;
+      expect(() => { ctx = snomedServices.filterECL('^404684003', true, opContext); }).not.toThrow();
+      expect(ctx.descendants || []).toHaveLength(0);
     });
 
     // Bug 1: returns the refset's referenced-component concepts, including
@@ -807,7 +809,11 @@ describe('ECL Validator Test Suite', () => {
       });
     });
 
-    test('should handle mixed operator precedence', () => {
+    test('mixed AND/OR/MINUS without parentheses is rejected (ECL 6.4)', () => {
+      // Conjunction, disjunction and exclusion operators cannot be mixed within a
+      // single ungrouped compound expression; round brackets are mandatory to
+      // disambiguate (ECL spec section 6.4). Aligns with the HL7 tx-ecosystem
+      // test suite (PR #49); previously these parsed successfully.
       const expressions = [
         '<< 404684003 |Clinical finding| AND << 11687002 |Gestational diabetes mellitus| OR << 72704001 |Fracture|',
         '<< 404684003 |Clinical finding| OR << 11687002 |Gestational diabetes mellitus| AND << 72704001 |Fracture|',
@@ -816,8 +822,7 @@ describe('ECL Validator Test Suite', () => {
 
       expressions.forEach(expr => {
         const result = eclValidator.parse(expr);
-        console.log(`Parse "${expr}": ${result.success} (${result.errors})`);
-        expect(result.success).toBe(true);
+        expect(result.success).toBe(false);
       });
     });
 
