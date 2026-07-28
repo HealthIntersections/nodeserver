@@ -754,11 +754,6 @@ class SnomedConceptList {
     this.master.writeUInt16LE(effectiveTime, index + 34);
   }
 
-  setModuleId(index, value) {
-    this.#checkPostBuildAccess(index);
-    this.master.writeUInt32LE(value, index + 36);
-  }
-
   setStatus(index, value) {
     this.#checkPostBuildAccess(index);
     this.master.writeUInt32LE(value, index + 40);
