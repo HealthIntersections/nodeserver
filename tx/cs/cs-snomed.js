@@ -303,6 +303,7 @@ class SnomedServices {
     const GB = 900000000000508004n;   // GB English
     const byEdition = {
       '900000000000207008': [US],       // International Edition (US English is the default)
+      '31000003106': [US],              // tx-ecosystem test edition (International-derived, US English default)
       '731000124108': [US],             // US Edition
       '5991000124107': [US],            // US Edition (with ICD-10-CM maps)
       '83821000000107': [GB],           // UK Edition

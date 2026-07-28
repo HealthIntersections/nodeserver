@@ -18,9 +18,6 @@ sources:
   - unii:unii_20240622.db
   - snomed:sct_intl_20240201.cache
   - snomed!:sct_intl_20250201.cache
-#  - snomed:sct_se_20231130.cache
-#  - snomed:sct_au_20230731.cache
-#  - snomed:sct_be_20231115.cache
   - snomed:sct_ch_20230607.cache
   - snomed:sct_dk_20260331.cache
   - snomed:sct_ips_20241216.cache
@@ -29,7 +26,7 @@ sources:
   - snomed:sct_us_20230301.cache
   - snomed:sct_us_20240301.cache
   - snomed:sct_us_20250901.cache
-  - snomed:sct_test_20250814.cache
+  - snomed:sct_test_20250909.cache
   - cpt:CodeSystem-cpt.db|cpt-2023-fragment-0.1.db
   - omop:omop_v20250227.db
   - npm:hl7.terminology
@@ -40,7 +37,6 @@ sources:
   - npm:us.cdc.phinvads
   - npm:hl7.fhir.uv.sdc
   - internal:vsac
-  - folder:/Users/grahame/archive/terminologies/icd-11
 
 ignored:
   - urn:iso:std:iso:3166#20210120
