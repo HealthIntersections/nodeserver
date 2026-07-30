@@ -221,23 +221,38 @@
     data: {
       labels: historyData.map(d => formatTime(d.time)),
       datasets: [{
+        label: 'mean',
         data: historyData.map(d => d.block),
         borderColor: '#2845a7',
         backgroundColor: 'rgba(40, 69, 167, 0.1)',
         fill: true,
         tension: 0.3,
         pointRadius: 2
+      }, {
+        // Worst single event-loop stall in the window: the mean dilutes a
+        // multi-second block into noise, so this is the line that shows
+        // request-freezing stalls.
+        label: 'max',
+        data: historyData.map(d => d.blockMax),
+        borderColor: '#a72828',
+        fill: false,
+        tension: 0.3,
+        pointRadius: 2
       }]
     },
     options: {
       ...chartOptions,
+      plugins: {
+        ...chartOptions.plugins,
+        legend: { display: true }
+      },
       scales: {
         ...chartOptions.scales,
         y: {
           ...chartOptions.scales.y,
           title: {
             display: true,
-            text: 'points'
+            text: 'ms'
           }
         }
       }

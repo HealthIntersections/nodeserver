@@ -556,6 +556,15 @@ const MEMORY_LIMIT = readMemoryLimit();
 const MEMORY_FRACTION = 0.98;
 const MEMORY_THRESHOLD = MEMORY_LIMIT > 0 ? MEMORY_LIMIT * MEMORY_FRACTION : 0; // 90% of cgroup limit
 const CHECK_FREQUENCY = 100;
+// How long an operation may compute without yielding the event loop (ms).
+// Node runs all JS on one thread: while a long operation executes, no other
+// request is serviced - awaiting in-memory promises does not help, because
+// resolved promises only bounce through the microtask queue, which runs before
+// I/O. checkAndYield() awaits a real setImmediate every YIELD_INTERVAL ms of
+// compute, so pending I/O (new connections, /metadata, timers) runs between
+// slices and one heavy $expand can no longer time out every other client.
+const YIELD_INTERVAL = 25;
+const { setImmediate: yieldToEventLoop } = require('timers/promises');
 
 class OperationContext {
   // Shared counter across all instances — only check RSS every CHECK_FREQUENCY calls
@@ -584,6 +593,24 @@ class OperationContext {
     // Shared by reference with copy()'d contexts so a sub-operation's
     // providers are cleaned up by the parent request's closeProviders().
     this._openProviders = [];
+    // Compute-time accounting for the deadline and for yielding. One object,
+    // shared by reference with copy()'d contexts, so an operation and its
+    // sub-operations (e.g. batch entries) draw down a single budget:
+    //  - compute:    ms of compute consumed in completed slices
+    //  - sliceStart: when the current compute slice began
+    //  - lastYield:  when we last gave the event loop a turn
+    //  - clientGone: set when the client disconnects before the response is sent
+    // The deadline is measured in COMPUTE time, not wall-clock: once operations
+    // time-share the event loop, wall-clock deadlines make concurrency itself
+    // cause aborts (N ops each take N x as long), which turns client retries
+    // into a failure amplifier. An operation that waited is not too costly;
+    // one that consumed its compute budget is.
+    this._clock = {
+      compute: 0,
+      sliceStart: this.startTime,
+      lastYield: this.startTime,
+      clientGone: false
+    };
 
     this.timeTracker.step('tx-op');
   }
@@ -616,6 +643,8 @@ class OperationContext {
     // Share the same provider-cleanup list so providers opened by the copy
     // are released when the parent operation ends.
     newContext._openProviders = this._openProviders;
+    // Share the compute clock: sub-operations spend the parent's budget.
+    newContext._clock = this._clock;
     return newContext;
   }
 
@@ -646,8 +675,10 @@ class OperationContext {
     }
     OperationContext._checkCounter = 0;
 
-    // Time check
-    const elapsed = performance.now() - this.startTime;
+    // Time check - against compute time consumed, not wall clock (see _clock in
+    // the constructor). For operations that never yield the two are identical,
+    // so this changes nothing for paths that don't use checkAndYield().
+    const elapsed = this.computeElapsed();
     if (elapsed > this.timeLimit) {
       const timeInSeconds = Math.round(this.timeLimit / 1000);
       this.log(`Operation took too long @ ${place} (${this.constructor.name})`);
@@ -672,6 +703,64 @@ class OperationContext {
     }
 
     return false;
+  }
+
+  /**
+   * Compute time this operation has consumed (ms): completed slices plus the
+   * slice currently executing. Equals wall-clock elapsed for operations that
+   * never yield.
+   * @returns {number}
+   */
+  computeElapsed() {
+    return this._clock.compute + (performance.now() - this._clock.sliceStart);
+  }
+
+  /**
+   * Mark that the client for this operation disconnected before the response
+   * was sent. The operation is aborted at its next yield point - there is no
+   * one left to send the result to. (Wired up by the request middleware from
+   * the response 'close' event.)
+   */
+  markClientGone() {
+    this._clock.clientGone = true;
+  }
+
+  /**
+   * deadCheck plus cooperative yielding: call this (awaited) from long-running
+   * loops in async code. Runs the normal deadCheck, and after every
+   * YIELD_INTERVAL ms of continuous compute awaits a real setImmediate so the
+   * event loop can service pending I/O - other requests keep getting answered
+   * while this operation works. On resuming from a yield, aborts if the client
+   * has disconnected in the meantime.
+   *
+   * Sync call sites keep using deadCheck(); the async loops that surround them
+   * yield on their behalf, which caps unbroken compute at one loop iteration.
+   *
+   * @param {string} place - Location identifier for debugging
+   */
+  async checkAndYield(place = 'unknown') {
+    this.deadCheck(place);
+    if (this.debugging) {
+      return;
+    }
+    const now = performance.now();
+    if (now - this._clock.lastYield >= YIELD_INTERVAL) {
+      // Close off this compute slice before suspending, so time spent waiting
+      // for our next turn is not charged against the deadline.
+      this._clock.compute += now - this._clock.sliceStart;
+      await yieldToEventLoop();
+      const resumed = performance.now();
+      this._clock.sliceStart = resumed;
+      this._clock.lastYield = resumed;
+      if (this._clock.clientGone) {
+        this.log(`Operation abandoned @ ${place}: client disconnected`);
+        const error = new Issue("error", "too-costly", null,
+            `Operation abandoned at ${place}: the client disconnected before the response was ready`);
+        error.abandoned = true;
+        error.diagnostics = this.diagnostics();
+        throw error;
+      }
+    }
   }
 
   unSeeAll() {

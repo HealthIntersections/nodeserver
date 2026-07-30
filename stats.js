@@ -37,6 +37,10 @@ class ServerStats {
       const requestsPerMin = minutesSinceStart > 0 ? requestsDelta / minutesSinceStart : 0;
 
       const loopDelay = this.eventLoopMonitor.mean / 1e6;
+      // Worst single stall in the window - the mean dilutes a multi-second
+      // event-loop block into noise; the max is what shows request-freezing
+      // stalls (see the 2026-07-30 tx.fhir.org incident).
+      const loopMax = this.eventLoopMonitor.max / 1e6;
       // Two distinct caches: the expansion cache (count entries) and the client
       // (resource) cache (count concepts held - a sense of how much it's carrying).
       let expansionItems = 0;
@@ -50,7 +54,7 @@ class ServerStats {
         }
       }
 
-      this.history.push({time: now, mem: currentMem - this.startMem, rpm: requestsPerMin, tat: requestsTat, block: loopDelay, expansion: expansionItems, clientConcepts: clientConcepts});
+      this.history.push({time: now, mem: currentMem - this.startMem, rpm: requestsPerMin, tat: requestsTat, block: loopDelay, blockMax: loopMax, expansion: expansionItems, clientConcepts: clientConcepts});
 
       this.eventLoopMonitor.reset();
       this.requestCountSnapshot = combinedCount;

@@ -5,6 +5,40 @@ All notable changes to the Health Intersections Node Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.1] - 2026-07-30
+
+### Added
+
+- Cooperative yielding for long terminology operations: after every 25ms of continuous compute the
+  operation yields the event loop (`checkAndYield`), so a heavy $expand can no longer stall every
+  other request on the server. Operations whose client has disconnected are aborted at their next
+  yield point instead of computing a response nobody will read
+- The operation time limit is now configurable (`operationTimeLimit`, seconds) and defaults to 20s
+  (below common client timeouts, so clients see the too-costly OperationOutcome rather than a
+  socket timeout), and is measured against compute time consumed rather than wall-clock, so
+  concurrent operations time-sharing the event loop don't abort each other
+- The Node Blocking chart on the status page now shows the worst single event-loop stall per
+  window as well as the mean
+
+### Fixed
+
+- fix whole-code-system SNOMED CT expansions blocking the server for 30 seconds and then failing:
+  the hierarchy walk read a non-existent `.code` property, so every concept was treated as a
+  duplicate of the first and no expansion size guard could ever stop the walk. This is what caused
+  the rash of client timeouts on tx.fhir.org after the 0.11.0 upgrade
+- the hierarchy walk now visits each concept once rather than once per path to it (SNOMED CT is a
+  poly-hierarchy: the old walk made ~15.8M visits for ~520k concepts)
+- restore the up-front too-costly refusal for expansions that cannot fit the expansion limit (the
+  totalCount size guard was silently dead - method read as a property); expansions with a
+  count/offset window inside the limit still succeed as partial, unclosed expansions
+- re-enable the CPT 1000-code expansion cap (same method-read-as-property bug)
+- fix parameter misalignment in the no-details expansion path (19 arguments passed to a
+  20-parameter function)
+
+### Tx Conformance Statement
+
+FHIRsmith passed all 2729 HL7 terminology service tests (modes tx.fhir.org+omop+general+snomed, tests v1.9.2, runner v6.9.12)
+
 ## [0.11.0] - 2026-mm-dd
 
 ### Added

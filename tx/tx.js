@@ -291,9 +291,15 @@ class TXModule {
       // Get Accept-Language header for language preferences
       const acceptLanguage = req.get('Accept-Language') || 'en';
 
-      // Create operation context with language, ID, time limit, and caches
+      // Create operation context with language, ID, time limit, and caches.
+      // The time limit is a compute-time budget (see OperationContext._clock)
+      // and is configurable (config.operationTimeLimit, seconds). The default
+      // sits deliberately under common client timeouts (okhttp reads give up at
+      // 10-30s): if the server's limit is >= the client's, the client hangs up
+      // first and the carefully-built too-costly OperationOutcome is written to
+      // a socket nobody is reading.
       const opContext = new OperationContext(
-        acceptLanguage, this.i18n, requestId, 30,
+        acceptLanguage, this.i18n, requestId, this.config.operationTimeLimit ?? 20,
         endpointInfo.resourceCache, endpointInfo.expansionCache
       );
       opContext.usageTracker = this.usageTracker;
@@ -324,6 +330,16 @@ class TXModule {
       };
       res.on('finish', releaseProviders);
       res.on('close', releaseProviders);
+
+      // If the connection closes before the response was completed, the client
+      // has given up (timeout, cancelled build, dropped connection). Mark the
+      // operation so it aborts at its next yield point instead of computing a
+      // response nobody will read.
+      res.on('close', () => {
+        if (!res.writableEnded) {
+          opContext.markClientGone();
+        }
+      });
 
       // Add X-Request-Id header to response
       res.setHeader('X-Request-Id', requestId);
