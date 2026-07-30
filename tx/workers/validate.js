@@ -753,6 +753,7 @@ class ValueSetChecker {
               messages.push(msg);
             }
           } else {
+            this.worker.opContext.addNote(this.valueSet, 'Include for ' + this.worker.renderer.displayCoded(cc.system, cc.version) + ' not considered for "' + this.worker.renderer.displayCoded(system, version) + '"', this.indentCount);
             result = false;
           }
           for (let u of cc.valueSet || []) {
@@ -875,6 +876,7 @@ class ValueSetChecker {
           }
         }
       } else {
+        this.worker.opContext.addNote(this.valueSet, 'ValueSet has neither compose nor expansion - cannot determine membership', this.indentCount);
         result = false;
       }
     }
@@ -1286,7 +1288,10 @@ class ValueSetChecker {
       }
       i++;
     }
-    if (ok === false && !this.valueSet.jsonObj.internallyDefined) {
+    // for an internally defined value set (CodeSystem validation), the code-system-level
+    // message is preferred - but if nothing produced an error, this is the only
+    // explanation there will be, so it can't be suppressed
+    if (ok === false && (!this.valueSet.jsonObj.internallyDefined || !op.hasErrors())) {
       let mid, m, p;
       if (mode === 'codeableConcept') {
         mid = 'TX_GENERAL_CC_ERROR_MESSAGE';

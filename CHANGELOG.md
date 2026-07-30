@@ -36,7 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix links in metadata statements 
 - fix unhandled promises 
 - fix handling of properties in R4 expansions
-
+- fix bug validating codes from erroneously coded R4 v2 tables
+ 
 ### Tx Conformance Statement
 
 (paste)

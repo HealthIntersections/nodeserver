@@ -9,7 +9,11 @@ const { Provider } = require('../../tx/provider');
  * version precedence therefore left the stale core copy as the unversioned
  * default, so $lookup with no version couldn't find codes (like 'payconc')
  * that only exist in the THO copy. A THO resource must displace same-URL
- * resources from core packages, regardless of version.
+ * resources from core packages as the unversioned default, regardless of
+ * version — but explicitly versioned entries survive, because the core
+ * packages carry historical versions (the R4 v2 tables 0006/0360/0391 at
+ * 2.1/2.3.1/2.4/2.6/2.7, normalized from their pipe-versioned urls at load
+ * time) that THO does not publish at all.
  */
 
 const SELFPAY = 'http://terminology.hl7.org/CodeSystem/coverage-selfpay';
@@ -41,8 +45,11 @@ describe('Provider.addCodeSystem — THO vs core package precedence', () => {
     // the unversioned default must be the THO copy despite its lower version
     expect(p.codeSystems.get(SELFPAY).sourcePackage).toBe('hl7.terminology.r4#6.0.2');
     expect(p.codeSystems.get(SELFPAY).version).toBe('1.0.1');
-    // the core copy is dropped entirely (matches the Java drop())
-    expect(p.codeSystems.has(SELFPAY + '|4.0.1')).toBe(false);
+    // the core copy loses only the unversioned default slot; it stays addressable
+    // by explicit version, because core packages carry historical versions (e.g. the
+    // normalized R4 v2 tables 0006/0360/0391) that THO does not publish at all
+    expect(p.codeSystems.has(SELFPAY + '|4.0.1')).toBe(true);
+    expect(p.codeSystems.get(SELFPAY + '|4.0.1').sourcePackage).toBe('hl7.fhir.r4.core#4.0.1');
     expect(p.codeSystems.get(SELFPAY + '|1.0.1').sourcePackage).toBe('hl7.terminology.r4#6.0.2');
   });
 
@@ -52,7 +59,16 @@ describe('Provider.addCodeSystem — THO vs core package precedence', () => {
       cs(SELFPAY, '4.0.1', 'hl7.fhir.r4.core#4.0.1')
     );
     expect(p.codeSystems.get(SELFPAY).sourcePackage).toBe('hl7.terminology.r4#6.0.2');
-    expect(p.codeSystems.has(SELFPAY + '|4.0.1')).toBe(false);
+    // versioned addressability is kept in this load order too
+    expect(p.codeSystems.get(SELFPAY + '|4.0.1').sourcePackage).toBe('hl7.fhir.r4.core#4.0.1');
+  });
+
+  test('a core resource yields its versioned slot to THO only when THO provides that exact version', () => {
+    const p = newProvider(
+      cs(SELFPAY, '1.0.1', 'hl7.terminology.r4#6.0.2'),
+      cs(SELFPAY, '1.0.1', 'hl7.fhir.r4.core#4.0.1')
+    );
+    expect(p.codeSystems.get(SELFPAY + '|1.0.1').sourcePackage).toBe('hl7.terminology.r4#6.0.2');
   });
 
   test('THO does not displace same-url resources from non-core packages', () => {
