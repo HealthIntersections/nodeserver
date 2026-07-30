@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs').promises;
 const { AbstractValueSetProvider } = require('./vs-api');
 const { PackageContentLoader } = require('../../library/package-manager');
 const { ValueSetDatabase } = require('./vs-database');
@@ -51,6 +52,20 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
     }
 
     this.valueSetMap = await this.database.loadAllValueSets(this.sourcePackage());
+
+    // Self-heal caches built before pipe-versioned canonical urls were normalized at
+    // load time (the R4 v2 tables 0006/0360/0391 - see normalizeVersionedCanonicals in
+    // package-manager.js): if any cached value set still carries a "system|version"
+    // include or a pipe in its url, rebuild this cache from the package.
+    if (dbExists && this.#hasPipeVersionedCanonicals()) {
+      await this.database.close();
+      await fs.rm(this.dbPath, { force: true });
+      this.database = new ValueSetDatabase(this.dbPath);
+      await this.database.create();
+      await this._populateDatabase();
+      this.valueSetMap = await this.database.loadAllValueSets(this.sourcePackage());
+    }
+
     // Mark each value set as cached as it enters the store: it is retained in
     // memory for the process lifetime, so its compose.include.filter elements
     // persist and a provider may memoise resolved filter analysis on them
@@ -63,6 +78,32 @@ class PackageValueSetProvider extends AbstractValueSetProvider {
       }
     }
     this.initialized = true;
+  }
+
+  /**
+   * True if any loaded value set still has a pipe-versioned canonical (url or
+   * compose include/exclude system) - the signature of a cache written before
+   * load-time normalization existed.
+   */
+  #hasPipeVersionedCanonicals() {
+    for (const vs of this.valueSetMap.values()) {
+      if (!vs) {
+        continue;
+      }
+      if (typeof vs.url === 'string' && vs.url.includes('|')) {
+        return true;
+      }
+      if (vs.compose) {
+        for (const list of [vs.compose.include, vs.compose.exclude]) {
+          for (const inc of list || []) {
+            if (typeof inc.system === 'string' && inc.system.includes('|')) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
   }
 
   async close() {

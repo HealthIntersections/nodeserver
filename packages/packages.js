@@ -605,10 +605,6 @@ class PackagesModule {
       this.crawler = new PackageCrawler(this.config, this.db, this.stats);
     }
 
-    // The feed uses the versioned package.tgz url as the (permalink) GUID, so reusing
-    // the link as the GUID keeps a later crawl from inserting a duplicate.
-    const guid = link;
-
     const buffer = await this.crawler.fetchUrl(link);
     const npm = await this.crawler.extractNpmPackage(buffer, link);
 
@@ -618,22 +614,37 @@ class PackagesModule {
     }
 
     const idver = npm.id + '#' + npm.version;
-    const replaced = await this.deleteVersionsByGuid(guid);
+
+    // Delete whatever is stored for this package version, matching on the id#version
+    // actually found in the fetched tarball. This used to match on GUID = link, but the
+    // stored GUID is whatever the feed said at crawl time (http vs https, or another
+    // permalink form), so an exact string match could silently delete nothing and leave
+    // the stale copy in place alongside the newly stored one.
+    const old = await this.deleteVersionsByIdVersion(npm.id, npm.version);
+
+    // Keep the old row's GUID when there was one - it is the feed's permalink, and
+    // reusing it stops the next crawl from re-inserting the package as a duplicate.
+    // When we never had the package, the link is the best available GUID (the feeds
+    // use the versioned package.tgz url as the permalink GUID anyway).
+    const guid = old.guids[0] || link;
 
     const itemLog = { status: '??' };
     await this.crawler.store(link, link, guid, new Date(), buffer, idver, itemLog);
 
-    pckLog.info('Force-updated ' + idver + ' from ' + link + ' (replaced ' + replaced + ' existing row(s))');
-    return { status: 'updated', id: npm.id, version: npm.version, replaced };
+    pckLog.info('Force-updated ' + idver + ' from ' + link + ' (replaced ' + old.count + ' existing row(s), guid ' + guid + ')');
+    return { status: 'updated', id: npm.id, version: npm.version, replaced: old.count };
   }
 
-  // Delete a stored package version and all of its child rows, by GUID.
-  deleteVersionsByGuid(guid) {
+  // Delete a stored package version and all of its child rows, by package id and
+  // version. Resolves to { count, guids }: how many PackageVersions rows went, and
+  // the distinct GUIDs they were stored under (so a caller can reuse the permalink).
+  deleteVersionsByIdVersion(id, version) {
     return new Promise((resolve, reject) => {
-      this.db.all('SELECT PackageVersionKey FROM PackageVersions WHERE GUID = ?', [guid], (err, rows) => {
+      this.db.all('SELECT PackageVersionKey, GUID FROM PackageVersions WHERE Id = ? AND Version = ?', [id, version], (err, rows) => {
         if (err) return reject(err);
         const keys = (rows || []).map(r => r.PackageVersionKey);
-        if (keys.length === 0) return resolve(0);
+        const guids = [...new Set((rows || []).map(r => r.GUID))];
+        if (keys.length === 0) return resolve({ count: 0, guids: [] });
         const ph = keys.map(() => '?').join(',');
         const stmts = [
           'DELETE FROM PackageFHIRVersions WHERE PackageVersionKey IN (' + ph + ')',
@@ -642,7 +653,7 @@ class PackagesModule {
           'DELETE FROM PackageVersions WHERE PackageVersionKey IN (' + ph + ')'
         ];
         const runNext = (i) => {
-          if (i >= stmts.length) return resolve(keys.length);
+          if (i >= stmts.length) return resolve({ count: keys.length, guids });
           this.db.run(stmts[i], keys, (e) => e ? reject(e) : runNext(i + 1));
         };
         runNext(0);
@@ -1289,8 +1300,10 @@ class PackagesModule {
     //
     //   POST /update-package   { "links": ["http://hl7.org/fhir/uv/ips/2.0.1/package.tgz", ...] }
     //
-    // The link is the versioned package.tgz url, which is exactly the GUID the feed uses,
-    // so the replacement keeps the same GUID and a later crawl won't create a duplicate.
+    // The link is the versioned package.tgz url. The stored copy to replace is found by
+    // the id#version inside the fetched tarball (not by matching the link against the
+    // stored GUID, which can differ in scheme or form from what the feed published), and
+    // the replacement keeps the old row's GUID so a later crawl won't create a duplicate.
     // If config.updateToken is set, the request must carry it in the x-update-token header.
     this.router.post('/update-package', async (req, res) => {
       const start = Date.now();

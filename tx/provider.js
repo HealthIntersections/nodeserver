@@ -498,7 +498,11 @@ class Provider {
     // resource that came from a FHIR core package, regardless of version.
     if (Provider.#isTHOPackage(cs.sourcePackage)) {
       for (const [key, t] of [...this.codeSystems]) {
-        if (t.url === cs.url && VersionUtilities.isCorePackage(t.sourcePackage)) {
+        // only the bare-url (default) entry is displaced; explicitly versioned
+        // entries (key = url|version) stay addressable, because the core packages
+        // carry historical versions (e.g. the normalized R4 v2 tables 0006/0360/0391
+        // at 2.1/2.3.1/2.4/2.6/2.7) that hl7.terminology does not publish at all
+        if (key === t.url && t.url === cs.url && VersionUtilities.isCorePackage(t.sourcePackage)) {
           this.codeSystems.delete(key);
         }
       }
@@ -510,8 +514,14 @@ class Provider {
     if (!existing || (!yieldsToTHO && cs.isMoreRecent(existing))) {
       this.codeSystems.set(cs.url, cs);
     }
-    if (cs.version && !yieldsToTHO) {
-      this.codeSystems.set(cs.vurl, cs);
+    if (cs.version) {
+      // a versioned entry only yields to THO when THO itself provides that exact version
+      const vExisting = this.codeSystems.get(cs.vurl);
+      const vYieldsToTHO = vExisting && Provider.#isTHOPackage(vExisting.sourcePackage)
+        && VersionUtilities.isCorePackage(cs.sourcePackage);
+      if (!vYieldsToTHO) {
+        this.codeSystems.set(cs.vurl, cs);
+      }
     }
   }
 

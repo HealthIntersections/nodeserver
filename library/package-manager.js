@@ -823,7 +823,7 @@ class PackageContentLoader {
 
         try {
             const content = await fs.readFile(filePath, 'utf8');
-            return JSON.parse(content);
+            return normalizeVersionedCanonicals(JSON.parse(content));
         } catch (error) {
             throw new Error(`Failed to load file ${entry.filename}: ${error.message}`);
         }
@@ -923,4 +923,42 @@ class PackageContentLoader {
 }
 
 
-module.exports = { PackageManager, PackageContentLoader };
+/**
+ * Some R4-era core package resources bake a version into the canonical url itself:
+ * hl7.fhir.r4.core#4.0.1 publishes the multi-version v2 tables (0006, 0360, 0391)
+ * as e.g. url "http://terminology.hl7.org/CodeSystem/v2-0360|2.7" with version "0360"
+ * (the table number!). The base packages can never be republished, so normalize at
+ * load time: split the pipe into url + version, on the CodeSystems themselves and on
+ * ValueSet compose include/exclude systems that reference them. Without this,
+ * provider.system() never matches the system in a coding, so validation fails -
+ * silently, in the CodeSystem $validate-code case.
+ */
+function normalizeVersionedCanonicals(resource) {
+    if (!resource || typeof resource !== 'object') {
+        return resource;
+    }
+    if (resource.resourceType === 'CodeSystem' || resource.resourceType === 'ValueSet') {
+        if (typeof resource.url === 'string' && resource.url.includes('|')) {
+            const cut = resource.url.indexOf('|');
+            // the url-embedded version wins over the version element (which is "0360" etc)
+            resource.version = resource.url.substring(cut + 1);
+            resource.url = resource.url.substring(0, cut);
+        }
+        if (resource.resourceType === 'ValueSet' && resource.compose) {
+            for (const list of [resource.compose.include, resource.compose.exclude]) {
+                for (const inc of list || []) {
+                    if (typeof inc.system === 'string' && inc.system.includes('|')) {
+                        const cut = inc.system.indexOf('|');
+                        if (!inc.version) {
+                            inc.version = inc.system.substring(cut + 1);
+                        }
+                        inc.system = inc.system.substring(0, cut);
+                    }
+                }
+            }
+        }
+    }
+    return resource;
+}
+
+module.exports = { PackageManager, PackageContentLoader, normalizeVersionedCanonicals };
