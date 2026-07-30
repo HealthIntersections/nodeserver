@@ -314,14 +314,20 @@ class ValueSetExpander {
       return null;
     }
 
-    if (cs != null && cs.expandLimitation > 0) {
-      let cnt = this.csCounter.get(cs.system);
+    // expandLimitation() caps how many codes a single code system may contribute
+    // (e.g. CPT limits enumeration to 1000 codes by agreement with the AMA).
+    // NB: expandLimitation and system are methods - reading them as properties
+    // (cs.expandLimitation > 0) compares the function object and is always false,
+    // which silently disabled this cap.
+    const expandLimit = cs != null ? cs.expandLimitation() : 0;
+    if (expandLimit > 0) {
+      let cnt = this.csCounter.get(cs.system());
       if (cnt == null) {
         cnt = new ValueSetCounter();
-        this.csCounter.set(cs.system, cnt);
+        this.csCounter.set(cs.system(), cnt);
       }
       cnt.increment();
-      if (cnt.count > cs.expandLimitation) {
+      if (cnt.count > expandLimit) {
         return null;
       }
     }
@@ -566,7 +572,7 @@ class ValueSetExpander {
     this.checkResourceCanonicalStatus(expansion, vs, this.valueSet);
 
     for (const c of vs.expansion.contains || []) {
-      this.worker.deadCheck('importValueSet');
+      await this.worker.checkAndYield('importValueSet');
       count += await this.importValueSetItem(null, c, imports, offset);
     }
     return count;
@@ -574,7 +580,7 @@ class ValueSetExpander {
 
   async importValueSetItem(p, c, imports, offset) {
     let count = 0;
-    this.worker.deadCheck('importValueSetItem');
+    await this.worker.checkAndYield('importValueSetItem');
     const s = this.keyC(c);
     if (this.passesImports(imports, c.system, c.code, offset) && !this.map.has(s) && !this.isExcluded(c.system, c.version, c.code)) {
       count++;
@@ -588,7 +594,7 @@ class ValueSetExpander {
       this.map.set(s, c);
     }
     for (const cc of c.contains || []) {
-      this.worker.deadCheck('importValueSetItem');
+      await this.worker.checkAndYield('importValueSetItem');
       count += await this.importValueSetItem(c, cc, imports, offset);
     }
     return count;
@@ -610,11 +616,11 @@ class ValueSetExpander {
   }
 
   async checkSource(cset, exp, filter, srcURL, ts, vsInfo , source) {
-    this.worker.deadCheck('checkSource');
+    await this.worker.checkAndYield('checkSource');
     Extensions.checkNoModifiers(cset, 'ValueSetExpander.checkSource', 'set', srcURL);
     let imp = false;
     for (const u of cset.valueSet || []) {
-      this.worker.deadCheck('checkSource');
+      await this.worker.checkAndYield('checkSource');
       const s = this.worker.pinValueSet(u);
       await this.checkCanExpandValueSet(s, '', source);
       imp = true;
@@ -663,8 +669,21 @@ class ValueSetExpander {
           } else if (filter.isNull) {
             // The unclosed marking for a grammar code system is added by
             // processCodes (the actual expansion); checkSource only guards size.
-            if (!imp && this.count !== 0 && this.limitCount > 0 && cs.totalCount > this.limitCount) {
-              throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [srcURL, '>' + this.limitCount]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
+            // Refuse up-front only when enumeration could not succeed anyway:
+            // count=0 is answered by counting (no enumeration), and a count/offset
+            // window that fits inside limitCount is answered by partial
+            // enumeration (includeCode stops at limitCount). Otherwise the walk
+            // would only ever end in VALUESET_TOO_COSTLY at limitCount codes -
+            // throw the same error now without doing the work.
+            // NB: totalCount is a method - as a property read (cs.totalCount) the
+            // comparison was against the function object, always false, so this
+            // guard was silently dead.
+            if (!imp && this.count !== 0 && this.limitCount > 0 && await cs.totalCount() > this.limitCount
+                && !(this.count > 0 && this.count + Math.max(this.offset, 0) <= this.limitCount)) {
+              // Report the versioned url (vurl), matching the message the
+              // enumeration path produces when it hits the same limit - this
+              // guard is just that refusal moved earlier.
+              throw new Issue("error", "too-costly", null, 'VALUESET_TOO_COSTLY', this.worker.i18n.translate('VALUESET_TOO_COSTLY', this.params.httpLanguages, [source && source.vurl ? source.vurl : srcURL, '>' + this.limitCount]), null, 422).withDiagnostics(this.worker.opContext.diagnostics());
             }
           }
         }
@@ -684,7 +703,7 @@ class ValueSetExpander {
   }
 
   async includeCodes(cset, path, vsSrc, compose, filter, expansion, excludeInactive, notClosed) {
-    this.worker.deadCheck('processCodes#1');
+    await this.worker.checkAndYield('processCodes#1');
     const valueSets = [];
 
     Extensions.checkNoModifiers(cset, 'ValueSetExpander.processCodes', 'set', vsSrc.vurl);
@@ -695,7 +714,7 @@ class ValueSetExpander {
 
     if (!cset.system) {
       for (const u of cset.valueSet) {
-        this.worker.deadCheck('processCodes#2');
+        await this.worker.checkAndYield('processCodes#2');
         const s = this.worker.pinValueSet(u);
         this.worker.opContext.log('import value set ' + s);
         let vs = await this.worker.findValueSet(s, '', vsSrc);
@@ -722,7 +741,7 @@ class ValueSetExpander {
         this.addParamUri(expansion, 'used-codesystem', sv);
 
         for (const u of cset.valueSet || []) {
-          this.worker.deadCheck('processCodes#2');
+          await this.worker.checkAndYield('processCodes#2');
           const s = this.worker.pinValueSet(u);
           this.worker.opContext.log('import value set ' + s);
           let vs = await this.worker.findValueSet(s, '', vsSrc);
@@ -774,11 +793,14 @@ class ValueSetExpander {
 
               }
               let tcount = 0;
+              // One visited set across all roots: in a poly-hierarchy the walks
+              // from different roots can reach the same concepts.
+              const visited = new Set();
               let c = await cs.nextContext(iter);
               while (c) {
-                this.worker.deadCheck('processCodes#3a');
+                await this.worker.checkAndYield('processCodes#3a');
                 if (await this.passesFilters(cs, c, prep, filters, 0)) {
-                  tcount += await this.includeCodeAndDescendants(cs, c, expansion, valueSets, null, excludeInactive, vsSrc.vurl);
+                  tcount += await this.includeCodeAndDescendants(cs, c, expansion, valueSets, null, excludeInactive, vsSrc.vurl, visited);
                 }
                 c = await cs.nextContext(iter);
               }
@@ -800,7 +822,7 @@ class ValueSetExpander {
             this.noTotal();
             this.worker.opContext.log('iterate filters');
             while (await cs.filterMore(ctxt, set[0])) {
-              this.worker.deadCheck('processCodes#4');
+              await this.worker.checkAndYield('processCodes#4');
               const c = await cs.filterConcept(ctxt, set[0]);
               if (await this.passesFilters(cs, c, prep, set, 1)) {
                 const cds = new Designations(this.worker.i18n.languageDefinitions);
@@ -830,7 +852,7 @@ class ValueSetExpander {
           const cds = new Designations(this.worker.i18n.languageDefinitions);
 
           for (const cc of cset.concept) {
-            this.worker.deadCheck('processCodes#3');
+            await this.worker.checkAndYield('processCodes#3');
             cds.clear();
             Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference', vsSrc.vurl);
             const cctxt = await cs.locate(cc.code, this.allAltCodes);
@@ -875,7 +897,7 @@ class ValueSetExpander {
           }
 
           for (let i = 0; i < fcl.length; i++) {
-            this.worker.deadCheck('processCodes#4a');
+            await this.worker.checkAndYield('processCodes#4a');
             const fc = fcl[i];
             if (!fc.value) {
               throw new Issue('error', 'invalid', path + ".filter[" + i + "]", 'UNABLE_TO_HANDLE_SYSTEM_FILTER_WITH_NO_VALUE', this.worker.i18n.translate('UNABLE_TO_HANDLE_SYSTEM_FILTER_WITH_NO_VALUE', this.params.httpLanguages, [cs.system(), fc.property, fc.op]), 'vs-invalid', 400);
@@ -895,7 +917,7 @@ class ValueSetExpander {
           this.addToTotal(0);
           const cds = new Designations(this.worker.i18n.languageDefinitions);
           while (await cs.filterMore(prep, fset[0])) {
-            this.worker.deadCheck('processCodes#5');
+            await this.worker.checkAndYield('processCodes#5');
             const c = await cs.filterConcept(prep, fset[0]);
             const ok = (!this.params.activeOnly || !await cs.isInactive(c)) && (await this.passesFilters(cs, c, prep, fset, 1));
             if (ok) {
@@ -944,7 +966,7 @@ class ValueSetExpander {
   }
 
   async excludeCodes(cset, path, vsSrc, filter, expansion, excludeInactive, notClosed) {
-    this.worker.deadCheck('processCodes#1');
+    await this.worker.checkAndYield('processCodes#1');
     const valueSets = [];
 
     Extensions.checkNoModifiers(cset, 'ValueSetExpander.processCodes', 'set', vsSrc.vurl);
@@ -958,7 +980,7 @@ class ValueSetExpander {
         this.noTotal();
         for (const u of cset.valueSet) {
           const s = this.worker.pinValueSet(u);
-          this.worker.deadCheck('processCodes#2');
+          await this.worker.checkAndYield('processCodes#2');
           let vs = await this.worker.findValueSet(s, '', vsSrc);
           const ivs = new ImportedValueSet(await this.expandValueSet(s, '',  vs, filter, notClosed));
           this.checkResourceCanonicalStatus(expansion, ivs.valueSet, this.valueSet);
@@ -984,7 +1006,7 @@ class ValueSetExpander {
         this.addParamUri(expansion, 'used-codesystem', sv);
 
         for (const u of cset.valueSet || []) {
-          this.worker.deadCheck('processCodes#3');
+          await this.worker.checkAndYield('processCodes#3');
           const s = this.worker.pinValueSet(u);
           this.worker.opContext.log('import value set ' + s);
           let vs = await this.worker.findValueSet(s, '', vsSrc);
@@ -1007,7 +1029,7 @@ class ValueSetExpander {
               if (iter) {
                 let c = await cs.nextContext(iter);
                 while (c) {
-                  this.worker.deadCheck('processCodes#3aa');
+                  await this.worker.checkAndYield('processCodes#3aa');
                   this.excludeCode(cs, cs.system(), cs.version(), await cs.code(c), expansion, valueSets, vsSrc.url);
                   c = await cs.nextContext(iter);
                 }
@@ -1031,7 +1053,7 @@ class ValueSetExpander {
             if (iter) {
               let c = await cs.nextContext(iter);
               while (c) {
-                this.worker.deadCheck('processCodes#3a');
+                await this.worker.checkAndYield('processCodes#3a');
                 if (await this.passesFilters(cs, c, prep, filters, 0)) {
                   this.excludeCode(cs, cs.system(), cs.version(), await cs.code(c), expansion, valueSets, vsSrc.url);
                 }
@@ -1045,7 +1067,7 @@ class ValueSetExpander {
           this.worker.opContext.log('iterate concepts');
           const cds = new Designations(this.worker.i18n.languageDefinitions);
           for (const cc of cset.concept) {
-            this.worker.deadCheck('processCodes#3');
+            await this.worker.checkAndYield('processCodes#3');
             cds.clear();
             Extensions.checkNoModifiers(cc, 'ValueSetExpander.processCodes', 'set concept reference', vsSrc.vurl);
             const cctxt = await cs.locate(cc.code, this.allAltCodes);
@@ -1076,7 +1098,7 @@ class ValueSetExpander {
 
           let first = true;
           for (let fc of cset.filter) {
-            this.worker.deadCheck('processCodes#4a');
+            await this.worker.checkAndYield('processCodes#4a');
             Extensions.checkNoModifiers(fc, 'ValueSetExpander.processCodes', 'filter', vsSrc.vurl);
             await cs.filter(prep, first, fc.property, fc.op, fc.value, vsSrc.isCached ? fc : null);
             first = false;
@@ -1089,7 +1111,7 @@ class ValueSetExpander {
           }
           //let count = 0;
           while (await cs.filterMore(prep, fset[0])) {
-            this.worker.deadCheck('processCodes#5');
+            await this.worker.checkAndYield('processCodes#5');
             const c = await cs.filterConcept(prep, fset[0]);
             const ok = (!this.params.activeOnly || !await cs.isInactive(c)) && (await this.passesFilters(cs, c, prep, fset, 1));
             if (ok) {
@@ -1105,9 +1127,30 @@ class ValueSetExpander {
     }
   }
 
-  async includeCodeAndDescendants(cs, context, expansion, imports, parent, excludeInactive, srcUrl) {
+  async includeCodeAndDescendants(cs, context, expansion, imports, parent, excludeInactive, srcUrl, visited = null) {
     let result = 0;
-    this.worker.deadCheck('processCodeAndDescendants');
+    await this.worker.checkAndYield('processCodeAndDescendants');
+
+    // In a poly-hierarchy (e.g. SNOMED CT) a concept is reachable through every
+    // one of its parents; without a visited set the recursion walks every *path*
+    // rather than every *node* - for the full SNOMED International edition that
+    // is ~15.8M visits for ~520k concepts, which is what turned an aborted
+    // expansion into a 30-second event-loop stall. Reaching a concept a second
+    // time means it has multiple parents, so (as when includeCode detects a
+    // duplicate) the expansion cannot be represented as a tree.
+    if (visited == null) {
+      visited = new Set();
+    }
+    // NB: contexts do not reliably carry a .code property (SnomedExpressionContext
+    // does not) - cs.code(context) is the accessor. Reading context.code here
+    // used to yield undefined for every SNOMED concept, collapsing the whole
+    // expansion onto one map key so no size guard could ever fire.
+    const code = await cs.code(context);
+    if (visited.has(code)) {
+      this.canBeHierarchy = false;
+      return 0;
+    }
+    visited.add(code);
 
     if (expansion) {
       const vs = this.canonical(await cs.system(), await cs.version());
@@ -1123,12 +1166,12 @@ class ValueSetExpander {
       const cds = new Designations(this.worker.i18n.languageDefinitions);
       let t;
       if (this.noDetails) {
-        t = await this.includeCode(cs, null, await cs.system(), await cs.version(), context.code, await cs.isAbstract(context), await cs.isInactive(context), null, null, null,
-            null, expansion, imports, null, null, null, null, excludeInactive, srcUrl);
+        t = await this.includeCode(cs, null, await cs.system(), await cs.version(), code, await cs.isAbstract(context), await cs.isInactive(context), null, null, null,
+            null, null, expansion, imports, null, null, null, null, excludeInactive, srcUrl);
 
       } else {
         await this.listDisplaysFromProvider(cds, cs, context);
-        t = await this.includeCode(cs, parent, await cs.system(), await cs.version(), context.code, await cs.isAbstract(context), await cs.isInactive(context), await cs.isDeprecated(context), await cs.getStatus(context), cds, await cs.definition(context),
+        t = await this.includeCode(cs, parent, await cs.system(), await cs.version(), code, await cs.isAbstract(context), await cs.isInactive(context), await cs.isDeprecated(context), await cs.getStatus(context), cds, await cs.definition(context),
             await cs.itemWeight(context), expansion, imports, await cs.extensions(context), null, await cs.properties(context), null, excludeInactive, srcUrl);
       }
       if (t != null) {
@@ -1145,16 +1188,29 @@ class ValueSetExpander {
     if (iter) {
       let c = await cs.nextContext(iter);
       while (c) {
-        this.worker.deadCheck('processCodeAndDescendants#3');
-        result += await this.includeCodeAndDescendants(cs, c, expansion, imports, n, excludeInactive, srcUrl);
+        await this.worker.checkAndYield('processCodeAndDescendants#3');
+        result += await this.includeCodeAndDescendants(cs, c, expansion, imports, n, excludeInactive, srcUrl, visited);
         c = await cs.nextContext(iter);
       }
     }
     return result;
   }
 
-  async excludeCodeAndDescendants(cs, context, expansion, imports, excludeInactive, srcUrl) {
-    this.worker.deadCheck('processCodeAndDescendants');
+  async excludeCodeAndDescendants(cs, context, expansion, imports, excludeInactive, srcUrl, visited = null) {
+    await this.worker.checkAndYield('processCodeAndDescendants');
+
+    // Same visited-set protection as includeCodeAndDescendants: walk nodes, not
+    // paths (see that method for why), and same accessor fix - context.code is
+    // not reliably present, and passing the raw context as the code produced
+    // useless "[object Object]" exclusion keys.
+    if (visited == null) {
+      visited = new Set();
+    }
+    const code = await cs.code(context);
+    if (visited.has(code)) {
+      return;
+    }
+    visited.add(code);
 
     if (expansion) {
       const vs = this.canonical(await cs.system(), await cs.version());
@@ -1168,15 +1224,15 @@ class ValueSetExpander {
     if ((!this.params.excludeNotForUI || !await cs.isAbstract(context)) && (!this.params.activeOnly || !await cs.isInactive(context))) {
       const cds = new Designations(this.worker.i18n.languageDefinitions);
       await this.listDisplaysFromProvider(cds, cs, context);
-      this.worker.deadCheck('processCodeAndDescendants#2');
-      this.excludeCode(cs, await cs.system(), await cs.version(), context, expansion, imports, srcUrl);
+      await this.worker.checkAndYield('processCodeAndDescendants#2');
+      this.excludeCode(cs, await cs.system(), await cs.version(), code, expansion, imports, srcUrl);
     }
 
     const iter = await cs.iterator(context);
     let c = await cs.nextContext(iter);
     while (c) {
-      this.worker.deadCheck('processCodeAndDescendants#3');
-      await this.excludeCodeAndDescendants(cs, c, expansion, imports, excludeInactive, srcUrl);
+      await this.worker.checkAndYield('processCodeAndDescendants#3');
+      await this.excludeCodeAndDescendants(cs, c, expansion, imports, excludeInactive, srcUrl, visited);
       c = await cs.nextContext(iter);
     }
   }
@@ -1187,11 +1243,11 @@ class ValueSetExpander {
     this.doingVersion = false;
     const ts = new Map();
     for (const c of source.jsonObj.compose.include || []) {
-      this.worker.deadCheck('handleCompose#2');
+      await this.worker.checkAndYield('handleCompose#2');
       await this.checkSource(c, expansion, filter, source.url, ts, vsInfo, source);
     }
     for (const c of source.jsonObj.compose.exclude || []) {
-      this.worker.deadCheck('handleCompose#3');
+      await this.worker.checkAndYield('handleCompose#3');
       this.hasExclusions = true;
       await this.checkSource(c, expansion, filter, source.url, ts, null, source);
     }
@@ -1205,7 +1261,7 @@ class ValueSetExpander {
 
       let i = 0;
       for (const c of source.jsonObj.compose.exclude || []) {
-        this.worker.deadCheck('handleCompose#4');
+        await this.worker.checkAndYield('handleCompose#4');
         await this.excludeCodes(c, "ValueSet.compose.exclude[" + i + "]", source, filter, expansion, this.excludeInactives(source), notClosed);
       }
 
@@ -1218,7 +1274,7 @@ class ValueSetExpander {
         return 0;
       });
       for (const c of includes) {
-        this.worker.deadCheck('handleCompose#5');
+        await this.worker.checkAndYield('handleCompose#5');
         await this.includeCodes(c, "ValueSet.compose.include[" + i + "]", source, source.jsonObj.compose, filter, expansion, this.excludeInactives(source), notClosed);
         i++;
       }
@@ -1346,7 +1402,7 @@ class ValueSetExpander {
     }
 
     this.worker.opContext.log('start working');
-    this.worker.deadCheck('expand');
+    await this.worker.checkAndYield('expand');
 
     let notClosed = { value :  false};
 
@@ -1433,7 +1489,7 @@ class ValueSetExpander {
       let t = 0;
       let o = 0;
       for (let i = 0; i < list.length; i++) {
-        this.worker.deadCheck('expand#1');
+        await this.worker.checkAndYield('expand#1');
         const c = list[i];
         if (this.map.has(this.keyC(c))) {
           o++;

@@ -76,6 +76,15 @@ class TerminologyWorker {
   }
 
   /**
+   * deadCheck plus a cooperative event-loop yield (see OperationContext.checkAndYield).
+   * Use this (awaited) from long-running loops in async code.
+   * @param {string} place - Location identifier for debugging
+   */
+  async checkAndYield(place = 'unknown') {
+    await this.opContext.checkAndYield(place);
+  }
+
+  /**
    * Add cost diagnostics to an error
    * @param {TooCostlyError} e - The error to enhance
    * @returns {TooCostlyError} Enhanced error
