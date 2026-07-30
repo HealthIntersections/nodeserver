@@ -40,8 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  
 ### Tx Conformance Statement
 
-(paste)
-
+FHIRsmith passed all 2729 HL7 terminology service tests (modes tx.fhir.org+omop+general+snomed, tests v1.9.2, runner v6.9.12
 
 ## [v0.10.1] - 2026-06-27
 
