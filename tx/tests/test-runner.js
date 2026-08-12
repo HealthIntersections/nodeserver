@@ -150,7 +150,13 @@ async function loadValidator() {
         txServer : 'http://localhost:'+TEST_PORT+'/r5',
         txLog : path.join(folders.logsDir(), 'tx-test-cases.log'),
         port: VALIDATOR_PORT,
-        timeout: 60000
+        timeout: 60000,
+        // The validator enables SSRF protection by default from 6.10.0, which blocks http:// and any
+        // connection to localhost. Everything under test here - both the -tx server above and the
+        // 'server' parameter passed to runTxTest() - is our own express server on localhost, and all
+        // content is our own fixtures, so there is nothing untrusted that could redirect the validator
+        // anywhere. Protection has to be off for these tests to connect at all.
+        ssrfProtection: false
     }
     await validator.start(validatorConfig);
     await validator.loadIG("hl7.fhir.uv.tx-ecosystem", "current");
