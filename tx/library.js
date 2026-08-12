@@ -3,7 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const yaml = require('yaml'); // npm install yaml
 const { PackageManager, PackageContentLoader } = require('../library/package-manager');
-const { FolderContentLoader } = require('../library/folder-content-loader');
+const { FolderContentLoader, FileContentLoader } = require('../library/folder-content-loader');
 const { CodeSystem } = require("./library/codesystem");
 const {CountryCodeFactoryProvider} = require("./cs/cs-country");
 const {Iso4217FactoryProvider} = require("./cs/cs-currency");
@@ -299,6 +299,10 @@ class Library {
 
       case 'folder':
         await this.loadFolder(details, isDefault, mode);
+        break;
+
+      case 'file':
+        await this.loadFile(details, isDefault, mode);
         break;
 
       default:
@@ -679,19 +683,68 @@ class Library {
       return;
     }
 
-    const folderPath = path.isAbsolute(details)
-      ? details
-      : path.resolve(path.join(__dirname, '..', details));
+    const folderPath = this.#resolveLocalSourcePath(details);
+    const cacheSubdir = await this.#prepareLocalSourceCache(folderPath);
+    await this.#loadLocalSource(new FolderContentLoader(folderPath, cacheSubdir));
+  }
 
-    // Park the Package*Provider SQLite caches under the terminology cache rather
-    // than polluting the user's source folder, and wipe between runs so edits to
-    // the source folder are reliably picked up.
-    const hash = crypto.createHash('sha1').update(folderPath).digest('hex').substring(0, 16);
+  /**
+   * Loads a single nominated JSON file holding a CodeSystem, ValueSet or ConceptMap
+   * (source syntax: `file:<path>`). The resource is routed to the appropriate provider
+   * based on its resourceType.
+   *
+   * Unlike a folder source, the file must exist and must be one of the three terminology
+   * resource types - anything else is an error, since the config named it explicitly.
+   *
+   * Relative paths are resolved against the project root (same convention as loadUcum etc.).
+   *
+   * @param {string} details - The file to load
+   * @param {boolean} isDefault - Unused; file sources don't register factories
+   * @param {string} mode - One of "fetch", "cs", "npm"
+   */
+  // eslint-disable-next-line no-unused-vars
+  async loadFile(details, isDefault, mode) {
+    if (mode === "fetch" || mode === "cs") {
+      return;
+    }
+
+    const filePath = this.#resolveLocalSourcePath(details);
+    const cacheSubdir = await this.#prepareLocalSourceCache(filePath);
+    await this.#loadLocalSource(new FileContentLoader(filePath, cacheSubdir));
+  }
+
+  /**
+   * Relative paths in folder:/file: sources are resolved against the project root.
+   * @private
+   */
+  #resolveLocalSourcePath(details) {
+    const text = String(details || '').trim();
+    if (!text) {
+      throw new Error('A local source requires a path, e.g. file:tx/data/my-valueset.json');
+    }
+    return path.isAbsolute(text) ? text : path.resolve(path.join(__dirname, '..', text));
+  }
+
+  /**
+   * Parks the Package*Provider SQLite caches under the terminology cache rather
+   * than polluting the user's source folder, and wipes between runs so edits to
+   * the source are reliably picked up.
+   * @private
+   */
+  async #prepareLocalSourceCache(sourcePath) {
+    const hash = crypto.createHash('sha1').update(sourcePath).digest('hex').substring(0, 16);
     const cacheSubdir = path.join(this.cacheFolder, 'folder-source-' + hash);
     await fs.rm(cacheSubdir, { recursive: true, force: true });
     await fs.mkdir(cacheSubdir, { recursive: true });
+    return cacheSubdir;
+  }
 
-    const contentLoader = new FolderContentLoader(folderPath, cacheSubdir);
+  /**
+   * Shared loader for folder- and file-sourced content: registers the loader's
+   * CodeSystems, ValueSets and ConceptMaps with this library.
+   * @private
+   */
+  async #loadLocalSource(contentLoader) {
     await contentLoader.initialize();
 
     this.packageSources.push(contentLoader.id() + "#" + contentLoader.version());

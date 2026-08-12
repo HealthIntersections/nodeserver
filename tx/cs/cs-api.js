@@ -404,9 +404,15 @@ class CodeSystemProvider {
    * @param {boolean} [significantOnly=false] - when true, emit only the
    *   designations that are significant for a value set expansion (the display,
    *   and - for code systems that distinguish them - the fully specified name
-   *   and the preferred term), rather than every designation in every language.
-   *   The $expand worker passes true; $lookup uses the default (false) to return
-   *   the complete set. Providers that do not distinguish significant
+   *   and the preferred term), rather than every designation. This narrows which
+   *   designations are emitted, NOT which languages: the display for a request is
+   *   chosen downstream by preferredDesignation(displayLanguage), so a provider
+   *   that emits significant designations for one language only makes localized
+   *   expansions fall back to that language. Emit the significant designations
+   *   for every language the concept has.
+   *   The $expand worker passes true when the client did not ask for
+   *   designations; $lookup and includeDesignations=true use the default (false)
+   *   to return the complete set. Providers that do not distinguish significant
    *   designations may ignore this parameter and return all designations either
    *   way.
    * @returns {Designation[]} whatever designations exist (in all languages)

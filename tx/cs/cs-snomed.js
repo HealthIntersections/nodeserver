@@ -1605,13 +1605,25 @@ class SnomedProvider extends BaseCSServices {
             const K = this.sct._displayConstants();
 
             if (significantOnly) {
-              // $expand: emit the "significant" designations only — the FSN plus
-              // the preferred synonym (US English), active descriptions only.
-              // The preferred synonym is also the display, so it is added as the
-              // display designation (which the expand worker selects for
-              // `display` and skips from the emitted list) and additionally as a
-              // Synonym designation so it still appears in the designation array.
-              let fsn = null, prefSyn = null;
+              // $expand: emit the "significant" designations only — the FSN and
+              // the preferred synonym, active descriptions only. Acceptable
+              // synonyms are the bulk of a SNOMED concept's descriptions and are
+              // not needed to render an expansion, so they are dropped.
+              //
+              // One per LANGUAGE, though, not one overall: the display for a
+              // request is chosen downstream by
+              // Designations.preferredDesignation(displayLanguage), so a concept
+              // that emits only its English terms has nothing for a
+              // displayLanguage=de request to match and silently falls back to
+              // English. Keeping the preferred synonym in every language the
+              // concept has is what makes localized expansions work at all
+              // (e.g. the Swiss edition, whose German terms are preferred in the
+              // Swiss German language refset 2041000195100).
+              //
+              // The edition-default display is also added as the display
+              // designation (which the expand worker selects for `display` when
+              // no language was asked for, and skips from the emitted list).
+              const fsns = new Map(), prefSyns = new Map();
               for (const descIndex of descriptionIndices) {
                 const description = this.sct.descriptions.getDescription(descIndex);
                 if (!description.active) continue;
@@ -1620,15 +1632,20 @@ class SnomedProvider extends BaseCSServices {
                 const kind = this.sct.concepts.getConcept(description.kind);
                 const use = { system: 'http://snomed.info/sct', code: String(kind.identity), display: this.sct.getDisplayName(description.kind) };
                 if (description.kind === K.fsn) {
-                  if (!fsn) fsn = { langCode, use, term };
+                  if (!fsns.has(langCode)) fsns.set(langCode, { langCode, use, term });
                 } else if (this.sct._synonymIsPreferred(description)) {
-                  if (!prefSyn) prefSyn = { langCode, use, term };
+                  if (!prefSyns.has(langCode)) prefSyns.set(langCode, { langCode, use, term });
                 }
               }
               const display = this.sct.getDisplayName(ctxt.getReference());
               if (display) displays.addDesignation(true, 'active', 'en-US', null, display);
-              if (fsn) displays.addDesignation(false, 'active', fsn.langCode, fsn.use, fsn.term);
-              if (prefSyn) displays.addDesignation(false, 'active', prefSyn.langCode, prefSyn.use, prefSyn.term);
+              // FSNs before synonyms, matching the designation order the published
+              // tx-ecosystem expectations were written against (sct/expand-inactive).
+              // Which of the two is chosen as the display is settled by
+              // Designations.preferredDesignation(), which ranks the SNOMED synonym
+              // above the FSN - not by the order they are emitted in.
+              for (const d of fsns.values()) displays.addDesignation(false, 'active', d.langCode, d.use, d.term);
+              for (const d of prefSyns.values()) displays.addDesignation(false, 'active', d.langCode, d.use, d.term);
             } else {
               // $lookup: emit every description (preferred synonym first so the
               // display resolves correctly; order is not otherwise significant).

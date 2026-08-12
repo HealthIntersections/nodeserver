@@ -610,8 +610,15 @@ class Designations {
 
       for (const activeOnly of [true, false]) {
         for (const matchType of matchTypes) {
+          // _isPreferred before isDisplay, matching the no-language branch above.
+          // The two sets differ only where a provider's own isDisplay() accepts a
+          // designation that isn't a preferred term - today that is the SNOMED FSN,
+          // which isDisplay() accepts and _isPreferred() deliberately does not. Testing
+          // isDisplay first made a request for a language whose concept has both an FSN
+          // and a preferred synonym display the "(disorder)"-suffixed FSN, purely
+          // because the FSN was emitted first.
           for (const cd of this.designations) {
-            if (this._langMatches(lang, cd.language, matchType) && this.isDisplay(cd) && (!activeOnly || cd.isActive())) {
+            if (this._langMatches(lang, cd.language, matchType) && this._isPreferred(cd) && (!activeOnly || cd.isActive())) {
               if (supplements && cd.source) {
                 supplements.add(cd.source);
               }
@@ -619,7 +626,7 @@ class Designations {
             }
           }
           for (const cd of this.designations) {
-            if (this._langMatches(lang, cd.language, matchType) && this._isPreferred(cd)&& (!activeOnly || cd.isActive())) {
+            if (this._langMatches(lang, cd.language, matchType) && this.isDisplay(cd) && (!activeOnly || cd.isActive())) {
               if (supplements && cd.source) {
                 supplements.add(cd.source);
               }
