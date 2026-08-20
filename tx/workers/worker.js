@@ -137,9 +137,10 @@ class TerminologyWorker {
         }
       }
       const found = matches[latest];
-      if (this.additionalResourcesCacheId && this.log) {
-        this.log.info(`cache-id '${this.additionalResourcesCacheId}': using cached ${found.resourceType} ${found.url}${found.version ? '|' + found.version : ''} for lookup of ${url}${version ? '|' + version : ''}`);
-      }
+      // enable for logging
+      // if (this.additionalResourcesCacheId && this.log) {
+      //   this.log.info(`cache-id '${this.additionalResourcesCacheId}': using cached ${found.resourceType} ${found.url}${found.version ? '|' + found.version : ''} for lookup of ${url}${version ? '|' + version : ''}`);
+      // }
       return found;
     }
   }
