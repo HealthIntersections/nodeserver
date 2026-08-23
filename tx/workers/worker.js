@@ -463,7 +463,9 @@ class TerminologyWorker {
   /**
    * Process a ValueSet, recording context and extracting embedded expansion parameters
    * @param {Object} vs - ValueSet resource (raw JSON)
-   * @param {Object} params - Parameters resource to add extracted params to
+   * @param {TxParameters} params - the parameters to add what the ValueSet declares to.
+   *   Note: this is the caller's parameters, not this.params - the worker's own
+   *   params is null when expanding an imported ValueSet
    */
   seeValueSet(vs, params) {
     // Build canonical URL from url and version
@@ -483,12 +485,14 @@ class TerminologyWorker {
           if (nameExt && valueExt) {
             const name = nameExt.valueString || nameExt.valueCode;
             if (name) {
-              this.params.seeParameter(name, valueExt, false);
+              params.seeParameter(name, valueExt, false);
             }
           }
         }
       }
     }
+    // R6's ValueSet.compose.property
+    params.seeCompose(vs.jsonObj.compose);
     if (!params.FHTTPLanguages && vs.jsonObj.language) {
       params.HTTPLanguages = Languages.fromAcceptLanguage(vs.jsonObj.language, this.languages, !this.isValidating());
     }

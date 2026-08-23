@@ -293,6 +293,8 @@ class ValueSetChecker {
         }
       }
     }
+    // R6's ValueSet.compose.property
+    this.params.seeCompose(this.valueSet.jsonObj.compose);
     if (!this.params.HTTPLanguages && this.valueSet.jsonObj.language) {
       this.params.HTTPLanguages = Languages.fromAcceptLanguage(this.valueSet.jsonObj.language, this.worker.languages, false);
     }
