@@ -64,7 +64,12 @@
       "database": "/absolute/path/to/publisher.db",
       "sessionSecret": "change-this-to-a-secure-random-string",
       "workspaceRoot": "/absolute/path/to/workspaces",
-      "igPublisherTimeoutMinutes": 60
+      "igPublisherTimeoutMinutes": 60,
+      // where to put files the IG Publisher leaves in the web folder that are too big for GitHub
+      // (>100MB). Only applies to websites whose publish-setup.json has $.website.github = true.
+      // Omit to leave them in place - the push will then fail. Relative paths resolve under the
+      // publisher data folder
+      "large-file-archive": "/absolute/path/to/large-file-archive"
     },
     "npmprojector": {
       "enabled": true,
