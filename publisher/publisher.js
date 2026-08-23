@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const { spawn: spawnProcess, execFile } = require('child_process');
 const Database = require('sqlite3').Database;
 const bcrypt = require('bcrypt');
 const session = require('express-session');
@@ -2694,13 +2695,20 @@ class PublisherModule {
     });
   }
 
-  async runCommand(command, args, options, taskId, description) {
-    const { spawn } = require('child_process');
+  async runCommand(cmdName, args, options, taskId, description) {
+    let safeCmd;
+    if (cmdName === 'git') {
+      safeCmd = 'git';
+    } else if (cmdName === 'bash') {
+      safeCmd = 'bash';
+    } else {
+      throw new Error('Command not allowed: ' + cmdName);
+    }
 
     await this.logTaskMessage(taskId, 'info', description);
 
     return new Promise((resolve, reject) => {
-      const proc = spawn(command, args, {
+      const proc = spawnProcess(safeCmd, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
         ...options
       });
