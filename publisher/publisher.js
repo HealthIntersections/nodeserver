@@ -8,6 +8,10 @@ const folders = require('../library/folder-setup');
 const escape = require('escape-html');
 const {Utilities} = require("../library/utilities");
 
+// GitHub refuses any file larger than this at the pre-receive hook, and the rejection takes down
+// the whole push rather than just the offending file.
+const GITHUB_MAX_FILE_SIZE = 100 * 1024 * 1024;
+
 
 class PublisherModule {
   constructor(stats) {
@@ -928,6 +932,137 @@ class PublisherModule {
     }
   }
 
+  // The IG Publisher can leave a file in the web folder that GitHub will not accept - typically a
+  // technical correction archive, which is a zip of an entire published version folder and so
+  // carries that folder's own full-ig.zip inside it. GitHub rejects the entire push over one such
+  // file, at the very last step of a publication run. The IG Publisher will keep these out of the
+  // web folder itself from the next release; until then, move them aside here.
+  //
+  // Does nothing unless publisher.large-file-archive says where to put them, and the website is
+  // one that's hosted on GitHub in the first place.
+  async archiveLargeFiles(task, website) {
+    const configured = this.config['large-file-archive'];
+    if (!configured || !this.isGitHubHosted(website)) {
+      return;
+    }
+    const root = website.git_root || website.local_folder;
+    const oversized = this.findLargeFiles(root, GITHUB_MAX_FILE_SIZE);
+    if (oversized.length === 0) {
+      return;
+    }
+
+    const archiveDir = path.isAbsolute(configured)
+        ? configured
+        : folders.filePath('publisher', configured);
+    if (!fs.existsSync(archiveDir)) {
+      fs.mkdirSync(archiveDir, { recursive: true });
+    }
+
+    for (const file of oversized) {
+      const sizeMB = Math.round(fs.statSync(file).size / (1024 * 1024));
+      const dest = this.nonClashingPath(archiveDir, path.basename(file));
+      this.moveFile(file, dest);
+      await this.logTaskMessage(task.id, 'warn', 'Large file ' + path.relative(root, file) + ' (' + sizeMB +
+          ' MB) is over the 100 MB GitHub limit - moved to ' + dest + ' instead of being published');
+    }
+  }
+
+  // Only a website kept in a GitHub repository has a 100MB problem - others can carry files of any
+  // size. $.website.github in the web root's publish-setup.json says which is which; if that can't
+  // be read, or doesn't say, assume not and leave the files where they are.
+  isGitHubHosted(website) {
+    if (!website.local_folder) {
+      return false;
+    }
+    const setupPath = path.join(website.local_folder, 'publish-setup.json');
+    try {
+      const setup = JSON.parse(fs.readFileSync(setupPath, 'utf8'));
+      return !!(setup.website && setup.website.github === true);
+    } catch (err) {
+      this.logger.warn('Could not read ' + setupPath + ' to check whether the website is on GitHub: ' + err.message);
+      return false;
+    }
+  }
+
+  // Files in the web folder that are too big to push. Never descends into .git: a pack file over the
+  // limit is perfectly normal there, and moving it would destroy the repository. Files git is already
+  // ignoring are left alone, since they were never going to be pushed anyway.
+  findLargeFiles(root, limit) {
+    const found = [];
+    const walk = (dir) => {
+      let entries;
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch (err) {
+        this.logger.warn('Large file scan could not read ' + dir + ': ' + err.message);
+        return;
+      }
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name !== '.git') {
+            walk(full);
+          }
+        } else if (entry.isFile()) {
+          try {
+            if (fs.statSync(full).size > limit) {
+              found.push(full);
+            }
+          } catch (err) {
+            // the file went away between readdir and stat - nothing left to move
+          }
+        }
+      }
+    };
+    walk(root);
+    return found.length === 0 ? found : this.removeGitIgnored(root, found);
+  }
+
+  removeGitIgnored(root, files) {
+    try {
+      const result = require('child_process').spawnSync('git', ['check-ignore', '--stdin'],
+          { cwd: root, input: files.join('\n'), encoding: 'utf8' });
+      // exit 0: at least one path is ignored. 1: none are. anything else: git could not tell us,
+      // in which case treat everything as pushable rather than leaving a file that breaks the push.
+      if (result.status !== 0 || !result.stdout) {
+        return files;
+      }
+      const ignored = new Set(result.stdout.split('\n').map((s) => s.trim()).filter((s) => s));
+      return files.filter((f) => !ignored.has(f));
+    } catch (err) {
+      this.logger.warn('Could not check the gitignore status of large files: ' + err.message);
+      return files;
+    }
+  }
+
+  nonClashingPath(dir, name) {
+    let candidate = path.join(dir, name);
+    if (!fs.existsSync(candidate)) {
+      return candidate;
+    }
+    const ext = path.extname(name);
+    const stem = path.basename(name, ext);
+    let i = 2;
+    do {
+      candidate = path.join(dir, stem + '-' + i + ext);
+      i++;
+    } while (fs.existsSync(candidate));
+    return candidate;
+  }
+
+  // rename() fails across filesystems, and the archive folder will not always be on the same one
+  moveFile(src, dest) {
+    try {
+      fs.renameSync(src, dest);
+    } catch (err) {
+      if (err.code !== 'EXDEV') {
+        throw err;
+      }
+      fs.copyFileSync(src, dest);
+      fs.unlinkSync(src);
+    }
+  }
+
   async runPublication(task) {
     const website = await this.getWebsite(task.website_id);
     if (!website) {
@@ -1015,6 +1150,9 @@ class PublisherModule {
     // or template failure), the draft package - flagged notForPublication with a file://
     // url - can survive into the web tree. Catch that here, before anything is committed.
     await this.verifyPublishedPackage(task, website, draftDir);
+
+    // Step 5c: Move anything too big for GitHub out of the web folder, before it gets staged
+    await this.archiveLargeFiles(task, website);
 
     // Step 6: Commit and push the web folder
     await this.logTaskMessage(task.id, 'info', 'Committing changes to web folder...');

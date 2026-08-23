@@ -339,7 +339,13 @@ class TxParameters {
         break;
       }
       case 'property': {
-        this.properties.push(getValuePrimitive(value));
+        // properties can arrive from the request, from an expansion parameter
+        // extension, and (R6) from ValueSet.compose.property, so de-duplicate:
+        // a repeat would emit the property twice and change the cache key
+        const prop = getValuePrimitive(value);
+        if (prop && !this.properties.includes(prop)) {
+          this.properties.push(prop);
+        }
         break;
       }
       case 'useSupplement': {
@@ -467,6 +473,25 @@ class TxParameters {
 
       case 'exclude-system': {
         throw new Issue('error', 'not-supported', null, null, "The parameter 'exclude-system' is not supported by this system", null, 400);
+      }
+    }
+  }
+
+  /**
+   * Read parameters a ValueSet declares on its own compose. Presently that's
+   * R6's ValueSet.compose.property (0..* code) - the properties to return in
+   * the expansion, named by the value set rather than by the request. We don't
+   * formally support R6, but the element is harmless in earlier versions and
+   * honouring it costs nothing.
+   *
+   * @param {Object} compose - ValueSet.compose (raw JSON)
+   */
+  seeCompose(compose) {
+    if (compose && Array.isArray(compose.property)) {
+      for (const prop of compose.property) {
+        if (typeof prop === 'string') {
+          this.seeParameter('property', {valueCode: prop}, false);
+        }
       }
     }
   }
