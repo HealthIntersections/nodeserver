@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const validation = require('./validation');
 const Database = require('sqlite3').Database;
 const bcrypt = require('bcrypt');
 const session = require('express-session');
@@ -1501,23 +1502,23 @@ class PublisherModule {
           content += '</div>';
           content += '<div class="col-md-3">';
           content += '<label for="github_org" class="form-label">GitHub Org</label>';
-          content += '<input type="text" class="form-control" id="github_org" name="github_org" required placeholder="hl7">';
+          content += '<input type="text" class="form-control" id="github_org" name="github_org" required maxlength="39" pattern="' + validation.HTML_PATTERNS.github_org + '" title="Letters, digits and single hyphens" placeholder="hl7">';
           content += '</div>';
           content += '<div class="col-md-3">';
           content += '<label for="github_repo" class="form-label">GitHub Repo</label>';
-          content += '<input type="text" class="form-control" id="github_repo" name="github_repo" required placeholder="fhir-us-core">';
+          content += '<input type="text" class="form-control" id="github_repo" name="github_repo" required maxlength="100" pattern="' + validation.HTML_PATTERNS.github_repo + '" title="Letters, digits, dots, hyphens and underscores" placeholder="fhir-us-core">';
           content += '</div>';
           content += '<div class="col-md-3">';
           content += '<label for="git_branch" class="form-label">Branch</label>';
-          content += '<input type="text" class="form-control" id="git_branch" name="git_branch" required placeholder="main">';
+          content += '<input type="text" class="form-control" id="git_branch" name="git_branch" required maxlength="255" pattern="' + validation.HTML_PATTERNS.git_branch + '" title="A git branch name - slashes are fine, but not spaces, backslashes or any of ~ ^ : ? * [" placeholder="main">';
           content += '</div>';
           content += '<div class="col-md-4">';
           content += '<label for="npm_package_id" class="form-label">NPM Package ID</label>';
-          content += '<input type="text" class="form-control" id="npm_package_id" name="npm_package_id" required placeholder="hl7.fhir.us.core">';
+          content += '<input type="text" class="form-control" id="npm_package_id" name="npm_package_id" required maxlength="128" pattern="' + validation.HTML_PATTERNS.npm_package_id + '" title="Letters, digits, dots, hyphens and underscores" placeholder="hl7.fhir.us.core">';
           content += '</div>';
           content += '<div class="col-md-4">';
           content += '<label for="version" class="form-label">Version</label>';
-          content += '<input type="text" class="form-control" id="version" name="version" required placeholder="6.0.0">';
+          content += '<input type="text" class="form-control" id="version" name="version" required maxlength="64" pattern="' + validation.HTML_PATTERNS.version + '" title="Letters, digits, dots, hyphens and plus signs" placeholder="6.0.0">';
           content += '</div>';
           content += '<div class="col-md-4 d-flex align-items-end">';
           content += '<button type="submit" class="btn btn-primary">Create Task</button>';
@@ -1632,6 +1633,15 @@ class PublisherModule {
 
       try {
         const {website_id, github_org, github_repo, git_branch, npm_package_id, version} = req.body;
+
+        // Check the input before it goes anywhere near a git command line or a
+        // file name. The browser checks these too (see HTML_PATTERNS), but the
+        // form isn't the only way to reach this route.
+        const problems = validation.validateTaskInput(req.body);
+        if (problems.length > 0) {
+          this.logger.warn('Rejected task creation from user ' + req.session.userId + ': ' + problems.join('; '));
+          return res.status(400).send('Invalid task details: ' + problems.join('; '));
+        }
 
         // Verify user has permission for this website
         const canQueue = await this.userCanQueue(req.session.userId, website_id);
