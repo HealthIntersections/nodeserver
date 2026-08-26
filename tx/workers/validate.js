@@ -1480,7 +1480,11 @@ class ValueSetChecker {
           list.allowedDisplays(ts2, null, defLang.value);
           let mid = 'INACTIVE_DISPLAY_FOUND';
           let m = this.worker.i18n.translatePlural(ts2.length, mid, this.params.HTTPLanguages, [c.display, c.code, ts2.join(','), list.status(c.display)]);
-          op.addIssue(new Issue('warning', 'invalid', addToPath(path, 'display'), mid, m, 'display-comment'));
+          // The display IS a designation of this concept, just not a current one,
+          // so lenient-display-validation decides whether that fails the code:
+          // a warning (and result true) when lenient, an error when not - the
+          // same rule the other display checks use.
+          op.addIssue(new Issue(this.dispWarning(), 'invalid', addToPath(path, 'display'), mid, m, 'display-comment'));
         }
       }
     }

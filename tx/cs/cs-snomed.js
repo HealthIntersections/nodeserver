@@ -148,6 +148,58 @@ class SnomedServices {
       refSetIndex: this.refSetIndex
     }, this.isAIndex);
 
+    // The expression services check the MRCM attribute ranges, but those are ECL
+    // and the ECL engine lives here, so hand them an evaluator. Returning null
+    // means "could not decide", and leaves the value unchecked.
+    this.expressionServices.eclConstraintMatcher = (constraint, value) => this.mrcmRangeSatisfied(constraint, value);
+    this._mrcmRangeCache = new Map();
+  }
+
+  /**
+   * Does this refinement value satisfy an MRCM range constraint?
+   *
+   * @param {string} constraint - the rangeConstraint ECL, e.g. "<< 182353008 |Side|"
+   * @param {SnomedExpression} value - the refinement's value expression
+   * @returns {boolean|null} null when the constraint cannot be evaluated
+   */
+  mrcmRangeSatisfied(constraint, value) {
+    let entry = this._mrcmRangeCache.get(constraint);
+    if (entry === undefined) {
+      entry = null;
+      try {
+        const ast = new ECLParser(new ECLLexer(constraint).tokenize()).parse();
+        const ctxt = this._evalECLNode(ast, null);
+        entry = {
+          ast: ast,
+          wildcard: !!ctxt.eclWildcard,
+          members: new Set(this._eclToIndexArray(ctxt))
+        };
+      } catch (error) {
+        // Concrete value ranges (dec/int/str) and anything else the ECL engine
+        // does not support: remembered as unusable so it is parsed only once.
+        entry = null;
+      }
+      this._mrcmRangeCache.set(constraint, entry);
+    }
+    if (!entry) {
+      return null;
+    }
+    if (entry.wildcard) {
+      return true;
+    }
+
+    const concepts = (value.concepts || []).filter(c => c.reference != null && c.reference !== NO_REFERENCE);
+    const refined = value.hasRefinements() || value.hasRefinementGroups();
+    if (!refined) {
+      if (concepts.length === 0) {
+        return null; // a concrete value, or nothing we can resolve
+      }
+      // Every focus concept of a plain value must be in the constraint's set.
+      return concepts.every(c => entry.members.has(c.reference));
+    }
+    // A refined value: ask the ECL engine whether the expression satisfies the
+    // constraint (it knows that a refinement of X is still << X).
+    return this._eclExpressionSatisfies({ expression: value }, entry.ast, null);
   }
 
   close() {
@@ -664,7 +716,7 @@ class SnomedServices {
     // we actually need the full concept list, otherwise filterSize returns 0
     // and the iteration yields nothing. Materialise active concepts now.
     if (forIteration && result.eclWildcard && (!result.descendants || result.descendants.length === 0)) {
-      result.descendants = this._eclEnumerateActiveConcepts(opContext);
+      result.descendants = this._eclEnumerateAllConcepts(opContext);
       delete result.eclWildcard;
       // The materialised wildcard form differs from the lazy (eclWildcard) form,
       // so mark it: the filter cache must not share it across iteration modes.
@@ -677,31 +729,29 @@ class SnomedServices {
   };
 
   /**
-   * Return every active concept's index. Used to materialise wildcard results
-   * when the filter needs to be iterated over (e.g. $expand).
+   * Return every concept's index. Used to materialise wildcard results when the
+   * filter needs to be iterated over (e.g. $expand).
+   *
+   * `*` means every concept the server knows, so this deliberately walks the
+   * concept table rather than descending from 138875005 |SNOMED CT Concept|.
+   * Two kinds of concept are in the table but not reachable from that root:
+   * inactive concepts (their is-a relationships are inactive too), and the
+   * foundation-metadata concepts that a subset carries without their is-a
+   * relationships - module concepts above all. Both belong in `*`, and both are
+   * counted by countAllCodes, so descending from the root made $expand of a
+   * `constraint = *` filter disagree with $expand of the whole code system.
+   *
+   * Inactive concepts are not filtered out here: activeOnly is applied by the
+   * expansion itself (see ValueSetExpander.processCodes), which is what lets one
+   * enumeration serve both activeOnly=true and activeOnly=false.
    * @returns {number[]}
    */
-  _eclEnumerateActiveConcepts = function (opContext) {
-    // The wildcard `*` enumerates the SNOMED CT concept hierarchy: the root
-    // 138875005 |SNOMED CT Concept| and its descendants. This excludes the
-    // foundation-metadata concepts that appear in a subset's concept table
-    // (referenced by the RF2 files as module / type / acceptability ... ids)
-    // without their is-a relationships, so they are not reachable from the root
-    // and are not returned by `*` (matching Snowstorm). On a full edition every
-    // real concept is under the root, so nothing is lost.
-    const rootRes = this.concepts.findConcept(138875005n);
-    if (rootRes && rootRes.found) {
-      return this.filterIsA(138875005n, true).descendants;
-    }
-    // Fallback (no recognisable root): every active concept.
+  _eclEnumerateAllConcepts = function (opContext) {
     const all = [];
     const n = this.concepts.count();
     for (let i = 0; i < n; i++) {
-      if (opContext) opContext.deadCheck('ecl:enumerateActiveConcepts');
-      const concept = this.concepts.getConceptByCount(i);
-      if ((concept.flags & 0x0F) === 0) {
-        all.push(concept.index);
-      }
+      if (opContext) opContext.deadCheck('ecl:enumerateAllConcepts');
+      all.push(this.concepts.getConceptByCount(i).index);
     }
     return all;
   };
@@ -918,7 +968,7 @@ class SnomedServices {
   };
 
   /**
-   * Wildcard — all active concepts.  The eclWildcard flag tells filterCheck /
+   * Wildcard — every concept, active or not.  The eclWildcard flag tells filterCheck /
    * filterLocate to accept every active concept without enumeration.
    * @returns {SnomedFilterContext}
    */
@@ -1312,15 +1362,15 @@ class SnomedServices {
 
   /**
    * Like _eclToIndexArray, but if the context is a bare wildcard (no
-   * descendants populated) it materialises the full active-concept list
-   * via _eclEnumerateActiveConcepts. Used by dotted/refined evaluation,
+   * descendants populated) it materialises the full concept list
+   * via _eclEnumerateAllConcepts. Used by dotted/refined evaluation,
    * which need an explicit concept set to iterate over.
    * @param {SnomedFilterContext} ctx
    * @returns {number[]}
    */
   _eclResolveSet = function (ctx, opContext) {
     if (ctx.eclWildcard && (!ctx.descendants || ctx.descendants.length === 0)) {
-      return this._eclEnumerateActiveConcepts(opContext);
+      return this._eclEnumerateAllConcepts(opContext);
     }
     return this._eclToIndexArray(ctx);
   };
@@ -1369,9 +1419,9 @@ class SnomedServices {
     const rightSet = new Set(this._eclToIndexArray(right));
 
     if (left.eclWildcard) {
-      // Wildcard minus the right set: use the shared active-concept enumeration
-      // (the root hierarchy) so `*` behaves consistently everywhere.
-      result.descendants = this._eclEnumerateActiveConcepts(opContext)
+      // Wildcard minus the right set: use the shared enumeration so `*` behaves
+      // consistently everywhere.
+      result.descendants = this._eclEnumerateAllConcepts(opContext)
         .filter(idx => !rightSet.has(idx));
       return result;
     }
@@ -1734,19 +1784,6 @@ class SnomedProvider extends BaseCSServices {
     }
   }
 
-  async incompleteValidationMessage(context) {
-
-    const ctxt = await this.#ensureContext(context);
-
-    if (!ctxt) return null;
-
-    if (ctxt.isComplex()) {
-      return "The expression is grammatically correct and the concepts are valid, but the expression has not been checked against the SNOMED CT concept model (MRCM)";
-    } else {
-      return null;
-    }
-  }
-
   async locateIsA(code, parent, disallowParent = false) {
 
 
@@ -1881,23 +1918,35 @@ class SnomedProvider extends BaseCSServices {
       if (ctxt instanceof SnomedExpressionContext) {
         // ignore concepts for now, but list refinements and refinement groups
         for (const refinement of ctxt.expression.refinements) {
-          const codeA = refinement.name.code;
-          const codeB = refinement.value.describe();
-          const description = await this.display(codeB);
-          let p = this._addCodeProperty(params, 'property', codeA, codeB, null, description);
-          p.part.push({name: 'code-display', valueString: await this.display(codeA)});
+          await this._addRefinementProperty(params, refinement);
         }
         for (const refinementGroup of ctxt.expression.refinementGroups) {
           for (const refinement of refinementGroup.refinements) {
-            const codeA = refinement.name.code;
-            const codeB = refinement.value.describe();
-            const description = await this.display(codeB);
-            let p = this._addCodeProperty(params, 'property', codeA, codeB, null, description);
-            p.part.push({name: 'code-display', valueString: await this.display(codeA)});
+            await this._addRefinementProperty(params, refinement);
           }
         }
       }
     }
+  }
+
+  /**
+   * Report one refinement of a post-coordinated expression as a lookup property.
+   *
+   * The value is handled as an expression, not as a string: SnomedExpression's
+   * describe() is a human-readable rendering that joins concepts and refinements
+   * with commas ("85562004,272741003=24028007"), so round-tripping it through
+   * display() parsed it back as SCG and failed on any refined value.
+   *
+   * @param {Object} params - the Parameters being built
+   * @param {SnomedRefinement} refinement
+   */
+  async _addRefinementProperty(params, refinement) {
+    const codeA = refinement.name.code;
+    const value = SnomedExpressionContext.fromExpression('', refinement.value);
+    const codeB = await this.code(value);
+    const description = await this.display(value);
+    const p = this._addCodeProperty(params, 'property', codeA, codeB, null, description);
+    p.part.push({name: 'code-display', valueString: await this.display(codeA)});
   }
 
   // Filter support
@@ -2131,7 +2180,7 @@ class SnomedProvider extends BaseCSServices {
     // A wildcard (`*`) set is lazy - it carries the eclWildcard flag rather than a
     // materialised descendant list - so count the active concepts it denotes.
     if (set.eclWildcard && (!set.descendants || set.descendants.length === 0)) {
-      return this.sct._eclEnumerateActiveConcepts(this.opContext).length;
+      return this.sct._eclEnumerateAllConcepts(this.opContext).length;
     }
     if (set.matches && set.matches.length > 0) {
       return set.matches.length;
@@ -2183,7 +2232,7 @@ class SnomedProvider extends BaseCSServices {
     const reference = ctxt.getReference();
 
     if (set.eclWildcard) {
-      return this.sct.isActive(reference) ? ctxt : null;
+      return ctxt; // `*` is every concept; inactive ones included
     }
 
     // A post-coordinated expression validated against an ECL value set: test the
@@ -2266,7 +2315,7 @@ class SnomedProvider extends BaseCSServices {
       return this.#descendantsHas(set, reference);
     }
     if (set.eclWildcard) {
-      return this.sct.isActive(reference);
+      return true; // `*` is every concept; inactive ones included
     }
     return false;
   }
