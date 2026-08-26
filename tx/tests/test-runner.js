@@ -104,9 +104,10 @@ async function startServer() {
     app.use(express.raw({ type: 'application/fhir+xml', limit: '50mb' }));
     app.use(express.json({ limit: '50mb' }));
 
-    // Initialize TX module only
-    stats = new ServerStats();
-    txModule = new TXModule(stats);
+    // Initialize TX module only. Statistics are kept in memory here - a test
+    // run shouldn't be writing into the real statistics database.
+    stats = new ServerStats({ enabled: false });
+    txModule = new TXModule(stats.forModule('tx'));
     await txModule.initialize(config, app);
 
     return new Promise((resolve, reject) => {

@@ -6,6 +6,18 @@
       "credentials": true
     }
   },
+  // Usage statistics. Request counts are kept per module, per endpoint and per
+  // operation, and written to a SQLite database every intervalMinutes so they
+  // survive restarts and upgrades. Each row carries both the count for that
+  // interval and the all-time total. The whole block is optional.
+  "stats": {
+    // set false to keep statistics in memory only (nothing is written to disk)
+    "enabled": true,
+    // relative paths resolve under the data folder's databases directory
+    "database": "stats.db",
+    // how often the counters are written out
+    "intervalMinutes": 10
+  },
   "modules": {
     "shl": {
       "enabled": false,
