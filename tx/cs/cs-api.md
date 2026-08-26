@@ -105,7 +105,7 @@ All are `async`.
 | `parent(code)` | `null` | The parent concept, for hierarchical code systems. |
 | `extensions(code)` | `null` | FHIR extensions on the concept, if any. |
 | `properties(code)` | `[]` | The defined properties for the concept. |
-| `incompleteValidationMessage(code)` | `null` | A message explaining why validation may be incomplete (used by SCT). |
+| `incompleteValidationMessage(code)` | `null` | A message explaining why validation may be incomplete. No provider overrides this: SNOMED expressions are checked against the concept model, and the only things it cannot check are ones SNOMED itself publishes no rule for. |
 | `sameConcept(a, b)` | `false` | Returns `true` if `a` and `b` refer to the same concept (e.g. different expression forms). |
 | `isDisplay(designation)` | `false` | Called for designations not already marked with a standard display use code; return `true` to treat the designation as a display. |
 | `subsumesTest(codeA, codeB)` | `'not-subsumed'` | Returns one of `equivalent`, `subsumes`, `subsumed-by`, or `not-subsumed`. |

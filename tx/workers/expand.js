@@ -460,7 +460,9 @@ class ValueSetExpander {
               if (cp.code === pn) {
                 let vn = getValueName(cp);
                 let v = cp[vn];
-                this.defineProperty(expansion, n, this.getPropUrl(cs, pn, cp), pn, vn, v);
+                // a concept may carry the same property more than once (the
+                // "dup" property in the test code system has two values)
+                this.defineProperty(expansion, n, this.getPropUrl(cs, pn, cp), pn, vn, v, true);
               }
             }
           }
@@ -571,19 +573,24 @@ class ValueSetExpander {
     }
     this.checkResourceCanonicalStatus(expansion, vs, this.valueSet);
 
+    const imported = [];
     for (const c of vs.expansion.contains || []) {
       await this.worker.checkAndYield('importValueSet');
-      count += await this.importValueSetItem(null, c, imports, offset);
+      count += await this.importValueSetItem(null, c, imports, offset, imported);
     }
+    this.importPropertyDefinitions(expansion, vs.expansion.property, imported);
     return count;
   }
 
-  async importValueSetItem(p, c, imports, offset) {
+  async importValueSetItem(p, c, imports, offset, imported) {
     let count = 0;
     await this.worker.checkAndYield('importValueSetItem');
     const s = this.keyC(c);
     if (this.passesImports(imports, c.system, c.code, offset) && !this.map.has(s) && !this.isExcluded(c.system, c.version, c.code)) {
       count++;
+      if (imported) {
+        imported.push(c);
+      }
       this.fullList.push(c);
       if (p != null) {
         if (!p.contains) {p.contains = [] }
@@ -595,7 +602,7 @@ class ValueSetExpander {
     }
     for (const cc of c.contains || []) {
       await this.worker.checkAndYield('importValueSetItem');
-      count += await this.importValueSetItem(c, cc, imports, offset);
+      count += await this.importValueSetItem(c, cc, imports, offset, imported);
     }
     return count;
   }
@@ -1679,35 +1686,85 @@ class ValueSetExpander {
     return this.keyS(contains.system, contains.version, contains.code);
   }
 
-  defineProperty(expansion, contains, url, code, valueName, value) {
+  /**
+   * Record a property definition in expansion.property, and return the code to
+   * use for the per-concept value (an existing definition's code wins).
+   *
+   * @param {Object} expansion
+   * @param {string} url
+   * @param {string} code
+   * @returns {string}
+   */
+  declareProperty(expansion, url, code) {
+    if (!expansion.property) {
+      expansion.property = [];
+    }
+    let pd = expansion.property.find(t1 => t1.uri == url || t1.code == code);
+    if (!pd) {
+      pd = {};
+      expansion.property.push(pd);
+      pd.uri = url;
+      pd.code = code;
+    } else if (!pd.uri) {
+      pd.uri = url;
+    }
+    if (pd.uri != url) {
+      throw new Error('URL mismatch on expansion: ' + pd.uri + ' vs ' + url + ' for code ' + code);
+    }
+    return pd.code;
+  }
+
+  /**
+   * Carry the property definitions of an imported expansion across to this one.
+   *
+   * Imported concepts are copied whole (see importValueSetItem), properties and
+   * all, but the definitions that give those properties a uri live on the
+   * imported expansion, so without this the outer expansion has concepts
+   * carrying a property that it never declares. Only definitions for properties
+   * that survived the import are copied.
+   *
+   * @param {Object} expansion - the expansion being built
+   * @param {Array} definitions - the imported expansion's `property`
+   * @param {Array} items - the concepts actually taken from the import
+   */
+  importPropertyDefinitions(expansion, definitions, items) {
+    if (!expansion || !definitions || definitions.length === 0 || items.length === 0) {
+      return;
+    }
+    const used = new Set();
+    for (const item of items) {
+      for (const property of item.property || []) {
+        used.add(property.code);
+      }
+    }
+    for (const definition of definitions) {
+      if (definition.uri && used.has(definition.code)) {
+        this.declareProperty(expansion, definition.uri, definition.code);
+      }
+    }
+  }
+
+  /**
+   * @param {boolean} [repeatable] - true when the code system may carry more than
+   *   one value for this property on one concept (only the code system property
+   *   loop passes this). Single-valued properties keep last-one-wins, so a status
+   *   derived from two sources still yields one entry.
+   */
+  defineProperty(expansion, contains, url, code, valueName, value, repeatable) {
     if (value === undefined || value == null) {
       return;
     }
     // we only define it if the code system has a definition
     if (url) {
-      if (!expansion.property) {
-        expansion.property = [];
-      }
-      let pd = expansion.property.find(t1 => t1.uri == url || t1.code == code);
-      if (!pd) {
-        pd = {};
-        expansion.property.push(pd);
-        pd.uri = url;
-        pd.code = code;
-      } else if (!pd.uri) {
-        pd.uri = url
-      }
-      if (pd.uri != url) {
-        throw new Error('URL mismatch on expansion: ' + pd.uri + ' vs ' + url + ' for code ' + code);
-      } else {
-        code = pd.code;
-      }
+      code = this.declareProperty(expansion, url, code);
     }
 
     if (!contains.property) {
       contains.property = [];
     }
-    let pdv = contains.property.find(t2 => t2.code == code);
+    let pdv = repeatable
+      ? contains.property.find(t2 => t2.code == code && t2[valueName] === value)
+      : contains.property.find(t2 => t2.code == code);
     if (!pdv) {
       pdv = {};
       contains.property.push(pdv);

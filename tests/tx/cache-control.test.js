@@ -98,6 +98,134 @@ describe('$cache-control routing (scaffolding)', () => {
     return p ? p.valueId : undefined;
   }
 
+  function paramValue(body, name) {
+    const p = (body.parameter || []).find(x => x.name === name);
+    if (!p) return undefined;
+    return p.valueBoolean !== undefined ? p.valueBoolean
+      : p.valueUnsignedInt !== undefined ? p.valueUnsignedInt
+      : p.valueId !== undefined ? p.valueId
+      : p.resource;
+  }
+
+  // ---- mode=check ----
+  //
+  // check is both a probe and a keepalive: a client whose own local cache has been
+  // absorbing its terminology work can go quiet for longer than the server's idle
+  // timeout while still depending on its cache, so asking "is it still there?" is
+  // itself use, and resets the idle clock.
+  describe('mode=check', () => {
+    async function startCheckCache() {
+      const started = await request(app)
+        .post(BASE)
+        .query({ mode: 'start' })
+        .set('Content-Type', 'application/json')
+        .send({ resourceType: 'Parameters', parameter: [] });
+      return cacheIdFrom(started.body);
+    }
+
+    function check(cacheId) {
+      return request(app)
+        .get(BASE)
+        .query({ mode: 'check' })
+        .set('Accept', 'application/json')
+        .set('x-cache-id', cacheId);
+    }
+
+    test('reports a live cache as valid, with its stats', async () => {
+      const cacheId = await startCheckCache();
+
+      const res = await request(app)
+        .post(BASE)
+        .query({ mode: 'check' })
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [] });
+
+      expect(res.status).toBe(200);
+      expect(res.body.resourceType).toBe('Parameters');
+      expect(paramValue(res.body, 'cache-id')).toBe(cacheId);
+      expect(paramValue(res.body, 'valid')).toBe(true);
+      expect(paramValue(res.body, 'sealed')).toBe(false); // server default, transitional
+      expect(paramValue(res.body, 'resource-count')).toBe(0);
+      expect(typeof paramValue(res.body, 'idle')).toBe('number');
+      // the server advertises its timeout so a client can size its own polling to
+      // this server instead of guessing
+      expect(paramValue(res.body, 'timeout')).toBeGreaterThan(0);
+    });
+
+    test('GET works too, so a cache can be checked from a browser', async () => {
+      const cacheId = await startCheckCache();
+      const res = await check(cacheId);
+
+      expect(res.status).toBe(200);
+      expect(paramValue(res.body, 'valid')).toBe(true);
+    });
+
+    /**
+     * End to end proof that a check both reports the idle time it found AND resets
+     * it: let a cache go idle, check it (which must report the idle time, so status
+     * is read before the touch), then check again immediately (which must report
+     * zero, so the first check did touch it). If check didn't keep the cache alive,
+     * the second call would report the same idle time as the first.
+     */
+    test('a check reports the idle time it found, and resets it', async () => {
+      const cacheId = await startCheckCache();
+      await new Promise(resolve => setTimeout(resolve, 1200));
+
+      const first = await check(cacheId);
+      expect(paramValue(first.body, 'idle')).toBeGreaterThanOrEqual(1);
+
+      const second = await check(cacheId);
+      expect(paramValue(second.body, 'idle')).toBe(0);
+    });
+
+    /**
+     * The reason a check is not a 404: a heartbeat has to be able to tell "the
+     * server is up and says my cache is gone" from "I could not reach the server",
+     * and those call for opposite responses.
+     */
+    test('an unknown cache-id is 200 + valid=false, not 404', async () => {
+      const res = await check('never-issued-this-id');
+
+      expect(res.status).toBe(200);
+      expect(paramValue(res.body, 'valid')).toBe(false);
+      expect(paramValue(res.body, 'cache-id')).toBe('never-issued-this-id');
+    });
+
+    test('the outcome parameter carries the coded reason', async () => {
+      const cacheId = await startCheckCache();
+      await request(app)
+        .post(BASE)
+        .query({ mode: 'end' })
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [] });
+
+      const res = await check(cacheId);
+
+      expect(res.status).toBe(200);
+      expect(paramValue(res.body, 'valid')).toBe(false);
+
+      const outcome = paramValue(res.body, 'outcome');
+      expect(outcome.resourceType).toBe('OperationOutcome');
+      const coding = ((outcome.issue[0] || {}).details || {}).coding || [];
+      expect(coding.some(c => c.code === 'cache-id-unknown')).toBe(true);
+      // and it says which of the three fates it met, not a list of maybes
+      expect(outcome.issue[0].details.text).toMatch(/closed/i);
+    });
+
+    test('a missing cache-id header is a client error', async () => {
+      const res = await request(app)
+        .post(BASE)
+        .query({ mode: 'check' })
+        .set('Content-Type', 'application/json')
+        .send({ resourceType: 'Parameters', parameter: [] });
+
+      expect(res.status).toBe(400);
+      expect(res.body.resourceType).toBe('OperationOutcome');
+    });
+  });
+
   test('start returns a server-issued cache-id', async () => {
     const res = await request(app)
       .post(BASE)
@@ -307,6 +435,76 @@ describe('$cache-control routing (scaffolding)', () => {
       expect(res.body.resourceType).toBe('OperationOutcome');
       const coding = (((res.body.issue || [])[0] || {}).details || {}).coding || [];
       expect(coding.some(c => c.code === 'cache-id-unknown')).toBe(true);
+      // An id this server never issued must say exactly that, and must not offer
+      // expiry as a possibility - that sends people hunting a timeout that never ran.
+      const text = (((res.body.issue || [])[0] || {}).details || {}).text || '';
+      expect(text).toMatch(/never issued by this server/i);
+      expect(text).not.toMatch(/expired/i);
+    });
+
+    // The three ways a cache-id can be missing are indistinguishable to a client
+    // unless the server says which one happened. A cache the client closed itself
+    // is the one that matters most: it reads like an expiry, but the fix is in the
+    // client's lifecycle, not the server's timeout.
+    test('a cache the client closed reports the close, not an expiry', async () => {
+      const cacheId = await startCache();
+      const ended = await request(app)
+        .post(BASE)
+        .query({ mode: 'end' })
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [] });
+      expect(ended.status).toBe(200);
+
+      const res = await request(app)
+        .post('/tx/r5/ValueSet/$expand')
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [{ name: 'url', valueUri: colorsVS.url }] });
+
+      expect(res.status).toBe(404);
+      // Same coding as any other missing cache - clients switch on this, and the
+      // action is the same. Only the diagnostics differ.
+      const coding = (((res.body.issue || [])[0] || {}).details || {}).coding || [];
+      expect(coding.some(c => c.code === 'cache-id-unknown')).toBe(true);
+
+      const text = (((res.body.issue || [])[0] || {}).details || {}).text || '';
+      expect(text).toMatch(/closed/i);
+      expect(text).toMatch(/mode=end/);
+      expect(text).not.toMatch(/never issued/i);
+      expect(text).not.toMatch(/expired/i);
+    });
+
+    test('a batch against a closed cache reports the close too', async () => {
+      const cacheId = await startCache();
+      await request(app)
+        .post(BASE)
+        .query({ mode: 'end' })
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({ resourceType: 'Parameters', parameter: [] });
+
+      const res = await request(app)
+        .post('/tx/r5/ValueSet/$batch-validate-code')
+        .set('Content-Type', 'application/json')
+        .set('x-cache-id', cacheId)
+        .send({
+          resourceType: 'Parameters',
+          parameter: [{
+            name: 'validation',
+            resource: {
+              resourceType: 'Parameters',
+              parameter: [
+                { name: 'url', valueString: colorsVS.url },
+                { name: 'coding', valueCoding: { system: colorsCS.url, code: 'red' } }
+              ]
+            }
+          }]
+        });
+
+      expect(res.status).toBe(404);
+      const text = (((res.body.issue || [])[0] || {}).details || {}).text || '';
+      expect(text).toMatch(/closed/i);
     });
   });
 

@@ -88,6 +88,14 @@ function fixMatchParameterfor5(p) {
 
 function fixMatchParameterfor4(p) {
   if (p.part) {
+    // R4 calls originMap 'source'. originMap is reported in every version; source is added
+    // here for R4 only, and is prohibited everywhere else
+    if (!p.part.find(pp => pp.name === 'source')) {
+      let om = p.part.find(pp => pp.name === 'originMap');
+      if (om && om.valueCanonical) {
+        p.part.push({name: "source", valueCanonical: om.valueCanonical});
+      }
+    }
     if (!p.part.find(pp => pp.name === 'equivalence')) {
       let rel = p.part.find(pp => pp.name === 'relationship');
       if (rel && rel.valueCode) {

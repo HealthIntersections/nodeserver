@@ -760,8 +760,11 @@ describe('SNOMED CT Subset Validation', () => {
       // Create expressions using concepts from our subset
       const testExpressions = [
         {
-          expression: '64572001:116676008=128045006',
-          description: 'Disease with associated morphology cellulitis',
+          // The value of 116676008 |Associated morphology| has to be a
+          // morphologic abnormality (MRCM range << 49755003), so cellulitis -
+          // a disorder - is not a legal value here.
+          expression: '64572001:116676008=20946005',
+          description: 'Disease with associated morphology closed fracture',
           expectedValid: true
         },
         {

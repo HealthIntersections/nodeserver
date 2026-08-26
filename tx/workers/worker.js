@@ -671,9 +671,12 @@ class TerminologyWorker {
       // The cache must already exist: caches are created explicitly via
       // $cache-control?mode=start, which is the only thing that mints a cache-id.
       // A cache-id the server doesn't know is an unambiguous, server-authoritative
-      // error condition (never created, or expired / released) - report it with a
-      // specific coded issue rather than silently auto-creating a fresh cache and
-      // then failing obscurely later when a by-reference resource can't be found.
+      // error condition - report it with a specific coded issue rather than silently
+      // auto-creating a fresh cache and then failing obscurely later when a
+      // by-reference resource can't be found. The cache keeps a tombstone for every
+      // id it has retired, so describeMissing() names which fate this id met
+      // (never issued here / closed by the client / idle-expired) instead of
+      // offering the client a list of possibilities to guess between.
       if (!this.opContext.resourceCache.has(cacheId)) {
         // A comma in the cache-id means the request carried multiple X-Cache-Id
         // headers (Node joins duplicate headers with ", "): server-minted ids are
@@ -689,8 +692,12 @@ class TerminologyWorker {
             'started a second cache on a connection that already had one, without removing the first header.',
             'cache-id-duplicate', 400);
         }
-        throw new Issue('error', 'not-found', null, 'CACHE_ID_UNKNOWN',
-          this.i18n.translate('CACHE_ID_UNKNOWN', this.opContext.langs, [cacheId]),
+        // The issue *code* stays cache-id-unknown for every fate: clients switch on
+        // the coding, and all three mean the same thing to them (this cache is gone,
+        // don't retry). Only the human-readable diagnostics differ.
+        const { messageId, params } = this.opContext.resourceCache.describeMissing(cacheId);
+        throw new Issue('error', 'not-found', null, messageId,
+          this.i18n.translate(messageId, this.opContext.langs, params),
           'cache-id-unknown', 404);
       }
 

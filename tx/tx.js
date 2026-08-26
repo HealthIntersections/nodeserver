@@ -249,6 +249,10 @@ class TXModule {
     // cacheTimeout is in minutes, default to 30 minutes
     const cacheTimeoutMs = cacheTimeoutMinutes * 60 * 1000;
     const pruneIntervalMs = 5 * 60 * 1000; // Run every 5 minutes
+    // Tell the cache what timeout it is being pruned against, so $cache-control?mode=check
+    // can report it and a client can size its keepalive interval to this server rather
+    // than guessing at a number it has no way to see.
+    endpointInfo.resourceCache.setIdleTimeout(cacheTimeoutMs);
     if (this.stats) {
       this.stats.addTask("Client Cache", "5 min");
     }

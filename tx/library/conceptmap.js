@@ -173,6 +173,45 @@ class ConceptMap extends CanonicalResource {
     return result;
   }
 
+  /**
+   * The canonical references this map defers to. Only group.unmapped.otherMap creates
+   * such a dependency: a map that names another map cannot be resolved without it, so
+   * it has to be consulted first.
+   * @returns {string[]} canonical references, as written (may or may not be versioned)
+   */
+  listDependencies() {
+    const result = [];
+    for (const g of this.jsonObj.group || []) {
+      if (g.unmapped && g.unmapped.mode === 'other-map' && g.unmapped.otherMap) {
+        if (!result.includes(g.unmapped.otherMap)) {
+          result.push(g.unmapped.otherMap);
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
+   * The groups that would have been consulted for this coding, whether or not any of
+   * their elements matched. group.unmapped only applies to a group that was in scope
+   * for the translation, so the caller needs the same source/target test that
+   * listTranslations applies - without the per-element filter.
+   * @returns {Object[]} the matching group objects
+   */
+  listGroupsInScope(coding, targetScope, targetSystem) {
+    const result = [];
+    const vurl = VersionUtilities.vurl(coding.system, coding.version);
+    const all = this.canonicalMatches(targetScope, this.targetScope);
+    for (const g of this.jsonObj.group || []) {
+      const sourceOk = this.canonicalMatches(vurl, g.source);
+      const targetOk = !targetSystem || this.canonicalMatches(targetSystem, g.target);
+      if (all || (sourceOk && targetOk)) {
+        result.push(g);
+      }
+    }
+    return result;
+  }
+
   listTranslationsReverse(coding, targetScope, sourceSystem) {
     let result = [];
     let vurl = VersionUtilities.vurl(coding.system, coding.version);

@@ -30,7 +30,7 @@ sources:
   - cpt:CodeSystem-cpt.db|cpt-2023-fragment-0.1.db
   - omop:omop_v20250227.db
   - npm:hl7.terminology
-  - npm:fhir.tx.support.r4
+  - npm:fhir.tx.support
   - npm:ihe.formatcode.fhir
   - npm:fhir.dicom
   - npm:hl7.fhir.us.core

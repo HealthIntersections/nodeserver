@@ -1,5 +1,63 @@
 const {VersionUtilities} = require("../../library/version-utilities");
 
+// R4/R3 have no ConceptMap.group.unmapped.valueSet or .relationship. The Java version
+// convertors carry them across as these cross-version extensions, so read them back.
+const EXT_UNMAPPED_VALUESET = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-ConceptMap.group.unmapped.valueSet';
+const EXT_UNMAPPED_RELATIONSHIP = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-ConceptMap.group.unmapped.relationship';
+
+/**
+ * R4 spells group.unmapped differently: the target map is 'url' rather than 'otherMap',
+ * and the 'provided' mode is called 'use-source-code' in R5.
+ */
+function unmappedToR5(unmapped) {
+  if (!unmapped) {
+    return;
+  }
+  if (unmapped.mode === 'provided') {
+    unmapped.mode = 'use-source-code';
+  }
+  if (unmapped.url !== undefined && unmapped.otherMap === undefined) {
+    unmapped.otherMap = unmapped.url;
+    delete unmapped.url;
+  }
+  for (const ext of unmapped.extension || []) {
+    if (ext.url === EXT_UNMAPPED_VALUESET && unmapped.valueSet === undefined) {
+      unmapped.valueSet = ext.valueCanonical || ext.valueUri;
+    }
+    if (ext.url === EXT_UNMAPPED_RELATIONSHIP && unmapped.relationship === undefined) {
+      unmapped.relationship = ext.valueCode || ext.valueString;
+    }
+  }
+  if (unmapped.extension) {
+    unmapped.extension = unmapped.extension.filter(e => e.url !== EXT_UNMAPPED_VALUESET && e.url !== EXT_UNMAPPED_RELATIONSHIP);
+    if (unmapped.extension.length === 0) {
+      delete unmapped.extension;
+    }
+  }
+}
+
+/** The inverse of unmappedToR5. */
+function unmappedFromR5(unmapped) {
+  if (!unmapped) {
+    return;
+  }
+  if (unmapped.mode === 'use-source-code') {
+    unmapped.mode = 'provided';
+  }
+  if (unmapped.otherMap !== undefined) {
+    unmapped.url = unmapped.otherMap;
+    delete unmapped.otherMap;
+  }
+  if (unmapped.valueSet !== undefined) {
+    (unmapped.extension = unmapped.extension || []).push({url: EXT_UNMAPPED_VALUESET, valueCanonical: unmapped.valueSet});
+    delete unmapped.valueSet;
+  }
+  if (unmapped.relationship !== undefined) {
+    (unmapped.extension = unmapped.extension || []).push({url: EXT_UNMAPPED_RELATIONSHIP, valueCode: unmapped.relationship});
+    delete unmapped.relationship;
+  }
+}
+
 /**
  * Converts input ConceptMap to R5 format (modifies input object for performance)
  * @param {Object} jsonObj - The input ConceptMap object
@@ -45,8 +103,30 @@ function conceptMapToR5(jsonObj, sourceVersion) {
     // Convert equivalence to relationship in group.element.target
     if (jsonObj.group && Array.isArray(jsonObj.group)) {
       jsonObj.group.forEach(group => {
+        unmappedToR5(group.unmapped);
         if (group.element && Array.isArray(group.element)) {
           group.element.forEach(element => {
+            // R4 has no element.noMap. A target with equivalence = 'unmatched' and no
+            // code is R4's way of saying the same thing: there is positively no map
+            // for this concept. Lift it to noMap and drop the placeholder target, so
+            // everything downstream sees one R5 shape. This mirrors what the Java
+            // convertors do (ConceptMap40_50.convertSourceElementComponent), including
+            // their reservation of 'unmatched' for noMap - a real 'not-related-to'
+            // target converts to 'disjoint' and carries a code, so it is untouched here.
+            if (element.target && Array.isArray(element.target)) {
+              const noMapTargets = element.target.filter(t => t.equivalence === 'unmatched' && !t.code);
+              if (noMapTargets.length > 0) {
+                element.noMap = true;
+                const comment = noMapTargets.find(t => t.comment);
+                if (comment && !element.comment) {
+                  element.comment = comment.comment;
+                }
+                element.target = element.target.filter(t => !(t.equivalence === 'unmatched' && !t.code));
+                if (element.target.length === 0) {
+                  delete element.target;
+                }
+              }
+            }
             if (element.target && Array.isArray(element.target)) {
               element.target.forEach(target => {
                 if (target.equivalence && !target.relationship) {
@@ -142,6 +222,7 @@ function conceptMapR5ToR4(r5Obj) {
   // Convert relationship back to equivalence in group.element.target
   if (r5Obj.group && Array.isArray(r5Obj.group)) {
     r5Obj.group.forEach(group => {
+      unmappedFromR5(group.unmapped);
       if (group.element && Array.isArray(group.element)) {
         group.element.forEach(element => {
           if (element.target && Array.isArray(element.target)) {

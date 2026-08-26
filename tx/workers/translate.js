@@ -12,7 +12,18 @@ const { TxParameters } = require('../params');
 const { Parameters } = require('../library/parameters');
 const { Issue, OperationOutcome } = require('../library/operation-outcome');
 const {ConceptMap} = require("../library/conceptmap");
+const {Extensions} = require("../library/extensions");
+const {VersionUtilities} = require("../../library/version-utilities");
 const {debugLog} = require("../operation-context");
+
+// ConceptMap.group.element.comment is R6; on an R5 ConceptMap it is carried by the
+// cross-version extension. Read both, so a preadopted R5 resource and a native R6 one
+// behave the same.
+const EXT_ELEMENT_COMMENT = 'http://hl7.org/fhir/6.0/StructureDefinition/extension-ConceptMap.group.element.comment';
+
+function elementComment(em) {
+  return em.comment || Extensions.readString(em, EXT_ELEMENT_COMMENT);
+}
 
 class TranslateWorker extends TerminologyWorker {
   /**
@@ -114,6 +125,7 @@ class TranslateWorker extends TerminologyWorker {
     let sourceScope = null;
     let targetSystem = null;
     let reverse = false;
+    let reverseFromTargetConcept = false; // R5 style: the target concept was named directly
 
     // Get the source coding
     // Accept both R5 names (sourceCoding, sourceCodeableConcept, sourceCode/sourceSystem)
@@ -149,9 +161,11 @@ class TranslateWorker extends TerminologyWorker {
       coding = {system, version, code};
     } else if (params.has('targetCoding')) {
       reverse = true;
+      reverseFromTargetConcept = true;
       coding = params.get('targetCoding');
     } else if (params.has('targetCodeableConcept')) {
       reverse = true;
+      reverseFromTargetConcept = true;
       const cc = params.get('targetCodeableConcept');
       if (cc.coding && cc.coding.length > 0) {
         coding = cc.coding[0]; // Use first coding
@@ -159,10 +173,12 @@ class TranslateWorker extends TerminologyWorker {
         throw new Issue('error', 'invalid', null, null,
           'sourceCodeableConcept must contain at least one coding', null, 400);
       }
-    } else if (params.has('targetCode')) {
+    } else if (params.has('targetCode') || params.has('targetcode')) {
+      // targetcode is accepted alongside targetCode, as targetsystem is alongside targetSystem
       reverse = true;
-      const code = params.get('targetCode');
-      const system = params.get('targetSystem');
+      reverseFromTargetConcept = true;
+      const code = params.has('targetCode') ? params.get('targetCode') : params.get('targetcode');
+      const system = params.has('targetSystem') ? params.get('targetSystem') : params.get('targetsystem');
       if (!system) {
         throw new Issue('error', 'invalid', null, null,
           'targetSystem parameter is required when using targetCode', null, 400);
@@ -178,7 +194,7 @@ class TranslateWorker extends TerminologyWorker {
     if (params.has('url')) {
       const url = params.get('url');
       const cmVersion = params.get('conceptMapVersion');
-      let conceptMap = await this.provider.findConceptMap(this.opContext, url, cmVersion);
+      let conceptMap = await this.findConceptMapByUrl(url, cmVersion);
       if (!conceptMap) {
         const msg = cmVersion
           ? `ConceptMap not found: ${url} version ${cmVersion}`
@@ -189,20 +205,61 @@ class TranslateWorker extends TerminologyWorker {
       }
     }
 
-    // Get scope parameters
+    // Get scope parameters. As with the source concept above, the R4 names are
+    // accepted as aliases for the R5 ones: R4 calls the scopes 'source' and
+    // 'target', and spells the target system 'targetsystem' (all lower case).
     if (params.has('sourceScope')) {
       sourceScope = params.get('sourceScope');
+    } else if (params.has('source')) {
+      sourceScope = params.get('source');
     }
     if (params.has('targetScope')) {
       targetScope = params.get('targetScope');
+    } else if (params.has('target')) {
+      targetScope = params.get('target');
     }
-    if (reverse) {
+    if (params.has('targetSystem')) {
+      targetSystem = params.get('targetSystem');
+    } else if (params.has('targetsystem')) {
+      targetSystem = params.get('targetsystem');
+    }
+
+    // R4's 'reverse' parameter: "this parameter reverses the meaning of the source and
+    // target parameters". So do literally that - swap the two sides here, once the
+    // parameters have all been read, and let the rest of the operation run as usual.
+    // R5+ dropped it in favour of naming the target concept directly (targetCode,
+    // targetCoding, targetCodeableConcept), so there it is an error rather than
+    // something to interpret.
+    if (params.has('reverse')) {
+      const fhirVersion = this.provider.getFhirVersion();
+      if (!VersionUtilities.isR4Ver(fhirVersion) && !VersionUtilities.isR3Ver(fhirVersion)) {
+        throw new Issue('error', 'not-supported', null, null,
+          `The 'reverse' parameter is not defined in ${fhirVersion}: name the target concept with targetCode, targetCoding or targetCodeableConcept instead`, null, 400);
+      }
+      const rev = params.get('reverse');
+      if (rev === true || rev === 'true') {
+        if (reverseFromTargetConcept) {
+          throw new Issue('error', 'invalid', null, null,
+            "The 'reverse' parameter cannot be combined with targetCode, targetCoding or targetCodeableConcept", null, 400);
+        }
+        reverse = true;
+        // the concept named by system/code is now the target concept, the two value set
+        // scopes swap roles, and targetsystem names the system the answers come from
+        const scope = sourceScope;
+        sourceScope = targetScope;
+        targetScope = scope;
+      }
+    }
+
+    // The R5-shaped reverse names the target concept directly; the source system then
+    // says which system the answers should come from. R5 spells that 'system' (it is
+    // the system of the source concept); 'sourceSystem' is accepted as an alias, as it
+    // is for the forward direction.
+    if (reverseFromTargetConcept) {
       if (params.has('sourceSystem')) {
         targetSystem = params.get('sourceSystem');
-      }
-    } else {
-      if (params.has('targetSystem')) {
-        targetSystem = params.get('targetSystem');
+      } else if (params.has('system')) {
+        targetSystem = params.get('system');
       }
     }
     // If no explicit concept map, we need to find one based on source/target
@@ -215,7 +272,23 @@ class TranslateWorker extends TerminologyWorker {
         await this.provider.findConceptMapForTranslation(this.opContext, conceptMaps, coding.system, sourceScope, targetScope, targetSystem, coding.code);
       }
       if (conceptMaps.length == 0) {
-        throw new Issue('error', 'not-found', null, null, 'No suitable ConceptMaps found for the specified source and target', null, 404);
+        // The client did not nominate a map, and this server knows none that covers this
+        // source and target. That is an answer - there is no translation - not an error;
+        // a nominated map that cannot be found is the error case, and is reported when
+        // the url parameter is resolved above.
+        const from = reverse ? (targetSystem || sourceScope) : coding.system;
+        const to = reverse ? coding.system : (targetSystem || targetScope);
+        return res.status(200).json({
+          resourceType: 'Parameters',
+          parameter: [{
+            name: 'message',
+            valueString: `No ConceptMap is available to translate from '${from || '(unspecified)'}' to '${to || '(unspecified)'}'`
+          },
+          {
+            name: 'result',
+            valueBoolean: false
+          }]
+        });
       }
     }
 
@@ -320,22 +393,64 @@ class TranslateWorker extends TerminologyWorker {
     return result;
   }
 
-  translateUsingGroupsForwards(cm, coding, targetScope, targetSystem, params, output) {
+  async translateUsingGroupsForwards(cm, coding, targetScope, targetSystem, params, output, origin, visited) {
     let result = false;
-    const matches = cm.listTranslations(coding, targetScope, targetSystem);
-    if (matches.length > 0) {
-      for (let match of matches) {
-        const g = match.group;
-        const em = match.match;
+    // originMap names where the chain of maps started, not the map that happened to
+    // supply the answer; any other map consulted along the way is a used-conceptmap.
+    const originMap = origin || cm.vurl;
+    // Work group by group. group.unmapped says what this group does with a concept it
+    // has no element for, so it is decided per group: a mapping in one group does not
+    // speak for another group, and does not suppress another group's fallback.
+    for (const g of cm.listGroupsInScope(coding, targetScope, targetSystem)) {
+      let groupResult = false;
+      for (const em of (g.element || []).filter(e => e.code === coding.code)) {
+        // ConceptMap.group.element.noMap says, positively, that this concept has no
+        // mapping in this map - which is an answer, not the absence of one. Report it
+        // as a match that states the source concept and the map it came from, with no
+        // concept and no relationship, and nothing to say about a target.
+        if (em.noMap === true) {
+          groupResult = true;
+          if (this.hasNoMap(output, g.source, em.code)) {
+            continue; // another map has already said this; saying it twice adds nothing
+          }
+          const noMapParts = [];
+          noMapParts.push({
+            name: 'noMap',
+            valueBoolean: true
+          });
+          const noMapComment = elementComment(em);
+          if (noMapComment) {
+            noMapParts.push({
+              name: 'sourceComment',
+              valueString: noMapComment
+            });
+          }
+          noMapParts.push({
+            name: 'sourceConcept',
+            valueCoding: {
+              system: g.source,
+              code: em.code
+            }
+          });
+          noMapParts.push({
+            name: 'originMap',
+            valueCanonical: originMap
+          });
+          output.push({
+            name: 'match',
+            part: noMapParts
+          });
+          continue;
+        }
         for (const map of em.target || []) {
           let ok = false;
           if (map.equivalence) { // R4 mode
-            ok = ['null', 'relatedto', 'equivalent', 'equal', 'wider', 'subsumes', 'narrower', 'specializes', 'inexact'].includes(map.equivalence);
+            ok = ['null', 'relatedto', 'equivalent', 'equal', 'wider', 'subsumes', 'narrower', 'specializes', 'inexact', 'unmatched', 'disjoint'].includes(map.equivalence);
           } else {
-            ok = ['null', 'related-to', 'equivalent',  'source-is-narrower-than-target', 'source-is-broader-than-target'].includes(map.relationship);
+            ok = ['null', 'related-to', 'equivalent',  'source-is-narrower-than-target', 'source-is-broader-than-target', 'not-related-to'].includes(map.relationship);
           }
           if (ok) {
-            result = true;
+            groupResult = true;
 
             const outcome = {
               system: g.target,
@@ -349,6 +464,13 @@ class TranslateWorker extends TerminologyWorker {
                 valueCoding: outcome
               });
               matchParts.push({
+                name: 'sourceConcept',
+                valueCoding: {
+                  system: g.source,
+                  code: em.code
+                }
+              });
+              matchParts.push({
                 name: 'relationship',
                 valueCode: map.relationship
               });
@@ -359,9 +481,18 @@ class TranslateWorker extends TerminologyWorker {
                   valueCode: map.equivalence
                 });
               }
+              // ConceptMap.group.element.comment is about the source concept,
+              // ConceptMap.group.element.target.comment is about this particular map
+              const srcComment = elementComment(em);
+              if (srcComment) {
+                matchParts.push({
+                  name: 'sourceComment',
+                  valueString: srcComment
+                });
+              }
               if (map.comment) {
                 matchParts.push({
-                  name: 'message',
+                  name: 'targetComment',
                   valueString: map.comment
                 });
               }
@@ -385,7 +516,7 @@ class TranslateWorker extends TerminologyWorker {
               }
               matchParts.push({
                 name: 'originMap',
-                valueCanonical: cm.vurl
+                valueCanonical: originMap
               });
               output.push({
                 name: 'match',
@@ -395,6 +526,11 @@ class TranslateWorker extends TerminologyWorker {
           }
         }
       }
+      if (!groupResult) {
+        groupResult = await this.translateUsingUnmapped(cm, g, coding, targetScope, targetSystem, params, output,
+          visited || new Set([cm.vurl]), originMap);
+      }
+      result = groupResult || result;
     }
     return result;
   }
@@ -409,9 +545,9 @@ class TranslateWorker extends TerminologyWorker {
         const map = match.target;
         let ok = false;
         if (map.equivalence) { // R4 mode
-          ok = ['null', 'relatedto', 'equivalent', 'equal', 'wider', 'subsumes', 'narrower', 'specializes', 'inexact'].includes(map.equivalence);
+          ok = ['null', 'relatedto', 'equivalent', 'equal', 'wider', 'subsumes', 'narrower', 'specializes', 'inexact', 'unmatched', 'disjoint'].includes(map.equivalence);
         } else {
-          ok = ['null', 'related-to', 'equivalent',  'source-is-narrower-than-target', 'source-is-broader-than-target'].includes(map.relationship);
+          ok = ['null', 'related-to', 'equivalent',  'source-is-narrower-than-target', 'source-is-broader-than-target', 'not-related-to'].includes(map.relationship);
         }
         if (ok) {
           result = true;
@@ -428,7 +564,7 @@ class TranslateWorker extends TerminologyWorker {
           if (!this.hasMatch(output, outcome)) {
             const matchParts = [];
             matchParts.push({
-              name: 'source',
+              name: 'sourceConcept',
               valueCoding: outcome
             });
             matchParts.push({
@@ -446,9 +582,18 @@ class TranslateWorker extends TerminologyWorker {
                 valueCode: map.equivalence
               });
             }
+            // as above: element.comment describes the source concept, and
+            // element.target.comment describes this particular map
+            const srcComment = elementComment(em);
+            if (srcComment) {
+              matchParts.push({
+                name: 'sourceComment',
+                valueString: srcComment
+              });
+            }
             if (map.comment) {
               matchParts.push({
-                name: 'message',
+                name: 'targetComment',
                 valueString: map.comment
               });
             }
@@ -483,6 +628,218 @@ class TranslateWorker extends TerminologyWorker {
       }
     }
     return result;
+  }
+
+  /**
+   * Order the candidate maps for translation. url and version play no part:
+   *
+   *  - dependency first: a map that defers to another (group.unmapped.otherMap) is
+   *    consulted before the map it defers to
+   *  - then by date, most recent first, with dateless maps last
+   *
+   * A dependency edge only counts when the map it names is itself a candidate. Any map
+   * caught in a dependency cycle keeps its place at the end, in date order - the cycle
+   * itself is reported when the translation actually follows it.
+   * @param {ConceptMap[]} conceptMaps
+   * @returns {ConceptMap[]} a new, ordered array
+   */
+  sortConceptMaps(conceptMaps) {
+    if (!conceptMaps || conceptMaps.length < 2) {
+      return conceptMaps; // nothing to decide
+    }
+
+    const dateOf = (cm) => {
+      const d = cm.jsonObj.date;
+      if (!d) {
+        return null;
+      }
+      const t = Date.parse(d);
+      return isNaN(t) ? null : t; // an unusable date is treated as no date
+    };
+    const byDate = (a, b) => {
+      const da = dateOf(a), db = dateOf(b);
+      if (da === null && db === null) return 0; // stable: input order is kept
+      if (da === null) return 1;
+      if (db === null) return -1;
+      return db - da;
+    };
+
+    // a dependency can name its target with or without a version
+    const byRef = new Map();
+    for (const cm of conceptMaps) {
+      if (cm.url && !byRef.has(cm.url)) {
+        byRef.set(cm.url, cm);
+      }
+      if (cm.vurl) {
+        byRef.set(cm.vurl, cm);
+      }
+    }
+
+    const dependsOn = new Map();
+    const waitingOn = new Map();
+    for (const cm of conceptMaps) {
+      dependsOn.set(cm, new Set());
+      waitingOn.set(cm, 0);
+    }
+    for (const cm of conceptMaps) {
+      for (const ref of cm.listDependencies()) {
+        const dep = byRef.get(ref) || byRef.get(ref.split('|')[0]);
+        if (dep && dep !== cm && !dependsOn.get(cm).has(dep)) {
+          dependsOn.get(cm).add(dep);
+          waitingOn.set(dep, waitingOn.get(dep) + 1);
+        }
+      }
+    }
+
+    const ready = conceptMaps.filter(cm => waitingOn.get(cm) === 0).sort(byDate);
+    const ordered = [];
+    while (ready.length > 0) {
+      const cm = ready.shift();
+      ordered.push(cm);
+      for (const dep of dependsOn.get(cm)) {
+        waitingOn.set(dep, waitingOn.get(dep) - 1);
+        if (waitingOn.get(dep) === 0) {
+          ready.push(dep);
+          ready.sort(byDate);
+        }
+      }
+    }
+    if (ordered.length < conceptMaps.length) {
+      const seen = new Set(ordered);
+      ordered.push(...conceptMaps.filter(cm => !seen.has(cm)).sort(byDate));
+    }
+    return ordered;
+  }
+
+  /**
+   * ConceptMap.group.unmapped: what to do when the group is in scope but has no element
+   * for this concept. Only consulted once the map itself has produced nothing.
+   *
+   *   use-source-code  the source code is also the target code
+   *   fixed            a nominated code (and display) is the target
+   *   other-map        defer to another ConceptMap entirely
+   *
+   * `visited` guards against a cycle in other-map chains.
+   * @returns {Promise<boolean>} whether anything was added
+   */
+  async translateUsingUnmapped(cm, g, coding, targetScope, targetSystem, params, output, visited, origin) {
+    let result = false;
+    const originMap = origin || cm.vurl;
+    {
+      const u = g.unmapped;
+      if (!u || !u.mode) {
+        return false;
+      }
+      if (u.valueSet) {
+        // "all the codes in the specified value set" - that needs an expansion, which
+        // this operation does not do. Better to say so than to silently return nothing.
+        throw new Issue('error', 'not-supported', null, null,
+          `ConceptMap ${cm.vurl} uses group.unmapped.valueSet, which this server does not support`, null, 422);
+      }
+      switch (u.mode) {
+        case 'use-source-code' :
+          result = this._addUnmappedMatch(output, originMap, coding, {system: g.target, code: coding.code}, u.relationship) || result;
+          break;
+        case 'fixed' :
+          if (u.code) {
+            const outcome = {system: g.target, code: u.code};
+            if (u.display) {
+              outcome.display = u.display;
+            }
+            result = this._addUnmappedMatch(output, originMap, coding, outcome, u.relationship) || result;
+          }
+          break;
+        case 'other-map' :
+          if (u.otherMap) {
+            const other = await this.findConceptMapByUrl(u.otherMap);
+            if (!other) {
+              throw new Issue('error', 'not-found', null, null,
+                `The ConceptMap ${u.otherMap} named in group.unmapped.otherMap was not found`, null, 422);
+            }
+            // Key the cycle check on the map that was actually resolved, not on the
+            // reference as written: the same map can be named with or without a
+            // version, or by a version that resolves to the same instance.
+            const key = other.vurl;
+            if (visited.has(key)) {
+              throw new Issue('error', 'business-rule', null, null,
+                `ConceptMap ${cm.vurl} has a circular group.unmapped.otherMap reference to ${other.vurl}`
+                + (key === u.otherMap ? '' : ` (referenced as ${u.otherMap})`), null, 422);
+            }
+            // `visited` is the chain currently being followed, not every map seen: two
+            // groups (or two maps) legitimately deferring to the same other map is a
+            // diamond, not a cycle, so the entry is removed again on the way back out.
+            visited.add(key);
+            try {
+              // we are about to look in this map, and it is not where the chain started
+              this.recordUsedConceptMap(output, other.vurl);
+              result = await this.translateUsingGroupsForwards(other, coding, targetScope, targetSystem, params, output, originMap, visited) || result;
+            } finally {
+              visited.delete(key);
+            }
+          }
+          break;
+        default :
+          throw new Issue('error', 'not-supported', null, null,
+            `ConceptMap ${cm.vurl} uses an unknown group.unmapped.mode '${u.mode}'`, null, 422);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Build the match for an unmapped fallback. The source concept is the one that was
+   * asked for - it is, by definition, not an element of the map.
+   */
+  _addUnmappedMatch(output, originMap, coding, outcome, relationship) {
+    if (this.hasMatch(output, outcome)) {
+      return false;
+    }
+    const matchParts = [];
+    matchParts.push({
+      name: 'concept',
+      valueCoding: outcome
+    });
+    matchParts.push({
+      name: 'sourceConcept',
+      valueCoding: {
+        system: coding.system,
+        code: coding.code
+      }
+    });
+    if (relationship) {
+      matchParts.push({
+        name: 'relationship',
+        valueCode: relationship
+      });
+    }
+    matchParts.push({
+      name: 'originMap',
+      valueCanonical: originMap
+    });
+    output.push({
+      name: 'match',
+      part: matchParts
+    });
+    return true;
+  }
+
+  /**
+   * Report a ConceptMap that was consulted but is not where the chain started. Reported
+   * once per map, at the top level of the response rather than per match.
+   */
+  recordUsedConceptMap(output, vurl) {
+    if (!vurl) {
+      return;
+    }
+    for (const o of output) {
+      if (o.name === 'used-conceptmap' && (o.valueCanonical === vurl || o.valueUri === vurl)) {
+        return;
+      }
+    }
+    output.push({
+      name: 'used-conceptmap',
+      valueUri: vurl
+    });
   }
 
   async translateUsingCodeSystem(cm, coding, target, params, output, reverse) {
@@ -520,6 +877,13 @@ class TranslateWorker extends TerminologyWorker {
         matchParts.push({
           name: 'concept',
           valueCoding: outcome
+        });
+        matchParts.push({
+          name: 'sourceConcept',
+          valueCoding: {
+            system: coding.system,
+            code: coding.code
+          }
         });
         matchParts.push({
           name: 'relationship',
@@ -560,14 +924,20 @@ class TranslateWorker extends TerminologyWorker {
     const result = [];
 
     try {
+      // The maps are consulted in order (see sortConceptMaps), and each group within
+      // them decides for itself: a group with a mapping for this concept reports it, a
+      // group without one falls back to its own group.unmapped. Nothing is remembered
+      // across groups - one group having mapped the concept does not stop another group
+      // from saying what it does with it.
+      const maps = this.sortConceptMaps(conceptMaps);
       let added = false;
-      for (const cm of conceptMaps) {
+      for (const cm of maps) {
         if (cm.jsonObj.internalSource) {
           added = await this.translateUsingCodeSystem(cm, coding, targetSystem, params, result, reverse) || added;
         } else if (reverse) {
           added = this.translateUsingGroupsReverse(cm, coding, targetScope, targetSystem, params, result) || added;
-        } else{
-          added = this.translateUsingGroupsForwards(cm, coding, targetScope, targetSystem, params, result) || added;
+        } else {
+          added = await this.translateUsingGroupsForwards(cm, coding, targetScope, targetSystem, params, result) || added;
         }
       }
       result.push({
@@ -581,6 +951,12 @@ class TranslateWorker extends TerminologyWorker {
         });
       }
     } catch (error) {
+      if (error instanceof Issue) {
+        // A coded problem with the request or with the maps themselves. That is not a
+        // translation outcome, so it must not be flattened into result=false plus a
+        // message - let it out, to be reported as an OperationOutcome with its status.
+        throw error;
+      }
       this.log.error(error);
       debugLog(error);
       result.push({
@@ -654,6 +1030,33 @@ class TranslateWorker extends TerminologyWorker {
     };
   }
 
+  /**
+   * Resolve a ConceptMap by canonical reference. Resources supplied with the request
+   * (tx-resource, or a front-loaded cache) come first: they are part of the caller's
+   * context, and a map named by group.unmapped.otherMap or by the url parameter may
+   * well be one of them rather than something the server already knows.
+   * @param {string} ref - canonical reference, possibly url|version
+   * @param {string} [version] - version, when supplied separately
+   * @returns {Promise<ConceptMap|null>}
+   */
+  async findConceptMapByUrl(ref, version) {
+    if (!ref) {
+      return null;
+    }
+    let url = ref;
+    let ver = version;
+    const bar = ref.indexOf('|');
+    if (!ver && bar !== -1) {
+      url = ref.substring(0, bar);
+      ver = ref.substring(bar + 1);
+    }
+    const supplied = this.findInAdditionalResources(ver ? url : ref, ver || '', 'ConceptMap', false);
+    if (supplied) {
+      return supplied;
+    }
+    return await this.provider.findConceptMap(this.opContext, url, ver);
+  }
+
   async findConceptMapsInAdditionalResources(conceptMaps, system, sourceScope, targetScope, targetSystem) {
     for (let res of this.additionalResources || []) {
       if (res instanceof ConceptMap) {
@@ -664,10 +1067,38 @@ class TranslateWorker extends TerminologyWorker {
     }
   }
 
+  /**
+   * Has some map already stated that this source concept has no mapping? Two maps that
+   * agree there is no map are making the same statement, so it is reported once - the
+   * same way two maps that agree on a target concept report one match. (A noMap match
+   * carries no concept, so hasMatch can never see it.)
+   */
+  hasNoMap(output, system, code) {
+    for (let o of output) {
+      if (o.name !== 'match' || !Array.isArray(o.part)) {
+        continue;
+      }
+      const n = o.part.find(x => x.name === 'noMap');
+      const sc = o.part.find(x => x.name === 'sourceConcept');
+      if (n && n.valueBoolean === true && sc && sc.valueCoding
+          && sc.valueCoding.system === system && sc.valueCoding.code === code) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   hasMatch(output, outcome) {
     for (let o of output) {
+      // output is not all matches: translateUsingCodeSystem also pushes used-system and
+      // used-conceptmap, which have no parts at all. And a noMap match has parts but no
+      // concept - it is the statement that there is no coded outcome, so it can never
+      // collide with one.
+      if (o.name !== 'match' || !Array.isArray(o.part)) {
+        continue;
+      }
       let c = o.part.find(x => x.name === 'concept');
-      if (c.valueCoding.code === outcome.code && c.valueCoding.system === outcome.system) {
+      if (c && c.valueCoding && c.valueCoding.code === outcome.code && c.valueCoding.system === outcome.system) {
         return true;
       }
     }
