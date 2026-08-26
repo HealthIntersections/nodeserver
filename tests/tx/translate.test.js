@@ -80,7 +80,7 @@ describe('Translate Worker', () => {
       expect(response.body.issue[0].code).toBe('not-found');
     });
 
-    test('should return 404 when no suitable ConceptMap found for source/target', async () => {
+    test('should not return 404 when no suitable ConceptMap found for source/target', async () => {
       const response = await request(app)
         .get('/tx/r5/ConceptMap/$translate')
         .query({
@@ -90,8 +90,8 @@ describe('Translate Worker', () => {
         })
         .set('Accept', 'application/json');
 
-      expect(response.status).toBe(404);
-      expect(response.body.resourceType).toBe('OperationOutcome');
+      expect(response.status).toBe(200);
+      expect(response.body.resourceType).toBe('Parameters');
     });
 
     test('should support version parameter for ConceptMap', async () => {

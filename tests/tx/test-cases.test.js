@@ -124,6 +124,22 @@ describe('simple-cases', () => {
     await runTest({"suite":"simple-cases","test":"simple-expand-prop"}, "4.0");
   });
 
+  it("simple-expand-repeating-prop" + 'R5', async () => {
+    await runTest({"suite":"simple-cases","test":"simple-expand-repeating-prop"}, "5.0");
+  });
+
+  it("simple-expand-repeating-prop" + 'R4', async () => {
+    await runTest({"suite":"simple-cases","test":"simple-expand-repeating-prop"}, "4.0");
+  });
+
+  it("simple-expand-repeating-prop-values" + 'R5', async () => {
+    await runTest({"suite":"simple-cases","test":"simple-expand-repeating-prop-values"}, "5.0");
+  });
+
+  it("simple-expand-repeating-prop-values" + 'R4', async () => {
+    await runTest({"suite":"simple-cases","test":"simple-expand-repeating-prop-values"}, "4.0");
+  });
+
   it("simple-expand-regex" + 'R5', async () => {
     await runTest({"suite":"simple-cases","test":"simple-expand-regex"}, "5.0");
   });
@@ -146,6 +162,14 @@ describe('simple-cases', () => {
 
   it("simple-expand-regexp-prop" + 'R4', async () => {
     await runTest({"suite":"simple-cases","test":"simple-expand-regexp-prop"}, "4.0");
+  });
+
+  it("simple-expand-regex-none" + 'R5', async () => {
+    await runTest({"suite":"simple-cases","test":"simple-expand-regex-none"}, "5.0");
+  });
+
+  it("simple-expand-regex-none" + 'R4', async () => {
+    await runTest({"suite":"simple-cases","test":"simple-expand-regex-none"}, "4.0");
   });
 
   it("simple-lookup-1" + 'R5', async () => {
@@ -960,12 +984,20 @@ describe('extensions', () => {
     await runTest({"suite":"extensions","test":"validate-coding-good2-supplement"}, "4.0");
   });
 
-  it("validate-code-inactive-display" + 'R5', async () => {
-    await runTest({"suite":"extensions","test":"validate-code-inactive-display"}, "5.0");
+  it("validate-code-inactive-display-lenient" + 'R5', async () => {
+    await runTest({"suite":"extensions","test":"validate-code-inactive-display-lenient"}, "5.0");
   });
 
-  it("validate-code-inactive-display" + 'R4', async () => {
-    await runTest({"suite":"extensions","test":"validate-code-inactive-display"}, "4.0");
+  it("validate-code-inactive-display-lenient" + 'R4', async () => {
+    await runTest({"suite":"extensions","test":"validate-code-inactive-display-lenient"}, "4.0");
+  });
+
+  it("validate-code-inactive-display-notlenient" + 'R5', async () => {
+    await runTest({"suite":"extensions","test":"validate-code-inactive-display-notlenient"}, "5.0");
+  });
+
+  it("validate-code-inactive-display-notlenient" + 'R4', async () => {
+    await runTest({"suite":"extensions","test":"validate-code-inactive-display-notlenient"}, "4.0");
   });
 
   it("validate-code-inactive" + 'R5', async () => {
@@ -1173,12 +1205,20 @@ describe('validation', () => {
     await runTest({"suite":"validation","test":"validation-simple-codeableconcept-good-display"}, "4.0");
   });
 
-  it("validation-simple-code-bad-display" + 'R5', async () => {
-    await runTest({"suite":"validation","test":"validation-simple-code-bad-display"}, "5.0");
+  it("validation-simple-code-bad-display-lenient" + 'R5', async () => {
+    await runTest({"suite":"validation","test":"validation-simple-code-bad-display-lenient"}, "5.0");
   });
 
-  it("validation-simple-code-bad-display" + 'R4', async () => {
-    await runTest({"suite":"validation","test":"validation-simple-code-bad-display"}, "4.0");
+  it("validation-simple-code-bad-display-lenient" + 'R4', async () => {
+    await runTest({"suite":"validation","test":"validation-simple-code-bad-display-lenient"}, "4.0");
+  });
+
+  it("validation-simple-code-bad-display-notlenient" + 'R5', async () => {
+    await runTest({"suite":"validation","test":"validation-simple-code-bad-display-notlenient"}, "5.0");
+  });
+
+  it("validation-simple-code-bad-display-notlenient" + 'R4', async () => {
+    await runTest({"suite":"validation","test":"validation-simple-code-bad-display-notlenient"}, "4.0");
   });
 
   it("validation-simple-code-bad-display-ws" + 'R5', async () => {
@@ -1275,6 +1315,14 @@ describe('validation', () => {
 
   it("validation-simple-code-bad-regex" + 'R4', async () => {
     await runTest({"suite":"validation","test":"validation-simple-code-bad-regex"}, "4.0");
+  });
+
+  it("validation-simple-code-regex-none" + 'R5', async () => {
+    await runTest({"suite":"validation","test":"validation-simple-code-regex-none"}, "5.0");
+  });
+
+  it("validation-simple-code-regex-none" + 'R4', async () => {
+    await runTest({"suite":"validation","test":"validation-simple-code-regex-none"}, "4.0");
   });
 
   it("validation-simple-coding-bad-language" + 'R5', async () => {
@@ -4164,12 +4212,113 @@ describe('translate', () => {
     await runTest({"suite":"translate","test":"translate-1"}, "4.0");
   });
 
-  it("translate-reverse" + 'R5', async () => {
-    await runTest({"suite":"translate","test":"translate-reverse"}, "5.0");
+  it("translate-1-coding" + 'R5', async () => {
+    await runTest({"suite":"translate","test":"translate-1-coding"}, "5.0");
   });
 
-  it("translate-reverse" + 'R4', async () => {
-    await runTest({"suite":"translate","test":"translate-reverse"}, "4.0");
+  it("translate-1-coding" + 'R4', async () => {
+    await runTest({"suite":"translate","test":"translate-1-coding"}, "4.0");
+  });
+
+  it("translate-1-codeableconcept" + 'R5', async () => {
+    await runTest({"suite":"translate","test":"translate-1-codeableconcept"}, "5.0");
+  });
+
+  it("translate-1-codeableconcept" + 'R4', async () => {
+    await runTest({"suite":"translate","test":"translate-1-codeableconcept"}, "4.0");
+  });
+
+  it("translate-1-r4-code" + 'R4', async () => {
+    await runTest({"suite":"translate","test":"translate-1-r4-code"}, "4.0");
+  });
+
+  it("translate-1-r4-coding" + 'R4', async () => {
+    await runTest({"suite":"translate","test":"translate-1-r4-coding"}, "4.0");
+  });
+
+  it("translate-1-r4-codeableconcept" + 'R4', async () => {
+    await runTest({"suite":"translate","test":"translate-1-r4-codeableconcept"}, "4.0");
+  });
+
+  it("translate-2" + 'R5', async () => {
+    await runTest({"suite":"translate","test":"translate-2"}, "5.0");
+  });
+
+  it("translate-2" + 'R4', async () => {
+    await runTest({"suite":"translate","test":"translate-2"}, "4.0");
+  });
+
+  it("translate-2b" + 'R5', async () => {
+    await runTest({"suite":"translate","test":"translate-2b"}, "5.0");
+  });
+
+  it("translate-2b" + 'R4', async () => {
+    await runTest({"suite":"translate","test":"translate-2b"}, "4.0");
+  });
+
+  it("translate-3" + 'R5', async () => {
+    await runTest({"suite":"translate","test":"translate-3"}, "5.0");
+  });
+
+  it("translate-3" + 'R4', async () => {
+    await runTest({"suite":"translate","test":"translate-3"}, "4.0");
+  });
+
+  it("translate-4" + 'R5', async () => {
+    await runTest({"suite":"translate","test":"translate-4"}, "5.0");
+  });
+
+  it("translate-4" + 'R4', async () => {
+    await runTest({"suite":"translate","test":"translate-4"}, "4.0");
+  });
+
+});
+
+describe('translate2', () => {
+  // Tests for ConceptMap.$translate
+
+  it("translate-5" + 'R5', async () => {
+    await runTest({"suite":"translate2","test":"translate-5"}, "5.0");
+  });
+
+  it("translate-5" + 'R4', async () => {
+    await runTest({"suite":"translate2","test":"translate-5"}, "4.0");
+  });
+
+  it("translate-5a" + 'R5', async () => {
+    await runTest({"suite":"translate2","test":"translate-5a"}, "5.0");
+  });
+
+  it("translate-5a" + 'R4', async () => {
+    await runTest({"suite":"translate2","test":"translate-5a"}, "4.0");
+  });
+
+  it("translate-5b" + 'R5', async () => {
+    await runTest({"suite":"translate2","test":"translate-5b"}, "5.0");
+  });
+
+  it("translate-5b" + 'R4', async () => {
+    await runTest({"suite":"translate2","test":"translate-5b"}, "4.0");
+  });
+
+  it("translate-6a" + 'R5', async () => {
+    await runTest({"suite":"translate2","test":"translate-6a"}, "5.0");
+  });
+
+  it("translate-6a" + 'R4', async () => {
+    await runTest({"suite":"translate2","test":"translate-6a"}, "4.0");
+  });
+
+  it("translate-reverse-r4" + 'R4', async () => {
+    await runTest({"suite":"translate2","test":"translate-reverse-r4"}, "4.0");
+  });
+
+  it("translate-reverse-r4-a" + 'R4', async () => {
+    await runTest({"suite":"translate2","test":"translate-reverse-r4-a"}, "4.0");
+  });
+
+  it("translate-reverse-r4-b" + 'R4', async () => {
+    await runTest({"suite":"translate2","test":"translate-reverse-r4-b"}, "4.0");
   });
 
 });
@@ -5002,12 +5151,20 @@ describe('tx.fhir.org', () => {
 describe('snomed', () => {
   // This snomed tests are based on the subset distributed with the tx-ecosystem IG
 
-  it("snomed-inactive-display" + 'R5', async () => {
-    await runTest({"suite":"snomed","test":"snomed-inactive-display"}, "5.0");
+  it("snomed-inactive-display-lenient" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"snomed-inactive-display-lenient"}, "5.0");
   });
 
-  it("snomed-inactive-display" + 'R4', async () => {
-    await runTest({"suite":"snomed","test":"snomed-inactive-display"}, "4.0");
+  it("snomed-inactive-display-lenient" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"snomed-inactive-display-lenient"}, "4.0");
+  });
+
+  it("snomed-inactive-display-notlenient" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"snomed-inactive-display-notlenient"}, "5.0");
+  });
+
+  it("snomed-inactive-display-notlenient" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"snomed-inactive-display-notlenient"}, "4.0");
   });
 
   it("snomed-isa-in" + 'R5', async () => {
@@ -5096,6 +5253,94 @@ describe('snomed', () => {
 
   it("validate-code-pc-bad2" + 'R4', async () => {
     await runTest({"suite":"snomed","test":"validate-code-pc-bad2"}, "4.0");
+  });
+
+  it("validate-code-pc-nested-good" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-nested-good"}, "5.0");
+  });
+
+  it("validate-code-pc-nested-good" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-nested-good"}, "4.0");
+  });
+
+  it("validate-code-pc-mrcm-lateralizable" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-lateralizable"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-lateralizable" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-lateralizable"}, "4.0");
+  });
+
+  it("validate-code-pc-mrcm-domain" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-domain"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-domain" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-domain"}, "4.0");
+  });
+
+  it("validate-code-pc-mrcm-range" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-range"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-range" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-range"}, "4.0");
+  });
+
+  it("validate-code-pc-mrcm-cardinality" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-cardinality"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-cardinality" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-cardinality"}, "4.0");
+  });
+
+  it("validate-code-pc-mrcm-grouped" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-grouped"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-grouped" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-grouped"}, "4.0");
+  });
+
+  it("validate-code-pc-concrete-good" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-concrete-good"}, "5.0");
+  });
+
+  it("validate-code-pc-concrete-good" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-concrete-good"}, "4.0");
+  });
+
+  it("validate-code-pc-mrcm-concrete-range" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-concrete-range"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-concrete-range" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-concrete-range"}, "4.0");
+  });
+
+  it("validate-code-pc-mrcm-concrete-int" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-concrete-int"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-concrete-int" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-concrete-int"}, "4.0");
+  });
+
+  it("validate-code-pc-mrcm-concrete-wanted" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-concrete-wanted"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-concrete-wanted" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-concrete-wanted"}, "4.0");
+  });
+
+  it("validate-code-pc-mrcm-concept-wanted" + 'R5', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-concept-wanted"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-concept-wanted" + 'R4', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-concept-wanted"}, "4.0");
   });
 
   it("validate-code-pc-none" + 'R5', async () => {
@@ -7518,6 +7763,14 @@ describe('simple-cases', () => {
     await runTest({"suite":"simple-cases","test":"simple-expand-prop"}, "5.0");
   });
 
+  it("simple-expand-repeating-prop" + 'R5-cached', async () => {
+    await runTest({"suite":"simple-cases","test":"simple-expand-repeating-prop"}, "5.0");
+  });
+
+  it("simple-expand-repeating-prop-values" + 'R5-cached', async () => {
+    await runTest({"suite":"simple-cases","test":"simple-expand-repeating-prop-values"}, "5.0");
+  });
+
   it("simple-expand-regex" + 'R5-cached', async () => {
     await runTest({"suite":"simple-cases","test":"simple-expand-regex"}, "5.0");
   });
@@ -7528,6 +7781,10 @@ describe('simple-cases', () => {
 
   it("simple-expand-regexp-prop" + 'R5-cached', async () => {
     await runTest({"suite":"simple-cases","test":"simple-expand-regexp-prop"}, "5.0");
+  });
+
+  it("simple-expand-regex-none" + 'R5-cached', async () => {
+    await runTest({"suite":"simple-cases","test":"simple-expand-regex-none"}, "5.0");
   });
 
   it("simple-lookup-1" + 'R5-cached', async () => {
@@ -7946,8 +8203,12 @@ describe('extensions', () => {
     await runTest({"suite":"extensions","test":"validate-coding-good2-supplement"}, "5.0");
   });
 
-  it("validate-code-inactive-display" + 'R5-cached', async () => {
-    await runTest({"suite":"extensions","test":"validate-code-inactive-display"}, "5.0");
+  it("validate-code-inactive-display-lenient" + 'R5-cached', async () => {
+    await runTest({"suite":"extensions","test":"validate-code-inactive-display-lenient"}, "5.0");
+  });
+
+  it("validate-code-inactive-display-notlenient" + 'R5-cached', async () => {
+    await runTest({"suite":"extensions","test":"validate-code-inactive-display-notlenient"}, "5.0");
   });
 
   it("validate-code-inactive" + 'R5-cached', async () => {
@@ -8055,8 +8316,12 @@ describe('validation', () => {
     await runTest({"suite":"validation","test":"validation-simple-codeableconcept-good-display"}, "5.0");
   });
 
-  it("validation-simple-code-bad-display" + 'R5-cached', async () => {
-    await runTest({"suite":"validation","test":"validation-simple-code-bad-display"}, "5.0");
+  it("validation-simple-code-bad-display-lenient" + 'R5-cached', async () => {
+    await runTest({"suite":"validation","test":"validation-simple-code-bad-display-lenient"}, "5.0");
+  });
+
+  it("validation-simple-code-bad-display-notlenient" + 'R5-cached', async () => {
+    await runTest({"suite":"validation","test":"validation-simple-code-bad-display-notlenient"}, "5.0");
   });
 
   it("validation-simple-code-bad-display-ws" + 'R5-cached', async () => {
@@ -8105,6 +8370,10 @@ describe('validation', () => {
 
   it("validation-simple-code-bad-regex" + 'R5-cached', async () => {
     await runTest({"suite":"validation","test":"validation-simple-code-bad-regex"}, "5.0");
+  });
+
+  it("validation-simple-code-regex-none" + 'R5-cached', async () => {
+    await runTest({"suite":"validation","test":"validation-simple-code-regex-none"}, "5.0");
   });
 
   it("validation-simple-coding-bad-language" + 'R5-cached', async () => {
@@ -9578,8 +9847,73 @@ describe('translate', () => {
     await runTest({"suite":"translate","test":"translate-1"}, "5.0");
   });
 
-  it("translate-reverse" + 'R5-cached', async () => {
-    await runTest({"suite":"translate","test":"translate-reverse"}, "5.0");
+  it("translate-1-coding" + 'R5-cached', async () => {
+    await runTest({"suite":"translate","test":"translate-1-coding"}, "5.0");
+  });
+
+  it("translate-1-codeableconcept" + 'R5-cached', async () => {
+    await runTest({"suite":"translate","test":"translate-1-codeableconcept"}, "5.0");
+  });
+
+  it("translate-1-r4-code" + 'R4-cached', async () => {
+    await runTest({"suite":"translate","test":"translate-1-r4-code"}, "4.0");
+  });
+
+  it("translate-1-r4-coding" + 'R4-cached', async () => {
+    await runTest({"suite":"translate","test":"translate-1-r4-coding"}, "4.0");
+  });
+
+  it("translate-1-r4-codeableconcept" + 'R4-cached', async () => {
+    await runTest({"suite":"translate","test":"translate-1-r4-codeableconcept"}, "4.0");
+  });
+
+  it("translate-2" + 'R5-cached', async () => {
+    await runTest({"suite":"translate","test":"translate-2"}, "5.0");
+  });
+
+  it("translate-2b" + 'R5-cached', async () => {
+    await runTest({"suite":"translate","test":"translate-2b"}, "5.0");
+  });
+
+  it("translate-3" + 'R5-cached', async () => {
+    await runTest({"suite":"translate","test":"translate-3"}, "5.0");
+  });
+
+  it("translate-4" + 'R5-cached', async () => {
+    await runTest({"suite":"translate","test":"translate-4"}, "5.0");
+  });
+
+});
+
+describe('translate2', () => {
+  // Tests for ConceptMap.$translate
+
+  it("translate-5" + 'R5-cached', async () => {
+    await runTest({"suite":"translate2","test":"translate-5"}, "5.0");
+  });
+
+  it("translate-5a" + 'R5-cached', async () => {
+    await runTest({"suite":"translate2","test":"translate-5a"}, "5.0");
+  });
+
+  it("translate-5b" + 'R5-cached', async () => {
+    await runTest({"suite":"translate2","test":"translate-5b"}, "5.0");
+  });
+
+  it("translate-6a" + 'R5-cached', async () => {
+    await runTest({"suite":"translate2","test":"translate-6a"}, "5.0");
+  });
+
+  it("translate-reverse-r4" + 'R4-cached', async () => {
+    await runTest({"suite":"translate2","test":"translate-reverse-r4"}, "4.0");
+  });
+
+  it("translate-reverse-r4-a" + 'R4-cached', async () => {
+    await runTest({"suite":"translate2","test":"translate-reverse-r4-a"}, "4.0");
+  });
+
+  it("translate-reverse-r4-b" + 'R4-cached', async () => {
+    await runTest({"suite":"translate2","test":"translate-reverse-r4-b"}, "4.0");
   });
 
 });
@@ -10012,8 +10346,12 @@ describe('tx.fhir.org', () => {
 describe('snomed', () => {
   // This snomed tests are based on the subset distributed with the tx-ecosystem IG
 
-  it("snomed-inactive-display" + 'R5-cached', async () => {
-    await runTest({"suite":"snomed","test":"snomed-inactive-display"}, "5.0");
+  it("snomed-inactive-display-lenient" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"snomed-inactive-display-lenient"}, "5.0");
+  });
+
+  it("snomed-inactive-display-notlenient" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"snomed-inactive-display-notlenient"}, "5.0");
   });
 
   it("snomed-isa-in" + 'R5-cached', async () => {
@@ -10058,6 +10396,50 @@ describe('snomed', () => {
 
   it("validate-code-pc-bad2" + 'R5-cached', async () => {
     await runTest({"suite":"snomed","test":"validate-code-pc-bad2"}, "5.0");
+  });
+
+  it("validate-code-pc-nested-good" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-nested-good"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-lateralizable" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-lateralizable"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-domain" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-domain"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-range" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-range"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-cardinality" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-cardinality"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-grouped" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-grouped"}, "5.0");
+  });
+
+  it("validate-code-pc-concrete-good" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-concrete-good"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-concrete-range" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-concrete-range"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-concrete-int" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-concrete-int"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-concrete-wanted" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-concrete-wanted"}, "5.0");
+  });
+
+  it("validate-code-pc-mrcm-concept-wanted" + 'R5-cached', async () => {
+    await runTest({"suite":"snomed","test":"validate-code-pc-mrcm-concept-wanted"}, "5.0");
   });
 
   it("validate-code-pc-none" + 'R5-cached', async () => {
