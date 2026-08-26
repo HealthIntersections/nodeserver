@@ -5,20 +5,18 @@
 // POST /$cache-control?mode=start   - as above, optionally front-loading resources
 // GET  /$cache-control?mode=end     - tell the server it can release the cache now
 // POST /$cache-control?mode=end
-// (mode=check is reserved for later - report whether a cache is still valid + stats)
+// GET  /$cache-control?mode=check   - is this cache still alive? (and keep it alive)
+// POST /$cache-control?mode=check
 //
 // This is the explicit replacement for the implicit `cache-id` parameter protocol:
 // the server owns the cache-id namespace, so it can authoritatively reject an
 // unknown/expired cache later instead of failing obscurely deep inside a validation.
 //
-// NOTE: this is scaffolding. start()/end() currently parse the request into a
-// Parameters resource (the same way validate.js does) but do not yet create or
-// release anything. The behaviour is filled in by later steps.
-//
 
 const crypto = require('crypto');
 const { TerminologyWorker, CACHE_ID_HEADER } = require('./worker');
 const { Parameters } = require('../library/parameters');
+const { Issue } = require('../library/operation-outcome');
 const { debugLog } = require('../operation-context');
 
 class CacheControlWorker extends TerminologyWorker {
@@ -61,9 +59,11 @@ class CacheControlWorker extends TerminologyWorker {
           return await this.start(req, res);
         case 'end':
           return await this.end(req, res);
+        case 'check':
+          return await this.check(req, res);
         default:
           return res.status(400).json(this.operationOutcome('error', 'invalid',
-            `$cache-control requires a 'mode' of 'start' or 'end'` +
+            `$cache-control requires a 'mode' of 'start', 'end' or 'check'` +
             (mode ? ` (got '${mode}')` : ` (none supplied)`)));
       }
     } catch (error) {
@@ -191,6 +191,82 @@ class CacheControlWorker extends TerminologyWorker {
     cache.clear(cacheId);
 
     return res.status(200).json({ resourceType: 'Parameters', parameter: [] });
+  }
+
+  /**
+   * mode=check: report whether the cache named by the `${CACHE_ID_HEADER}` header is
+   * still alive, and - if it is - reset its idle clock.
+   *
+   * This is a keepalive as much as a probe, and deliberately so. A client's own
+   * local cache absorbs most of its terminology work, so the server can see nothing
+   * from a client that is still very much running and still relying on its cache;
+   * the cache then times out mid-job and the next request that finally does reach
+   * the server fails. Checking is exactly what a client that still cares about its
+   * cache does, so a check counts as use. (The alternative - a read-only `check`
+   * plus a separate `touch` - is two operations for one job, and there is no useful
+   * case for asking "is my cache alive?" while wanting it to expire anyway.)
+   *
+   * An unknown cache-id here is a 200 with `valid` = false, NOT the 404 that the
+   * validation path returns. A probe must be able to tell "the server is up and
+   * says my cache is gone" from "I could not reach the server" - those call for
+   * opposite responses, and collapsing them into one failure loses that. This also
+   * matches mode=end, which likewise tolerates an id the server doesn't have. The
+   * `outcome` parameter carries the same coded issue the validation path would have
+   * raised, so a client that wants the reason (never issued here / closed by the
+   * client / expired after N minutes idle) has it without a second call.
+   *
+   * @param {express.Request} req
+   * @param {express.Response} res
+   */
+  async check(req, res) {
+    const cache = this.opContext.resourceCache;
+    if (!cache) {
+      return res.status(500).json(this.operationOutcome('error', 'exception',
+        'No resource cache is available on this endpoint'));
+    }
+
+    const cacheId = req.headers[CACHE_ID_HEADER];
+    if (!cacheId) {
+      return res.status(400).json(this.operationOutcome('error', 'invalid',
+        `$cache-control mode=check requires the cache-id in the '${CACHE_ID_HEADER}' header`));
+    }
+
+    // Read the status BEFORE touching: the idle time is the interesting part of the
+    // answer, and refreshing first would report zero every time.
+    const status = cache.status(cacheId);
+
+    if (!status.exists) {
+      const { messageId, params } = cache.describeMissing(cacheId);
+      const issue = new Issue('error', 'not-found', null, messageId,
+        this.i18n.translate(messageId, this.opContext.langs, params),
+        'cache-id-unknown', 404).asIssue();
+      this.log.info(`cache-id '${cacheId}': check -> not valid (${messageId})`);
+      return res.status(200).json({
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'cache-id', valueId: cacheId },
+          { name: 'valid', valueBoolean: false },
+          { name: 'outcome', resource: { resourceType: 'OperationOutcome', issue: [issue] } }
+        ]
+      });
+    }
+
+    cache.touch(cacheId);
+
+    const parameter = [
+      { name: 'cache-id', valueId: cacheId },
+      { name: 'valid', valueBoolean: true },
+      { name: 'sealed', valueBoolean: status.sealed },
+      { name: 'resource-count', valueUnsignedInt: status.resources },
+      { name: 'idle', valueUnsignedInt: Math.floor(status.idleMs / 1000) }
+    ];
+    // The timeout lets a client work out how often it needs to check, instead of
+    // guessing against a number it cannot see. Omitted if this server isn't saying.
+    if (status.timeoutMs !== null && status.timeoutMs !== undefined) {
+      parameter.push({ name: 'timeout', valueUnsignedInt: Math.floor(status.timeoutMs / 1000) });
+    }
+
+    return res.status(200).json({ resourceType: 'Parameters', parameter });
   }
 
   /**

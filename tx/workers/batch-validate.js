@@ -187,8 +187,11 @@ class BatchValidateWorker extends TerminologyWorker {
       return false;
     }
     if (!cache.has(cacheId)) {
-      throw new Issue('error', 'not-found', null, 'CACHE_ID_UNKNOWN',
-        this.i18n.translate('CACHE_ID_UNKNOWN', this.opContext.langs, [cacheId]),
+      // describeMissing names which fate the id met (never issued here / closed by
+      // the client / idle-expired); the coding stays cache-id-unknown either way.
+      const { messageId, params: msgParams } = cache.describeMissing(cacheId);
+      throw new Issue('error', 'not-found', null, messageId,
+        this.i18n.translate(messageId, this.opContext.langs, msgParams),
         'cache-id-unknown', 404);
     }
     if (cache.isSealed(cacheId)) {
