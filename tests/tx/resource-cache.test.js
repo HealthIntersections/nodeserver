@@ -6,7 +6,7 @@
  * isolated between different cache-ids.
  */
 
-const { ResourceCache } = require('../../tx/operation-context');
+const { ResourceCache, formatDuration } = require('../../tx/operation-context');
 
 const CS = (url, version) => ({ resourceType: 'CodeSystem', url, version });
 const VS = (url, version) => ({ resourceType: 'ValueSet', url, version });
@@ -144,6 +144,158 @@ describe('ResourceCache', () => {
       cache.get('c1'); // touch -> refreshes lastUsed
       cache.prune(5000);
       expect(cache.has('c1')).toBe(true);
+    });
+  });
+
+  // A cache-id that isn't here has three possible fates, and telling them apart is
+  // the whole point: "you closed it yourself" and "it sat idle for 31 minutes" send
+  // an investigator to completely different places (see issue #279).
+  describe('tombstones (why a cache-id is gone)', () => {
+    test('an id that was never issued has no tombstone and reports CACHE_ID_UNKNOWN', () => {
+      const d = cache.describeMissing('never-seen');
+      expect(cache.tombstone('never-seen')).toBeNull();
+      expect(d.messageId).toBe('CACHE_ID_UNKNOWN');
+      expect(d.params).toEqual(['never-seen']);
+    });
+
+    test('clear() records the client close, and describeMissing says so', () => {
+      cache.set('c1', [CS('http://a', '1')]);
+      cache.clear('c1');
+
+      expect(cache.tombstone('c1').reason).toBe('closed');
+      const d = cache.describeMissing('c1');
+      expect(d.messageId).toBe('CACHE_ID_CLOSED');
+      expect(d.params[0]).toBe('c1');
+      expect(d.params).toHaveLength(3); // id, how long ago, how long it was open
+    });
+
+    test('prune() records the expiry with the measured idle time, not the timeout', () => {
+      cache.add('c1', [CS('http://a', '1')]);
+      cache.cache.get('c1').lastUsed = Date.now() - 10 * 60 * 1000; // idle 10 min
+      cache.prune(5 * 60 * 1000); // timeout 5 min - the sweep is late, as it is in production
+
+      const t = cache.tombstone('c1');
+      expect(t.reason).toBe('expired');
+      expect(t.maxAgeMs).toBe(5 * 60 * 1000);
+      expect(t.idleMs).toBeGreaterThanOrEqual(10 * 60 * 1000);
+
+      const d = cache.describeMissing('c1');
+      expect(d.messageId).toBe('CACHE_ID_EXPIRED');
+      expect(d.params[1]).toBe('10 minutes');  // idle
+      expect(d.params[2]).toBe('5 minutes');   // configured timeout
+    });
+
+    test('clearAll() records a server-wide clear', () => {
+      cache.add('c1', [CS('http://a', '1')]);
+      cache.clearAll();
+      expect(cache.tombstone('c1').reason).toBe('cleared');
+      expect(cache.describeMissing('c1').messageId).toBe('CACHE_ID_CLEARED');
+    });
+
+    test('an entry still in the cache has no tombstone', () => {
+      cache.add('c1', [CS('http://a', '1')]);
+      expect(cache.tombstone('c1')).toBeNull();
+    });
+
+    test('re-issuing an id clears its tombstone - the id is alive again', () => {
+      cache.set('c1', [CS('http://a', '1')]);
+      cache.clear('c1');
+      expect(cache.tombstone('c1')).not.toBeNull();
+
+      cache.set('c1', [CS('http://b', '1')]);
+      expect(cache.tombstone('c1')).toBeNull();
+      expect(cache.has('c1')).toBe(true);
+    });
+
+    test('the latest fate wins when an id dies twice', () => {
+      cache.set('c1', [CS('http://a', '1')]);
+      cache.cache.get('c1').lastUsed = Date.now() - 10000;
+      cache.prune(5000);
+      expect(cache.tombstone('c1').reason).toBe('expired');
+
+      cache.set('c1', [CS('http://a', '1')]);
+      cache.clear('c1');
+      expect(cache.tombstone('c1').reason).toBe('closed');
+    });
+
+    test('tombstones are bounded: the oldest are evicted, never unbounded growth', () => {
+      const small = new ResourceCache(null, 3);
+      for (const id of ['a', 'b', 'c', 'd', 'e']) {
+        small.set(id, [CS('http://' + id, '1')]);
+        small.clear(id);
+      }
+      expect(small.tombstoneCount()).toBe(3);
+      expect(small.tombstone('a')).toBeNull();      // evicted
+      expect(small.tombstone('b')).toBeNull();      // evicted
+      expect(small.tombstone('e')).not.toBeNull();  // newest kept
+      // An evicted tombstone degrades to "never issued" rather than lying.
+      expect(small.describeMissing('a').messageId).toBe('CACHE_ID_UNKNOWN');
+    });
+
+    test('closing an id the server never had leaves no tombstone', () => {
+      cache.clear('not-mine');
+      expect(cache.tombstone('not-mine')).toBeNull();
+      expect(cache.describeMissing('not-mine').messageId).toBe('CACHE_ID_UNKNOWN');
+    });
+  });
+
+  // status()/touch() back $cache-control?mode=check: a client that hasn't needed the
+  // server for a while asks whether its cache is still there, and the asking keeps it
+  // there. They are separate calls on purpose - see the comments on status().
+  describe('status / touch (mode=check)', () => {
+    test('status reports a live cache without touching it', () => {
+      cache.set('c1', [CS('http://a', '1'), VS('http://b', '1')], true);
+      cache.cache.get('c1').lastUsed = Date.now() - 90 * 1000;
+
+      const s = cache.status('c1');
+      expect(s.exists).toBe(true);
+      expect(s.sealed).toBe(true);
+      expect(s.resources).toBe(2);
+      expect(s.idleMs).toBeGreaterThanOrEqual(90 * 1000);
+
+      // reading must not have reset the idle clock - otherwise the answer is always 0
+      expect(cache.status('c1').idleMs).toBeGreaterThanOrEqual(90 * 1000);
+    });
+
+    test('status of an unknown cache-id just says so', () => {
+      expect(cache.status('nope')).toEqual({ exists: false });
+    });
+
+    test('touch resets the idle clock and saves the cache from the next prune', () => {
+      cache.add('c1', [CS('http://a', '1')]);
+      cache.cache.get('c1').lastUsed = Date.now() - 10000;
+
+      expect(cache.touch('c1')).toBe(true);
+      expect(cache.status('c1').idleMs).toBeLessThan(1000);
+
+      cache.prune(5000); // would have evicted it before the touch
+      expect(cache.has('c1')).toBe(true);
+    });
+
+    test('touching an unknown cache-id reports false and creates nothing', () => {
+      expect(cache.touch('nope')).toBe(false);
+      expect(cache.has('nope')).toBe(false);
+    });
+
+    test('the idle timeout is reported when the server has advertised one', () => {
+      cache.set('c1', [CS('http://a', '1')]);
+      expect(cache.status('c1').timeoutMs).toBeNull();
+
+      cache.setIdleTimeout(30 * 60 * 1000);
+      expect(cache.status('c1').timeoutMs).toBe(30 * 60 * 1000);
+    });
+  });
+
+  describe('formatDuration', () => {
+    test('reads naturally across the ranges an idle timeout spans', () => {
+      expect(formatDuration(0)).toBe('0 seconds');
+      expect(formatDuration(1000)).toBe('1 second');
+      expect(formatDuration(45000)).toBe('45 seconds');
+      expect(formatDuration(31 * 60 * 1000)).toBe('31 minutes');
+      expect(formatDuration(60 * 1000)).toBe('60 seconds');
+      expect(formatDuration(125 * 60 * 1000)).toBe('2 hours 5 minutes');
+      expect(formatDuration(120 * 60 * 1000)).toBe('2 hours');
+      expect(formatDuration(null)).toBe('an unknown time');
     });
   });
 

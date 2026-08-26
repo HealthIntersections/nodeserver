@@ -26,6 +26,30 @@ function debugLog(error, message) {
   }
 }
 
+/**
+ * Render a duration for a human reading an error message: coarse enough to read
+ * at a glance, precise enough to compare against a configured timeout.
+ * @param {number} ms - duration in milliseconds
+ * @returns {string} e.g. "45 seconds", "31 minutes", "2 hours 5 minutes"
+ */
+function formatDuration(ms) {
+  if (ms === null || ms === undefined || !isFinite(ms) || ms < 0) {
+    return 'an unknown time';
+  }
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 90) {
+    return `${seconds} second${seconds === 1 ? '' : 's'}`;
+  }
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 90) {
+    return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  const h = `${hours} hour${hours === 1 ? '' : 's'}`;
+  return rem === 0 ? h : `${h} ${rem} minute${rem === 1 ? '' : 's'}`;
+}
+
 
 class TimeTracker {
   constructor() {
@@ -56,7 +80,9 @@ class TimeTracker {
  * Stores resources by cache-id for reuse across requests
  */
 class ResourceCache {
-  constructor(stats) {
+  logCacheOps = false;
+
+  constructor(stats, maxTombstones = 1000) {
     this.stats = stats;
     this.cache = new Map();
     this.locks = new Map(); // For thread-safety with async operations
@@ -70,6 +96,156 @@ class ResourceCache {
     // this cache has held at once, for capacity reporting.
     this.maxConcepts = 0;
     this.maxSizeValue = 0;
+    // Tombstones: why a cache-id that this server *did* issue is no longer here.
+    // Without these, an unknown cache-id is indistinguishable from one that was
+    // never issued, and the client can't tell "your build released it early" from
+    // "it sat idle too long" from "you're talking to the wrong server/instance" -
+    // which is exactly the ambiguity that makes cache-id-unknown reports (see
+    // issue #279) unfalsifiable. Bounded and insertion-ordered: oldest evicted
+    // first, so this can never grow without limit on a long-running server.
+    this.tombstones = new Map(); // cacheId -> { reason, at, createdAt, lastUsed, idleMs, maxAgeMs }
+    this.maxTombstones = maxTombstones;
+    // The idle timeout this cache is pruned against, in ms. The cache doesn't
+    // enforce it (prune() is told the maxAge by its caller), it just reports it,
+    // so a client polling $cache-control?mode=check can work out how often it needs
+    // to poll instead of guessing. Null = not advertised.
+    this.idleTimeoutMs = null;
+  }
+
+  /**
+   * Tell the cache what idle timeout it is being pruned against, so it can report
+   * it to clients. Purely informational - pruning is driven by prune()'s argument.
+   * @param {number} ms
+   */
+  setIdleTimeout(ms) {
+    this.idleTimeoutMs = ms;
+  }
+
+  /**
+   * Record why a cache-id stopped existing, so a later request carrying that id
+   * can be told what actually happened to it rather than a list of maybes.
+   *
+   * @param {string} cacheId - The cache identifier
+   * @param {Object} entry - The entry being removed (for its timings)
+   * @param {'closed'|'expired'|'cleared'} reason - How it went away:
+   *   `closed` = the client released it with $cache-control?mode=end;
+   *   `expired` = it went unused for longer than the idle timeout;
+   *   `cleared` = the server dropped every cache at once.
+   * @param {Object} [extra] - Reason-specific detail (e.g. idleMs, maxAgeMs)
+   */
+  _recordTombstone(cacheId, entry, reason, extra = {}) {
+    // Re-inserting moves it to the end of the insertion order, so an id that
+    // died twice (created, expired, re-issued, closed) reports its latest fate.
+    this.tombstones.delete(cacheId);
+    this.tombstones.set(cacheId, {
+      reason,
+      at: Date.now(),
+      createdAt: entry ? entry.createdAt : null,
+      lastUsed: entry ? entry.lastUsed : null,
+      ...extra
+    });
+    while (this.tombstones.size > this.maxTombstones) {
+      // Map iterates in insertion order, so the first key is the oldest record.
+      this.tombstones.delete(this.tombstones.keys().next().value);
+    }
+  }
+
+  /**
+   * What happened to a cache-id that isn't in the cache. Null means this server
+   * has no record of ever issuing it: either it never did, or the id was issued
+   * by a different server/instance/endpoint, or this process has restarted since.
+   *
+   * @param {string} cacheId - The cache identifier
+   * @returns {Object|null} the tombstone record, or null
+   */
+  tombstone(cacheId) {
+    return this.tombstones.get(cacheId) || null;
+  }
+
+  /**
+   * The message to report for a cache-id that isn't here: which of the three
+   * fates it met, with the numbers that make it checkable. Both throw sites
+   * (worker.setupAdditionalResources and batchValidate.frontLoadBatch) use this
+   * so they can never drift apart.
+   *
+   * @param {string} cacheId - The cache identifier
+   * @returns {{messageId: string, params: Array}} message id and its parameters,
+   *   which always start with the cache-id itself.
+   */
+  describeMissing(cacheId) {
+    const t = this.tombstone(cacheId);
+    if (!t) {
+      return { messageId: 'CACHE_ID_UNKNOWN', params: [cacheId] };
+    }
+    const ago = formatDuration(Date.now() - t.at);
+    switch (t.reason) {
+      case 'closed':
+        return { messageId: 'CACHE_ID_CLOSED', params: [cacheId, ago, formatDuration(t.at - t.createdAt)] };
+      case 'expired':
+        return {
+          messageId: 'CACHE_ID_EXPIRED',
+          params: [cacheId, formatDuration(t.idleMs), formatDuration(t.maxAgeMs), ago]
+        };
+      default:
+        return { messageId: 'CACHE_ID_CLEARED', params: [cacheId, ago] };
+    }
+  }
+
+  /**
+   * Number of dead cache-ids this cache still remembers the fate of.
+   * @returns {number}
+   */
+  tombstoneCount() {
+    return this.tombstones.size;
+  }
+
+  /**
+   * Report on a cache-id without touching it. Deliberately read-only, and
+   * deliberately separate from touch(): a client asking "is my cache still alive?"
+   * wants to know how idle it had become, and reading after a refresh would always
+   * answer zero. Callers that are keeping the cache alive read the status first,
+   * then touch.
+   *
+   * @param {string} cacheId - The cache identifier
+   * @returns {Object} `{exists: false}` for a cache-id that isn't here, otherwise
+   *   `{exists: true, sealed, resources, concepts, idleMs, ageMs, timeoutMs}`.
+   */
+  status(cacheId) {
+    const entry = this.cache.get(cacheId);
+    if (!entry) {
+      return { exists: false };
+    }
+    const now = Date.now();
+    return {
+      exists: true,
+      sealed: !!entry.sealed,
+      resources: entry.resources.length,
+      concepts: entry.concepts || 0,
+      idleMs: now - entry.lastUsed,
+      ageMs: entry.createdAt ? now - entry.createdAt : null,
+      timeoutMs: this.idleTimeoutMs
+    };
+  }
+
+  /**
+   * Reset a cache's idle clock without reading or changing its contents - the
+   * keepalive behind $cache-control?mode=check. A client whose traffic is absorbed
+   * by its own local cache can otherwise let a cache it is still relying on go idle
+   * past the timeout, and only find out when it finally needs the server again.
+   *
+   * @param {string} cacheId - The cache identifier
+   * @returns {boolean} true if the cache existed and was refreshed
+   */
+  touch(cacheId) {
+    const entry = this.cache.get(cacheId);
+    if (!entry) {
+      return false;
+    }
+    entry.lastUsed = Date.now();
+    if (this.logCacheOps) {
+      this.log.info(`cache-id '${cacheId}': touched (idle clock reset)`);
+    }
+    return true;
   }
 
   /**
@@ -102,10 +278,14 @@ class ResourceCache {
     const entry = this.cache.get(cacheId);
     if (entry) {
       entry.lastUsed = Date.now();
-      this.log.info(`cache-id '${cacheId}': hit, returning ${entry.resources.length} resource(s): ${entry.resources.map(r => this._resourceKey(r)).join(', ')}`);
+      if (this.logCacheOps) {
+        this.log.info(`cache-id '${cacheId}': hit, returning ${entry.resources.length} resource(s): ${entry.resources.map(r => this._resourceKey(r)).join(', ')}`);
+      }
       return [...entry.resources]; // Return a copy
     }
-    this.log.info(`cache-id '${cacheId}': miss (no entry)`);
+    if (this.logCacheOps) {
+      this.log.info(`cache-id '${cacheId}': miss (no entry)`);
+    }
     return [];
   }
 
@@ -151,7 +331,7 @@ class ResourceCache {
       }
     }
 
-    const entry = this.cache.get(cacheId) || { resources: [], lastUsed: Date.now(), concepts: 0 };
+    const entry = this.cache.get(cacheId) || { resources: [], createdAt: Date.now(), lastUsed: Date.now(), concepts: 0 };
 
     // Merge resources, avoiding duplicates by url+version. Keep the entry's concept
     // subtotal and the cache-wide total in step with each insertion/replacement.
@@ -165,12 +345,16 @@ class ResourceCache {
         entry.resources[existingIndex] = resource;
         entry.concepts += delta;
         this.totalConcepts += delta;
-        this.log.info(`cache-id '${cacheId}': replaced ${key}`);
+        if (this.logCacheOps) {
+          this.log.info(`cache-id '${cacheId}': replaced ${key}`);
+        }
       } else {
         entry.resources.push(resource);
         entry.concepts += newConcepts;
         this.totalConcepts += newConcepts;
-        this.log.info(`cache-id '${cacheId}': added ${key}`);
+        if (this.logCacheOps) {
+          this.log.info(`cache-id '${cacheId}': added ${key}`);
+        }
       }
     }
 
@@ -187,7 +371,9 @@ class ResourceCache {
    *   resources and will not grow when further resources are seen later.
    */
   set(cacheId, resources, sealed = false) {
-    this.log.info(`cache-id '${cacheId}': set (replace all, sealed=${!!sealed}) with ${resources.length} resource(s): ${resources.map(r => this._resourceKey(r)).join(', ')}`);
+    if (this.logCacheOps) {
+      this.log.info(`cache-id '${cacheId}': set (replace all, sealed=${!!sealed}) with ${resources.length} resource(s): ${resources.map(r => this._resourceKey(r)).join(', ')}`);
+    }
     // Retained under a cache-id - mark cached so providers may memoise resolved
     // filter analysis on their filter elements (see filter()/fc).
     for (const resource of resources) {
@@ -209,21 +395,32 @@ class ResourceCache {
     this.totalConcepts += concepts;
     this.cache.set(cacheId, {
       resources: [...resources],
+      createdAt: existing ? existing.createdAt : Date.now(),
       lastUsed: Date.now(),
       concepts,
       sealed: !!sealed
     });
+    // This id is alive again, so any record of its previous death is now wrong.
+    this.tombstones.delete(cacheId);
     this._trackMax();
   }
 
   /**
-   * Clear a specific cache-id
+   * Clear a specific cache-id. This is the client-initiated release path
+   * ($cache-control?mode=end), so a cache that existed is tombstoned as `closed`:
+   * a later request still carrying the id gets told the client let it go, rather
+   * than being sent looking for an expiry that never happened.
+   *
    * @param {string} cacheId - The cache identifier
    */
   clear(cacheId) {
     const entry = this.cache.get(cacheId);
     if (entry) {
       this.totalConcepts -= entry.concepts || 0;
+      this._recordTombstone(cacheId, entry, 'closed');
+      if (this.logCacheOps) {
+        this.log.info(`cache-id '${cacheId}': closed by client after ${formatDuration(Date.now() - entry.createdAt)} (held ${entry.resources.length} resource(s))`);
+      }
     }
     this.cache.delete(cacheId);
   }
@@ -232,6 +429,9 @@ class ResourceCache {
    * Clear all cached entries
    */
   clearAll() {
+    for (const [cacheId, entry] of this.cache.entries()) {
+      this._recordTombstone(cacheId, entry, 'cleared');
+    }
     this.cache.clear();
     this.totalConcepts = 0;
   }
@@ -247,9 +447,18 @@ class ResourceCache {
     let i = 0;
     const now = Date.now();
     for (const [cacheId, entry] of this.cache.entries()) {
-      if (now - entry.lastUsed > maxAge) {
+      const idleMs = now - entry.lastUsed;
+      if (idleMs > maxAge) {
         i++;
         this.totalConcepts -= entry.concepts || 0;
+        // Record the *measured* idle time, not the configured timeout: the sweep
+        // runs periodically, so a cache can sit dead for up to one sweep interval
+        // past the timeout, and only the measured figure lets a client line the
+        // expiry up against its own request log.
+        this._recordTombstone(cacheId, entry, 'expired', { idleMs, maxAgeMs: maxAge });
+        if (this.logCacheOps) {
+          this.log.info(`cache-id '${cacheId}': expired after ${formatDuration(idleMs)} idle (timeout ${formatDuration(maxAge)})`);
+        }
         this.cache.delete(cacheId);
       }
     }
@@ -906,5 +1115,6 @@ module.exports = {
   ResourceCache,
   ExpansionCache,
   isDebugging,
-  debugLog
+  debugLog,
+  formatDuration
 };
