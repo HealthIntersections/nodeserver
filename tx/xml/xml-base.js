@@ -486,12 +486,32 @@ class FhirXmlBase {
 
   /**
    * Escape special characters for XML
+   *
+   * XML 1.0 cannot represent the C0 control characters at all - not literally,
+   * and not as numeric character references either - so a value carrying one
+   * cannot be serialised as XML by any means. Tab, line feed and carriage
+   * return are the three exceptions; DEL (U+007F) is legal in XML 1.0 and is
+   * left alone.
+   *
+   * Rather than emit a document no conformant parser will read, this rejects
+   * the value. Anything reaching here with a control character in it came from
+   * outside (a remote API, an imported file) and should have been caught at
+   * the boundary.
+   *
    * @param {*} value - Value to escape
    * @returns {string}
+   * @throws {Error} if the value contains a character XML cannot carry
    */
   static escapeXml(value) {
     if (value === null || value === undefined) return '';
-    return String(value)
+    const str = String(value);
+    // eslint-disable-next-line no-control-regex
+    const illegal = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.exec(str);
+    if (illegal) {
+      const code = illegal[0].charCodeAt(0).toString(16).toUpperCase().padStart(4, '0');
+      throw new Error(`Cannot serialise this content as XML: it contains U+${code} at offset ${illegal.index}, a control character XML does not allow`);
+    }
+    return str
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')

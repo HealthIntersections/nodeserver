@@ -99,13 +99,13 @@ let stats = null;
 
 // Initialize modules based on configuration
 async function initializeModules() {
-  stats = new ServerStats();
+  stats = new ServerStats(config.stats, serverLog);
 
   // Initialize SHL module
   if (config.modules?.shl?.enabled) {
     try {
       serverLog.info('Initializing module: shl...');
-      modules.shl = new SHLModule(stats);
+      modules.shl = new SHLModule(stats.forModule('shl'));
       await modules.shl.initialize(config.modules.shl);
       app.use('/shl', modules.shl.router);
     } catch (error) {
@@ -118,7 +118,7 @@ async function initializeModules() {
   if (config.modules?.vcl?.enabled) {
     try {
       serverLog.info('Initializing module: vcl...');
-      modules.vcl = new VCLModule(stats);
+      modules.vcl = new VCLModule(stats.forModule('vcl'));
       await modules.vcl.initialize(config.modules.vcl);
       app.use('/VCL', modules.vcl.router);
     } catch (error) {
@@ -131,7 +131,7 @@ async function initializeModules() {
   if (config.modules?.xig?.enabled) {
     try {
       serverLog.info('Initializing module: xig...');
-      await xigModule.initializeXigModule(stats, config.modules.xig);
+      await xigModule.initializeXigModule(stats.forModule('xig'), config.modules.xig);
       app.use('/xig', xigModule.router);
       modules.xig = xigModule;
     } catch (error) {
@@ -144,7 +144,7 @@ async function initializeModules() {
   if (config.modules?.packages?.enabled) {
     try {
       serverLog.info('Initializing module: packages...');
-      modules.packages = new PackagesModule(stats);
+      modules.packages = new PackagesModule(stats.forModule('packages'));
       await modules.packages.initialize(config.modules.packages);
       app.use('/packages', modules.packages.router);
     } catch (error) {
@@ -158,7 +158,7 @@ async function initializeModules() {
   if (config.modules?.registry?.enabled) {
     try {
       serverLog.info('Initializing module: registry...');
-      modules.registry = new RegistryModule(stats);
+      modules.registry = new RegistryModule(stats.forModule('registry'));
       await modules.registry.initialize(config.modules.registry);
       app.use('/tx-reg', modules.registry.router);
     } catch (error) {
@@ -171,7 +171,7 @@ async function initializeModules() {
   if (config.modules?.publisher?.enabled) {
     try {
       serverLog.info('Initializing module: publisher...');
-      modules.publisher = new PublisherModule(stats);
+      modules.publisher = new PublisherModule(stats.forModule('publisher'));
       await modules.publisher.initialize(config.modules.publisher);
       app.use('/publisher', modules.publisher.router);
     } catch (error) {
@@ -184,7 +184,7 @@ async function initializeModules() {
   if (config.modules?.token?.enabled) {
     try {
       serverLog.info('Initializing module: token...');
-      modules.token = new TokenModule(stats);
+      modules.token = new TokenModule(stats.forModule('token'));
       await modules.token.initialize(config.modules.token);
       app.use('/token', modules.token.router);
     } catch (error) {
@@ -197,7 +197,7 @@ async function initializeModules() {
   if (config.modules?.npmprojector?.enabled) {
     try {
       serverLog.info('Initializing module: npmprojector...');
-      modules.npmprojector = new NpmProjectorModule(stats);
+      modules.npmprojector = new NpmProjectorModule(stats.forModule('npmprojector'));
       await modules.npmprojector.initialize(config.modules.npmprojector);
       const basePath = NpmProjectorModule.getBasePath(config.modules.npmprojector);
       app.use(basePath, modules.npmprojector.router);
@@ -211,7 +211,7 @@ async function initializeModules() {
   if (config.modules?.['ext-tracker']?.enabled) {
     try {
       serverLog.info('Initializing module: ext-tracker...');
-      modules.extTracker = new ExtensionTrackerModule(stats);
+      modules.extTracker = new ExtensionTrackerModule(stats.forModule('ext-tracker'));
       await modules.extTracker.initialize(config.modules['ext-tracker'], app);
     } catch (error) {
       serverLog.error('Failed to initialize extension tracker module:', error);
@@ -224,7 +224,7 @@ async function initializeModules() {
   if (config.modules?.tx?.enabled) {
     try {
       serverLog.info('Initializing module: tx...');
-      modules.tx = new TXModule(stats);
+      modules.tx = new TXModule(stats.forModule('tx'));
       await modules.tx.initialize(config.modules.tx, app);
     } catch (error) {
       serverLog.error('Failed to initialize TX module:', error);
@@ -235,7 +235,7 @@ async function initializeModules() {
   if (config.modules?.folder?.enabled) {
     try {
       serverLog.info('Initializing module: folder...');
-      modules.folder = new FolderModule(stats);
+      modules.folder = new FolderModule(stats.forModule('folder'));
       await modules.folder.initialize(config.modules.folder, app);
       // mount the router
     } catch (error) {
