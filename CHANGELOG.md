@@ -5,6 +5,76 @@ All notable changes to the Health Intersections Node Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-08-27
+
+### Added
+
+- `$cache-control?mode=check`: ask the server whether a cache-id is still alive. The check is
+  also a keepalive - it resets the cache's idle clock - because a client whose own local cache is
+  absorbing the work is invisible to the server, and its cache would otherwise time out mid-job.
+  An unknown id answers 200 with `valid` = false (not 404), so a client can tell "the server says
+  my cache is gone" from "I could not reach the server"; a live cache also reports `sealed`,
+  `resource-count`, `idle` and the server's idle timeout, so a client can work out how often to
+  check instead of guessing
+- Cache tombstones: the server now records why a cache-id it issued stopped existing - closed by
+  the client, expired after N minutes idle, or cleared with everything else - and says which in
+  the error, with the timings. New `CACHE_ID_CLOSED`, `CACHE_ID_EXPIRED` and `CACHE_ID_CLEARED`
+  messages; `CACHE_ID_UNKNOWN` now means "never issued here", and says that a cache-id is only
+  valid on the server instance and endpoint that issued it (#279)
+- SNOMED CT: MRCM validation of postcoordinated expressions - attribute domain (including the
+  lateralizable body structure rule), range (evaluated as ECL, or as a concrete-value range such
+  as `dec(>#0..)`), cardinality and grouping. A constraint that cannot be resolved leaves the
+  value unchecked rather than rejecting it. The MRCM and lateralizable reference sets are now
+  included in the test SNOMED distribution
+- `$translate`: R4 parameter names are accepted as aliases for the R5 ones (`source`/`target` for
+  the scopes, `targetsystem`, `targetcode`), and R4's `reverse` parameter now does literally what
+  it says - swaps the source and target sides once the parameters are read - while remaining an
+  error in R5+, which names the target concept directly instead
+- `$translate`: reverse translation by naming the target concept (`targetCode`, `targetCoding`,
+  `targetCodeableConcept`), with the source system saying which system the answers come from
+- `$translate`: `ConceptMap.group.element.comment` is read from R6 resources and from the
+  cross-version extension on R5 ones, so a preadopted R5 map and a native R6 map behave the same
+- `$translate`: `originMap` names where a chain of maps started, with every other map consulted
+  along the way reported as a `used-conceptmap`; `group.unmapped` is applied per group, so a
+  mapping in one group no longer suppresses another group's fallback
+- Persistent usage statistics: request counts per module, endpoint and operation are written to a
+  SQLite database every `intervalMinutes`, with both the interval count and the all-time total, so
+  they survive restarts and upgrades. New optional `stats` config block (#255)
+- Support for `ValueSet.compose.property` (R6): a value set can name the properties to return in
+  its own expansion, rather than leaving it to the request
+- Publisher: input validation for GitHub owner and repository, git branch, package id and version -
+  enforced on the server, with matching patterns on the form so the browser objects first
+- Publisher: `large-file-archive` config setting - files the IG Publisher leaves in the web output
+  that are too big for GitHub (>100MB) are moved aside for GitHub-hosted websites, instead of
+  leaving the push to fail
+
+### Changed
+
+- `tx/params.js`: parameter names are now interpreted in exactly one place (`seeParameter`), used
+  by both the request `Parameters` resource and the `valueset-expansion-parameter` extension. A
+  parameter from the request always wins over one embedded in a ValueSet's expansion parameters;
+  accumulating parameters (version rules, designations, properties, supplements) still add
+- An inactive display is now governed by `lenient-display-validation` like every other display
+  check - a warning (and `result` = true) when lenient, an error when not - rather than always
+  being a warning. The display is a designation of the concept, just not a current one
+- tx.fhir.org now loads `fhir.tx.support` rather than `fhir.tx.support.r4`
+
+### Fixed
+
+- `$expand`: `status` was lost from imported property declarations, and a concept carrying the
+  same property more than once had the repeats collapsed to a single value
+- Expansion properties are de-duplicated when they arrive from more than one place (the request,
+  an expansion parameter extension, `compose.property`) - a repeat emitted the property twice and
+  changed the cache key
+- `no-cache=true` never busted the cache: the parameter wrote `uid`, which nothing read, instead of
+  the field the cache key hashes
+- Boolean parameters passed as strings (as they always are on a GET) are now accepted, which
+  revives five parameters that were dead on GET requests
+
+### Tx Conformance Statement
+
+FHIRsmith passed all 2822 HL7 terminology service tests (modes tx.fhir.org+omop+general+snomed, tests v1.9.3, runner v6.10.3)
+
 ## [0.11.2] - 2026-08-12
 
 ### Fixed
