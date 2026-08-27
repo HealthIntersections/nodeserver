@@ -14,6 +14,7 @@ const {TxParameters} = require("../params");
 const {Parameters} = require("../library/parameters");
 const {Issue, OperationOutcome} = require("../library/operation-outcome");
 const {debugLog} = require("../operation-context");
+const {checkAddedParameters} = require("../library/parameter-check");
 
 class LookupWorker extends TerminologyWorker {
   /**
@@ -393,8 +394,20 @@ class LookupWorker extends TerminologyWorker {
       }
     }
 
-    // Let the provider add additional properties
+    // Let the provider add additional properties. Some providers pass content
+    // through from a remote API, where a value can be any JSON at all, so what
+    // comes back is checked before it goes out: a structure where a FHIR
+    // primitive belongs is a provider bug, and shipping it would produce a
+    // response that isn't valid FHIR (and, in XML, isn't even parseable).
+    const providerParamsFrom = responseParams.length;
     await csProvider.extendLookup(ctxt, params.properties || [], responseParams);
+    let providerName;
+    try {
+      providerName = csProvider.system();
+    } catch (e) {
+      providerName = 'unknown';
+    }
+    checkAddedParameters(responseParams, providerParamsFrom, providerName);
 
     if (reportedSupplements) {
       for (const supplement of reportedSupplements) {

@@ -23,6 +23,31 @@ describe('FhirXmlBase', () => {
       expect(FhirXmlBase.escapeXml(undefined)).toBe('');
     });
 
+    // XML 1.0 cannot carry the C0 control characters at all - not even as
+    // numeric character references - so serialising one is impossible rather
+    // than merely ugly, and escapeXml refuses instead of emitting a document
+    // no parser will read
+    test('should reject control characters XML cannot represent', () => {
+      for (const code of [0x00, 0x01, 0x08, 0x0B, 0x0C, 0x0E, 0x1F]) {
+        const value = 'before' + String.fromCharCode(code) + 'after';
+        expect(() => FhirXmlBase.escapeXml(value)).toThrow(/control character/);
+      }
+    });
+
+    test('should report which character it rejected, and where', () => {
+      expect(() => FhirXmlBase.escapeXml('ab' + String.fromCharCode(0x0B) + 'cd'))
+        .toThrow(/U\+000B at offset 2/);
+    });
+
+    test('should keep the whitespace XML does allow', () => {
+      const tab = String.fromCharCode(9), lf = String.fromCharCode(10), cr = String.fromCharCode(13);
+      expect(FhirXmlBase.escapeXml('a' + tab + 'b' + lf + 'c' + cr + 'd'))
+        .toBe('a' + tab + 'b' + lf + 'c' + cr + 'd');
+      // DEL is legal in XML 1.0, unlike the C0 range
+      const del = String.fromCharCode(127);
+      expect(FhirXmlBase.escapeXml('a' + del + 'b')).toBe('a' + del + 'b');
+    });
+
     test('should unescape XML entities', () => {
       expect(FhirXmlBase.unescapeXml('a &lt; b')).toBe('a < b');
       expect(FhirXmlBase.unescapeXml('a &gt; b')).toBe('a > b');
