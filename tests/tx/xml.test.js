@@ -184,6 +184,77 @@ describe('FhirXmlParser', () => {
     expect(result.attributes.url).toBe('http://example.org/ext');
     expect(result.children[0].name).toBe('valueString');
   });
+
+  test('should accept single quoted attribute values', () => {
+    const result = new FhirXmlParser("<status value='active'/>").parse();
+    expect(result.attributes.value).toBe('active');
+  });
+
+  test('should skip comments, CDATA and character data between elements', () => {
+    const xml = '<a><!-- c --><![CDATA[ raw ]]>text<b value="1"/></a>';
+    const result = new FhirXmlParser(xml).parse();
+    expect(result.children.length).toBe(1);
+    expect(result.children[0].attributes.value).toBe('1');
+  });
+});
+
+/**
+ * The parser has to be total: every input either produces a tree or throws. It runs on
+ * request bodies, synchronously, on node's only thread - so an input it cannot finish
+ * does not fail one request, it stops the process answering anything.
+ *
+ * Each of these hung the parser before it was rewritten, or blew the stack. The mechanism
+ * was always the same: an indexOf() that returned -1 whose result was assigned to the
+ * cursor, sending it backwards.
+ */
+describe('FhirXmlParser refuses malformed input rather than looping', () => {
+
+  // if any of these regress, the test run stops dead rather than failing, so keep the
+  // timeout short enough to notice
+  const parse = (xml) => () => new FhirXmlParser(xml).parse();
+
+  test.each([
+    ['an attribute with no value and no = later in the document', '<ValueSet><x bare></x></ValueSet>'],
+    ['a document type declaration', '<!DOCTYPE v><ValueSet/>'],
+    ['a document type declaration with entities', '<?xml version="1.0"?><!DOCTYPE l [<!ENTITY a "b">]><ValueSet/>'],
+    ['an unterminated comment', '<ValueSet><!-- oops </ValueSet>'],
+    ['an unterminated comment before the root', '<!-- oops <ValueSet/>'],
+    ['an unterminated XML declaration', '<?xml version="1.0"'],
+    ['an unterminated CDATA section', '<ValueSet><![CDATA[ oops </ValueSet>'],
+    ['an unclosed element', '<ValueSet><x value="1">'],
+    ['a mismatched closing tag', '<ValueSet><x value="1"></y></ValueSet>'],
+    ['a start tag that never closes', '<ValueSet><x value="1"'],
+    ['an unquoted attribute value', '<ValueSet><x value=1/></ValueSet>'],
+    ['an unterminated attribute value', '<ValueSet><x value="1/></ValueSet>'],
+    ['no element at all', '   '],
+    ['character data where an element should be', 'hello'],
+    ['a bare angle bracket', '<'],
+    ['an empty element name', '< >']
+  ])('rejects %s', (_label, xml) => {
+    expect(parse(xml)).toThrow();
+  }, 5000);
+
+  test('rejects XML nested past the depth limit', () => {
+    const deep = '<a>'.repeat(5000) + '</a>'.repeat(5000);
+    expect(parse(deep)).toThrow(/nested more than/);
+  }, 5000);
+
+  test('accepts nesting within the depth limit', () => {
+    const ok = '<a>'.repeat(100) + '</a>'.repeat(100);
+    expect(parse(ok)).not.toThrow();
+  }, 5000);
+
+  test('reports the position of the problem', () => {
+    expect(parse('<ValueSet><x value=1/></ValueSet>')).toThrow(/at position \d+/);
+  }, 5000);
+
+  test('parses a large document in reasonable time', () => {
+    const many = '<ValueSet>' + '<x value="abc"/>'.repeat(50000) + '</ValueSet>';
+    const started = Date.now();
+    const result = new FhirXmlParser(many).parse();
+    expect(result.children.length).toBe(50000);
+    expect(Date.now() - started).toBeLessThan(5000);
+  }, 10000);
 });
 
 describe('CodeSystemXML', () => {

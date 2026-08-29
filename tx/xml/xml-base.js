@@ -652,122 +652,289 @@ class FhirXmlBase {
  * Simple XML parser for FHIR resources
  * Parses XML string into {name, attributes, children} structure
  */
+/**
+ * A deliberately small XML reader for FHIR resources. It is not a general XML processor: FHIR
+ * XML has no DTDs, no entities beyond the five predefined ones, and carries its values in
+ * attributes, so the grammar it needs is tiny.
+ *
+ * What it does have to be is total. Every input either produces a tree or throws - it must never
+ * loop, and it must never run away with memory or stack. This matters more than it looks: the
+ * server accepts application/fhir+xml on every endpoint, parsing is synchronous, and node is
+ * single threaded, so a parser that fails to terminate does not hang one request, it stops the
+ * process answering anything at all. The cooperative deadCheck cannot help - it needs an await
+ * point, and there isn't one inside a parse.
+ *
+ * Two rules keep that promise, and both are enforced rather than assumed:
+ *
+ *  - no scan may fail silently. Every search for a delimiter goes through #seek(), which throws
+ *    if the delimiter is absent. The bug this replaces was an indexOf() returning -1 whose result
+ *    was assigned to the cursor, sending it back to zero and restarting the parse forever.
+ *  - every loop must consume input. Each iteration asserts the cursor moved forward, so a future
+ *    edit that forgets to advance it fails loudly on the first malformed document instead of
+ *    spinning.
+ */
+
+// FHIR resources nest a couple of dozen deep; narrative markup can go further. This is well
+// clear of anything real and well under the call stack, so deep input is a clean error rather
+// than a RangeError from the recursion in _parseElement.
+const MAX_ELEMENT_DEPTH = 1000;
+
 class FhirXmlParser {
+  /**
+   * @param {string} xml - the document to read
+   */
   constructor(xml) {
+    if (typeof xml !== 'string') {
+      throw new Error('XML input must be a string');
+    }
     this.xml = xml;
     this.pos = 0;
+    this.depth = 0;
   }
 
+  /**
+   * @returns {{name: string, attributes: Object, children: Array}} the root element
+   */
   parse() {
-    this._skipDeclaration();
-    this._skipWhitespace();
-    return this._parseElement();
+    this.#parseProlog();
+    const root = this.#parseElement();
+    return root;
   }
 
-  _skipDeclaration() {
-    this._skipWhitespace();
-    if (this.xml.substring(this.pos, this.pos + 5) === '<?xml') {
-      const end = this.xml.indexOf('?>', this.pos);
-      if (end !== -1) {
-        this.pos = end + 2;
-      }
+  // ========== scanning primitives ==========
+
+  /**
+   * Throw with the position, which is what makes a malformed document diagnosable
+   * @param {string} message
+   */
+  #fail(message) {
+    throw new Error(`${message} at position ${this.pos}`);
+  }
+
+  /**
+   * indexOf that cannot return -1. Every delimiter search goes through here
+   * @param {string} needle
+   * @param {string} what - what we were looking for, for the error message
+   * @returns {number}
+   */
+  #seek(needle, what) {
+    const at = this.xml.indexOf(needle, this.pos);
+    if (at === -1) {
+      this.#fail(`Unterminated ${what}: no '${needle}' found`);
+    }
+    return at;
+  }
+
+  /**
+   * Move the cursor, checking it actually moved forward. Called at the end of every loop body
+   * @param {number} was - the cursor before the iteration
+   */
+  #mustHaveAdvanced(was) {
+    if (this.pos <= was) {
+      // not reachable by any input we know of - it means a code path forgot to consume
+      this.#fail('Internal error: the XML parser stopped making progress');
     }
   }
 
-  _skipWhitespace() {
+  #atEnd() {
+    return this.pos >= this.xml.length;
+  }
+
+  #skipWhitespace() {
     while (this.pos < this.xml.length && /\s/.test(this.xml[this.pos])) {
       this.pos++;
     }
   }
 
-  _parseElement() {
-    this._skipWhitespace();
+  #startsWith(text) {
+    return this.xml.startsWith(text, this.pos);
+  }
 
-    if (this.xml[this.pos] !== '<') {
-      throw new Error(`Expected '<' at position ${this.pos}`);
+  // ========== document structure ==========
+
+  /**
+   * The XML declaration, and any comments or processing instructions before the root element.
+   * A DOCTYPE is refused outright: FHIR XML has no DTD, and accepting one is how a parser ends
+   * up doing entity expansion on someone else's behalf.
+   */
+  #parseProlog() {
+    this.#skipWhitespace();
+    if (this.#startsWith('<?xml')) {
+      this.pos = this.#seek('?>', 'XML declaration') + 2;
     }
-    this.pos++; // Skip '<'
-
-    // Parse element name
-    const nameEnd = this.xml.substring(this.pos).search(/[\s/>]/);
-    const name = this.xml.substring(this.pos, this.pos + nameEnd);
-    this.pos += nameEnd;
-
-    // Parse attributes
-    const attributes = {};
-    this._skipWhitespace();
-
-    while (this.pos < this.xml.length && this.xml[this.pos] !== '>' && this.xml[this.pos] !== '/') {
-      const attr = this._parseAttribute();
-      if (attr) {
-        attributes[attr.name] = attr.value;
+    for (;;) {
+      const was = this.pos;
+      this.#skipWhitespace();
+      if (this.#startsWith('<!--')) {
+        this.#skipComment();
+      } else if (this.#startsWith('<!DOCTYPE') || this.#startsWith('<!')) {
+        this.#fail('Document type declarations are not allowed in FHIR XML');
+      } else if (this.#startsWith('<?')) {
+        this.pos = this.#seek('?>', 'processing instruction') + 2;
+      } else {
+        return;
       }
-      this._skipWhitespace();
+      this.#mustHaveAdvanced(was);
     }
+  }
 
+  #skipComment() {
+    this.pos = this.#seek('-->', 'comment') + 3;
+  }
+
+  /**
+   * One element and everything inside it.
+   * @returns {{name: string, attributes: Object, children: Array}}
+   */
+  #parseElement() {
+    if (++this.depth > MAX_ELEMENT_DEPTH) {
+      this.depth--;
+      this.#fail(`XML is nested more than ${MAX_ELEMENT_DEPTH} elements deep`);
+    }
+    try {
+      return this.#parseElementInner();
+    } finally {
+      this.depth--;
+    }
+  }
+
+  #parseElementInner() {
+    this.#skipWhitespace();
+    if (this.#atEnd() || this.xml[this.pos] !== '<') {
+      this.#fail("Expected '<'");
+    }
+    this.pos++;
+
+    const name = this.#parseName('element name');
+    const attributes = this.#parseAttributes(name);
+
+    if (this.#startsWith('/>')) {
+      this.pos += 2;
+      return { name, attributes, children: [] };
+    }
+    if (this.#atEnd() || this.xml[this.pos] !== '>') {
+      this.#fail(`Expected '>' or '/>' to close the start tag of <${name}>`);
+    }
+    this.pos++;
+
+    return { name, attributes, children: this.#parseChildren(name) };
+  }
+
+  /**
+   * An element or attribute name: everything up to whitespace, '/', '>' or '='.
+   * @param {string} what - for the error message
+   * @returns {string}
+   */
+  #parseName(what) {
+    const from = this.pos;
+    while (this.pos < this.xml.length && !/[\s/>=]/.test(this.xml[this.pos])) {
+      this.pos++;
+    }
+    if (this.pos === from) {
+      this.#fail(`Expected an ${what}`);
+    }
+    return this.xml.substring(from, this.pos);
+  }
+
+  /**
+   * @param {string} elementName - for error messages
+   * @returns {Object} name to value
+   */
+  #parseAttributes(elementName) {
+    const attributes = {};
+    for (;;) {
+      const was = this.pos;
+      this.#skipWhitespace();
+      if (this.#atEnd()) {
+        this.#fail(`Unterminated start tag <${elementName}>`);
+      }
+      if (this.xml[this.pos] === '>' || this.#startsWith('/>')) {
+        return attributes;
+      }
+      if (this.xml[this.pos] === '/') {
+        this.#fail(`Expected '/>' in the start tag of <${elementName}>`);
+      }
+
+      const name = this.#parseName('attribute name');
+      this.#skipWhitespace();
+      if (this.#atEnd() || this.xml[this.pos] !== '=') {
+        this.#fail(`Expected '=' after the attribute '${name}' of <${elementName}>`);
+      }
+      this.pos++;
+      attributes[name] = this.#parseAttributeValue(name, elementName);
+
+      this.#mustHaveAdvanced(was);
+    }
+  }
+
+  /**
+   * A quoted attribute value. XML has no unquoted form, and accepting one is what let a stray
+   * character send the cursor somewhere arbitrary
+   * @param {string} name
+   * @param {string} elementName
+   * @returns {string}
+   */
+  #parseAttributeValue(name, elementName) {
+    this.#skipWhitespace();
+    const quote = this.xml[this.pos];
+    if (quote !== '"' && quote !== "'") {
+      this.#fail(`The value of the attribute '${name}' of <${elementName}> must be quoted`);
+    }
+    this.pos++;
+    const end = this.#seek(quote, `value of the attribute '${name}' of <${elementName}>`);
+    const value = FhirXmlBase.unescapeXml(this.xml.substring(this.pos, end));
+    this.pos = end + 1;
+    return value;
+  }
+
+  /**
+   * Everything between a start tag and its matching end tag. Text is skipped: FHIR carries its
+   * values in attributes, and this parser has never returned character data.
+   * @param {string} elementName
+   * @returns {Array} the child elements
+   */
+  #parseChildren(elementName) {
     const children = [];
+    for (;;) {
+      const was = this.pos;
+      this.#skipWhitespace();
+      if (this.#atEnd()) {
+        this.#fail(`Unclosed element <${elementName}>: expected </${elementName}>`);
+      }
 
-    // Self-closing tag
-    if (this.xml[this.pos] === '/') {
-      this.pos += 2; // Skip '/>'
-      return { name, attributes, children };
-    }
-
-    this.pos++; // Skip '>'
-
-    // Parse children
-    while (this.pos < this.xml.length) {
-      this._skipWhitespace();
-
-      if (this.xml.substring(this.pos, this.pos + 2) === '</') {
-        // Closing tag
-        const closeEnd = this.xml.indexOf('>', this.pos);
-        this.pos = closeEnd + 1;
-        break;
+      if (this.#startsWith('</')) {
+        this.pos += 2;
+        const closing = this.#parseName('element name');
+        if (closing !== elementName) {
+          this.#fail(`Expected </${elementName}> but found </${closing}>`);
+        }
+        this.#skipWhitespace();
+        if (this.#atEnd() || this.xml[this.pos] !== '>') {
+          this.#fail(`Expected '>' to close </${closing}>`);
+        }
+        this.pos++;
+        return children;
       }
 
       if (this.xml[this.pos] === '<') {
-        // Check for comment
-        if (this.xml.substring(this.pos, this.pos + 4) === '<!--') {
-          const commentEnd = this.xml.indexOf('-->', this.pos);
-          this.pos = commentEnd + 3;
-          continue;
+        if (this.#startsWith('<!--')) {
+          this.#skipComment();
+        } else if (this.#startsWith('<![CDATA[')) {
+          this.pos = this.#seek(']]>', 'CDATA section') + 3;
+        } else if (this.#startsWith('<!')) {
+          this.#fail('Declarations are not allowed inside a FHIR XML element');
+        } else if (this.#startsWith('<?')) {
+          this.pos = this.#seek('?>', 'processing instruction') + 2;
+        } else {
+          children.push(this.#parseElement());
         }
-
-        children.push(this._parseElement());
       } else {
-        // Text content - skip for FHIR as values are in attributes
-        const textEnd = this.xml.indexOf('<', this.pos);
-        this.pos = textEnd;
+        // character data - skipped, but it still has to be consumed
+        this.pos = this.#seek('<', `content of <${elementName}>`);
       }
+
+      this.#mustHaveAdvanced(was);
     }
-
-    return { name, attributes, children };
-  }
-
-  _parseAttribute() {
-    this._skipWhitespace();
-
-    if (this.xml[this.pos] === '>' || this.xml[this.pos] === '/') {
-      return null;
-    }
-
-    // Parse attribute name
-    const eqPos = this.xml.indexOf('=', this.pos);
-    const name = this.xml.substring(this.pos, eqPos).trim();
-    this.pos = eqPos + 1;
-
-    // Skip whitespace and opening quote
-    this._skipWhitespace();
-    const quote = this.xml[this.pos];
-    this.pos++;
-
-    // Parse attribute value
-    const valueEnd = this.xml.indexOf(quote, this.pos);
-    const value = FhirXmlBase.unescapeXml(this.xml.substring(this.pos, valueEnd));
-    this.pos = valueEnd + 1;
-
-    return { name, value };
   }
 }
 
