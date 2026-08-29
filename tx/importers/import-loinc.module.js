@@ -274,17 +274,23 @@ class LoincModule extends BaseTerminologyModule {
       throw new Error(`Source directory not found: ${sourceDir}`);
     }
 
+    // The accessory files are required, not optional. Without them the import silently
+    // succeeds and the server then answers questions wrongly rather than saying it cannot:
+    // no ComponentHierarchyBySystem means an empty closure and $subsumes replying
+    // 'not-subsumed' to everything, which is indistinguishable from a real answer.
     const requiredFiles = [
       'LoincTable/Loinc.csv',
-      'AccessoryFiles/PartFile/Part.csv'
-    ];
-
-    const optionalFiles = [
+      'AccessoryFiles/PartFile/Part.csv',
       'AccessoryFiles/ConsumerName/ConsumerName.csv',
       'AccessoryFiles/AnswerFile/AnswerList.csv',
       'AccessoryFiles/PartFile/LoincPartLink_Primary.csv',
       'AccessoryFiles/AnswerFile/LoincAnswerListLink.csv',
-      'AccessoryFiles/ComponentHierarchyBySystem/ComponentHierarchyBySystem.csv',
+      'AccessoryFiles/ComponentHierarchyBySystem/ComponentHierarchyBySystem.csv'
+    ];
+
+    // Translations are a different case: a main-only import is a legitimate thing to want,
+    // and their absence costs designations, not correctness
+    const optionalFiles = [
       'AccessoryFiles/LinguisticVariants/LinguisticVariants.csv'
     ];
 
@@ -1214,8 +1220,9 @@ class LoincDataMigrator {
   async processHierarchy(db, sourceDir, step, options) {
     const filePath = path.join(sourceDir, 'AccessoryFiles/ComponentHierarchyBySystem/ComponentHierarchyBySystem.csv');
     if (!fs.existsSync(filePath)) {
-      if (options.verbose) console.warn(`Hierarchy file not found: ${filePath}`);
-      return;
+      // Validation should have caught this already; if we get here, fail rather than build a
+      // cache with an empty closure that answers subsumption questions with a confident no
+      throw new Error(`Required file missing: ${filePath}`);
     }
 
     if (options.verbose) console.log('Processing Hierarchy...');

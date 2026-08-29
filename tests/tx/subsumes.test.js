@@ -104,7 +104,16 @@ describe('Subsumes Worker', () => {
 
       expect(response.status).toBe(404);
       expect(response.body.resourceType).toBe('OperationOutcome');
-      expect(response.body.issue[0].diagnostics).toContain('nonexistent-code');
+      expect(response.body.issue[0].code).toBe('code-invalid');
+      expect(response.body.issue[0].details.text).toContain('nonexistent-code');
+      expect(response.body.issue[0].details.coding).toEqual([{
+        system: 'http://hl7.org/fhir/tools/CodeSystem/tx-issue-type', code: 'invalid-code'
+      }]);
+      expect(response.body.issue[0].extension).toEqual([{
+        url: 'http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id',
+        valueString: 'Unknown_Code_in_Version'
+      }]);
+      expect(response.body.issue[0].expression).toEqual(['codeA']);
     });
 
     test('should return 404 when codeB is invalid', async () => {
@@ -119,7 +128,16 @@ describe('Subsumes Worker', () => {
 
       expect(response.status).toBe(404);
       expect(response.body.resourceType).toBe('OperationOutcome');
-      expect(response.body.issue[0].diagnostics).toContain('nonexistent-code');
+      expect(response.body.issue[0].code).toBe('code-invalid');
+      expect(response.body.issue[0].details.text).toContain('nonexistent-code');
+      expect(response.body.issue[0].details.coding).toEqual([{
+        system: 'http://hl7.org/fhir/tools/CodeSystem/tx-issue-type', code: 'invalid-code'
+      }]);
+      expect(response.body.issue[0].extension).toEqual([{
+        url: 'http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id',
+        valueString: 'Unknown_Code_in_Version'
+      }]);
+      expect(response.body.issue[0].expression).toEqual(['codeB']);
     });
   });
 

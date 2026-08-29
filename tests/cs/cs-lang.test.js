@@ -86,10 +86,10 @@ describe('IETF Language CodeSystem Provider', () => {
       expect(result.context.region).toBe('CN');
     });
 
-    test('should reject invalid language codes', async () => {
+    test('should reject invalid language codes, saying which subtag is wrong', async () => {
       const result = await provider.locate('invalid-code');
       expect(result.context).toBe(null);
-      expect(result.message).toBeUndefined();
+      expect(result.message).toBe("The language 'invalid' in the code 'invalid-code' is not valid");
     });
 
     test('should handle empty codes', async () => {
@@ -124,7 +124,7 @@ describe('IETF Language CodeSystem Provider', () => {
     });
 
     test('should throw an error for invalid codes', async () => {
-      await expect(provider.display('invalid')).rejects.toThrow("Invalid language code: invalid");
+      await expect(provider.display('invalid')).rejects.toThrow("The language 'invalid' in the code 'invalid' is not valid");
     });
 
     test('should return null for empty codes', async () => {
@@ -155,7 +155,7 @@ describe('IETF Language CodeSystem Provider', () => {
     });
 
     test('should return empty array for invalid codes', async () => {
-      await expect(provider.designations('invalid')).rejects.toThrow('Invalid language code: invalid');
+      await expect(provider.designations('invalid')).rejects.toThrow("The language 'invalid' in the code 'invalid' is not valid");
     });
   });
 
@@ -280,7 +280,7 @@ describe('IETF Language CodeSystem Provider', () => {
       
       expect(async () => {
         await provider.filterCheck(new FilterExecutionContext(), 'invalid', concept);
-      }).rejects.toThrow('set must be a IETFLanguageCodeFilter');
+      }).rejects.toThrow('set must be a language filter');
     });
 
     test('should validate concept type in filterCheck', async () => {
@@ -288,7 +288,7 @@ describe('IETF Language CodeSystem Provider', () => {
       
       expect(async () => {
         await provider.filterCheck(new FilterExecutionContext(), filter, 'invalid');
-      }).rejects.toThrow('Invalid language code: invalid');
+      }).rejects.toThrow("The language 'invalid' in the code 'invalid' is not valid");
     });
   });
 
@@ -362,8 +362,8 @@ describe('IETF Language CodeSystem Provider', () => {
       expect(await provider.sameConcept('en-US', 'en-US')).toBe(true);
     });
 
-    test('should not support subsumption testing', async () => {
-      expect(await provider.subsumesTest('en', 'en-US')).toBe('not-subsumed');
+    test('supports subsumption testing (see lang-validation.test.js for the rules)', async () => {
+      expect(await provider.subsumesTest('en', 'en-US')).toBe('subsumes');
     });
 
     test('should return empty definitions', async () => {
