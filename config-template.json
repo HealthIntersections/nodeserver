@@ -58,6 +58,10 @@
       "enabled": false,
       "database": "/absolute/path/to/packages.db",
       "mirrorPath": "/absolute/path/to/mirror",
+      // shared secret for POST /packages/crawl, which triggers a full registry crawl on
+      // demand. Send it in the x-crawl-token header. Omit this and the endpoint is
+      // disabled entirely - the scheduled crawler below is unaffected either way.
+      "crawlToken": "change-this-to-a-secure-random-string",
       "crawler": {
         "enabled": true,
         "schedule": "0 * * * *"
@@ -74,7 +78,16 @@
     "publisher": {
       "enabled": true,
       "database": "/absolute/path/to/publisher.db",
+      // required. Without it the publisher generates a random secret at startup, logs a
+      // warning, and logins stop working across restarts.
       "sessionSecret": "change-this-to-a-secure-random-string",
+      // session cookies are marked Secure by default, so they only travel over HTTPS.
+      // Set false only to run the publisher over plain HTTP - otherwise the browser will
+      // not send the cookie back and logins will appear to do nothing. Behind a TLS
+      // proxy, make sure it sets X-Forwarded-Proto.
+      "cookieSecure": true,
+      // failed-login attempts allowed per IP per 15 minutes (default 20)
+      "loginAttemptsPerWindow": 20,
       "workspaceRoot": "/absolute/path/to/workspaces",
       "igPublisherTimeoutMinutes": 60,
       // where to put files the IG Publisher leaves in the web folder that are too big for GitHub

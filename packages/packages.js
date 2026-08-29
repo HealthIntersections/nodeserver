@@ -16,6 +16,7 @@ const escape = require('escape-html');
 const Logger = require('../library/logger');
 const {validateParameter} = require("../library/utilities");
 const {describeCron} = require("../library/cron-utilities");
+const {tokenMatches, tokenConfigured} = require("../library/request-token");
 const pckLog = Logger.getInstance().child({ module: 'packages' });
 
 class PackagesModule {
@@ -590,75 +591,6 @@ class PackagesModule {
     } finally {
       this.crawlerRunning = false;
     }
-  }
-
-  // Re-fetch a single package tarball and replace whatever is stored for it, bypassing
-  // the crawler's GUID dedup and notForPublication feed gate. Used to push out a
-  // corrected package that was already (mis)published.
-  async forceUpdatePackage(link) {
-    // Only allow fetching over http(s). This endpoint must never be usable to read
-    // local server files (path injection) - tarballs are always published web URLs.
-    if (!link || !/^https?:\/\//i.test(link)) {
-      throw new Error('Invalid package link (must be an http(s) URL): ' + link);
-    }
-    if (!this.crawler) {
-      this.crawler = new PackageCrawler(this.config, this.db, this.stats);
-    }
-
-    const buffer = await this.crawler.fetchUrl(link);
-    const npm = await this.crawler.extractNpmPackage(buffer, link);
-
-    // Refuse to re-store a still-broken package - that would just re-publish the bug.
-    if (npm.notForPublication) {
-      throw new Error('Refusing to store ' + npm.id + '#' + npm.version + ': fetched tarball is still flagged notForPublication');
-    }
-
-    const idver = npm.id + '#' + npm.version;
-
-    // Delete whatever is stored for this package version, matching on the id#version
-    // actually found in the fetched tarball. This used to match on GUID = link, but the
-    // stored GUID is whatever the feed said at crawl time (http vs https, or another
-    // permalink form), so an exact string match could silently delete nothing and leave
-    // the stale copy in place alongside the newly stored one.
-    const old = await this.deleteVersionsByIdVersion(npm.id, npm.version);
-
-    // Keep the old row's GUID when there was one - it is the feed's permalink, and
-    // reusing it stops the next crawl from re-inserting the package as a duplicate.
-    // When we never had the package, the link is the best available GUID (the feeds
-    // use the versioned package.tgz url as the permalink GUID anyway).
-    const guid = old.guids[0] || link;
-
-    const itemLog = { status: '??' };
-    await this.crawler.store(link, link, guid, new Date(), buffer, idver, itemLog);
-
-    pckLog.info('Force-updated ' + idver + ' from ' + link + ' (replaced ' + old.count + ' existing row(s), guid ' + guid + ')');
-    return { status: 'updated', id: npm.id, version: npm.version, replaced: old.count };
-  }
-
-  // Delete a stored package version and all of its child rows, by package id and
-  // version. Resolves to { count, guids }: how many PackageVersions rows went, and
-  // the distinct GUIDs they were stored under (so a caller can reuse the permalink).
-  deleteVersionsByIdVersion(id, version) {
-    return new Promise((resolve, reject) => {
-      this.db.all('SELECT PackageVersionKey, GUID FROM PackageVersions WHERE Id = ? AND Version = ?', [id, version], (err, rows) => {
-        if (err) return reject(err);
-        const keys = (rows || []).map(r => r.PackageVersionKey);
-        const guids = [...new Set((rows || []).map(r => r.GUID))];
-        if (keys.length === 0) return resolve({ count: 0, guids: [] });
-        const ph = keys.map(() => '?').join(',');
-        const stmts = [
-          'DELETE FROM PackageFHIRVersions WHERE PackageVersionKey IN (' + ph + ')',
-          'DELETE FROM PackageDependencies WHERE PackageVersionKey IN (' + ph + ')',
-          'DELETE FROM PackageURLs WHERE PackageVersionKey IN (' + ph + ')',
-          'DELETE FROM PackageVersions WHERE PackageVersionKey IN (' + ph + ')'
-        ];
-        const runNext = (i) => {
-          if (i >= stmts.length) return resolve({ count: keys.length, guids });
-          this.db.run(stmts[i], keys, (e) => e ? reject(e) : runNext(i + 1));
-        };
-        runNext(0);
-      });
-    });
   }
 
   async initializeDatabase() {
@@ -1269,10 +1201,25 @@ class PackagesModule {
       }
     });
 
-    // Manual crawler trigger (existing)
+    // Manual crawler trigger. A crawl is a long, network-heavy job that anyone could
+    // otherwise start at will, so it is gated on a shared secret from the configuration
+    // (modules.packages.crawlToken), sent in the x-crawl-token header. With no token
+    // configured the endpoint is CLOSED - an administrative trigger that silently
+    // defaults to open is how a deployment ends up exposed without anything looking wrong.
     this.router.post('/crawl', async (req, res) => {
       const start = Date.now();
       try {
+        if (!tokenConfigured(this.config.crawlToken)) {
+          // Say which of the two it is: the operator needs to know the endpoint is off
+          // because it was never configured, not that they typed the token wrongly.
+          res.status(403).json({ error: 'forbidden: no crawlToken is configured, so this endpoint is disabled' });
+          return;
+        }
+        if (!tokenMatches(this.config.crawlToken, req.headers['x-crawl-token'])) {
+          pckLog.warn('Rejected /crawl: missing or invalid x-crawl-token (from ' + req.ip + ')');
+          res.status(403).json({ error: 'forbidden: missing or invalid x-crawl-token' });
+          return;
+        }
         try {
           await this.runCrawler();
           res.json({
@@ -1289,54 +1236,6 @@ class PackagesModule {
         }
       } finally {
         this.stats.countRequest('crawl', Date.now() - start);
-      }
-    });
-
-    // Force-refresh specific packages, bypassing the feed. The crawler only fetches a
-    // package once (it dedupes on the feed GUID) and skips anything flagged
-    // notForPublication, so there is normally no way to make it re-pick-up a package
-    // that was published incorrectly and later corrected. This endpoint re-fetches the
-    // tarball(s) directly and replaces whatever is stored.
-    //
-    //   POST /update-package   { "links": ["http://hl7.org/fhir/uv/ips/2.0.1/package.tgz", ...] }
-    //
-    // The link is the versioned package.tgz url. The stored copy to replace is found by
-    // the id#version inside the fetched tarball (not by matching the link against the
-    // stored GUID, which can differ in scheme or form from what the feed published), and
-    // the replacement keeps the old row's GUID so a later crawl won't create a duplicate.
-    // If config.updateToken is set, the request must carry it in the x-update-token header.
-    this.router.post('/update-package', async (req, res) => {
-      const start = Date.now();
-      try {
-        if (this.config.updateToken && req.headers['x-update-token'] !== this.config.updateToken) {
-          res.status(403).json({ error: 'forbidden: missing or invalid x-update-token' });
-          return;
-        }
-        let links = req.body && (req.body.links || req.body.packages || (req.body.url ? [req.body.url] : (req.body.link ? [req.body.link] : null)));
-        if (typeof links === 'string') links = [links];
-        if (!Array.isArray(links) || links.length === 0) {
-          res.status(400).json({ error: 'Provide a JSON body like {"links": ["<package.tgz url>", ...]}' });
-          return;
-        }
-        const results = [];
-        for (const link of links) {
-          try {
-            results.push(Object.assign({ link }, await this.forceUpdatePackage(link)));
-          } catch (e) {
-            pckLog.error('Force update failed for ' + link + ': ' + e.message);
-            results.push({ link, status: 'error', error: e.message });
-          }
-        }
-        const failed = results.filter(r => r.status === 'error').length;
-        res.status(failed === results.length ? 500 : 200).json({
-          message: 'Processed ' + results.length + ' package(s), ' + failed + ' failed',
-          results
-        });
-      } catch (error) {
-        pckLog.error('update-package endpoint failed:', error);
-        res.status(500).json({ error: 'update-package failed', message: error.message });
-      } finally {
-        this.stats.countRequest('update-package', Date.now() - start);
       }
     });
 

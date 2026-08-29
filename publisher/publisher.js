@@ -5,6 +5,8 @@ const validation = require('./validation');
 const Database = require('sqlite3').Database;
 const bcrypt = require('bcrypt');
 const session = require('express-session');
+const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 const folders = require('../library/folder-setup');
 const escape = require('escape-html');
 const {Utilities} = require("../library/utilities");
@@ -35,11 +37,28 @@ class PublisherModule {
     await this.initializeDatabase();
 
     // Set up session middleware - use in-memory sessions or separate session db
+    if (!this.config.sessionSecret) {
+      // Never fall back to a constant. This project is open source, so a fixed default
+      // secret is a published signing key: anyone could mint themselves an admin session
+      // on any deployment that forgot the setting, and nothing about the server would
+      // look wrong. A random secret fails safe instead - sessions simply do not survive
+      // a restart, which is visible and harmless. token.js does the same.
+      this.logger.warn('publisher: no sessionSecret configured - using a random one, so ' +
+        'logins will not survive a restart. Set modules.publisher.sessionSecret.');
+    }
     this.router.use(session({
-      secret: this.config.sessionSecret || 'your-secret-key-change-this',
+      secret: this.config.sessionSecret || crypto.randomBytes(64).toString('hex'),
       resave: false,
       saveUninitialized: false,
-      cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+      cookie: {
+        // Secure by default: the cookie is then only ever sent over HTTPS. Express is
+        // configured to trust the proxy, so this works behind an NGINX TLS terminator
+        // reporting X-Forwarded-Proto. Set cookieSecure false to run the publisher over
+        // plain HTTP - without it the browser will not send the cookie back and login
+        // appears to succeed and then silently do nothing.
+        secure: this.config.cookieSecure ?? true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      }
       // Not using SQLiteStore to avoid the database conflict
     }));
 
@@ -277,9 +296,20 @@ class PublisherModule {
     // Main dashboard
     this.router.get('/', this.renderDashboard.bind(this));
 
-    // Authentication
+    // Authentication. The login post is rate limited: besides slowing down guessing, it
+    // is the one unauthenticated route that runs bcrypt, and bcrypt.compare holds a libuv
+    // threadpool thread (4 by default) for ~100ms - so without a limit a handful of
+    // concurrent attempts stall every file operation the server wants to do.
+    const loginLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: this.config.loginAttemptsPerWindow ?? 20,
+      message: 'Too many login attempts, please try again later.',
+      standardHeaders: true,
+      legacyHeaders: false
+    });
+
     this.router.get('/login', this.renderLogin.bind(this));
-    this.router.post('/login', this.handleLogin.bind(this));
+    this.router.post('/login', loginLimiter, this.handleLogin.bind(this));
     this.router.post('/logout', this.handleLogout.bind(this));
 
     // Tasks
@@ -1320,7 +1350,7 @@ class PublisherModule {
         content += '<div class="col-12">';
 
         if (req.session.userId) {
-          content += '<p>Welcome, ' + req.session.userName + '!</p>';
+          content += '<p>Welcome, ' + escape(req.session.userName) + '!</p>';
           content += '<div class="mb-3">';
           content += '<a href="/publisher/tasks" class="btn btn-primary me-2">View All Tasks</a>';
           if (req.session.isAdmin) {
@@ -1348,11 +1378,11 @@ class PublisherModule {
           tasks.forEach(task => {
             content += '<tr>';
             content += '<td><strong>#' + task.id + '</strong></td>';
-            content += '<td>' + task.npm_package_id + '</td>';
-            content += '<td>' + task.version + '</td>';
-            content += '<td><span class="badge bg-' + this.getStatusColor(task.status) + '">' + task.status + '</span></td>';
+            content += '<td>' + escape(task.npm_package_id) + '</td>';
+            content += '<td>' + escape(task.version) + '</td>';
+            content += '<td><span class="badge bg-' + this.getStatusColor(task.status) + '">' + escape(task.status) + '</span></td>';
             content += '<td>' + new Date(task.queued_at).toLocaleString() + '</td>';
-            content += '<td>' + task.user_name + '</td>';
+            content += '<td>' + escape(task.user_name) + '</td>';
             content += '</tr>';
           });
 
@@ -1502,23 +1532,23 @@ class PublisherModule {
           content += '</div>';
           content += '<div class="col-md-3">';
           content += '<label for="github_org" class="form-label">GitHub Org</label>';
-          content += '<input type="text" class="form-control" id="github_org" name="github_org" required maxlength="39" pattern="' + validation.HTML_PATTERNS.github_org + '" title="Letters, digits and single hyphens" placeholder="hl7">';
+          content += '<input type="text" class="form-control" id="github_org" name="github_org" required maxlength="39" pattern="' + escape(validation.HTML_PATTERNS.github_org) + '" title="Letters, digits and single hyphens" placeholder="hl7">';
           content += '</div>';
           content += '<div class="col-md-3">';
           content += '<label for="github_repo" class="form-label">GitHub Repo</label>';
-          content += '<input type="text" class="form-control" id="github_repo" name="github_repo" required maxlength="100" pattern="' + validation.HTML_PATTERNS.github_repo + '" title="Letters, digits, dots, hyphens and underscores" placeholder="fhir-us-core">';
+          content += '<input type="text" class="form-control" id="github_repo" name="github_repo" required maxlength="100" pattern="' + escape(validation.HTML_PATTERNS.github_repo) + '" title="Letters, digits, dots, hyphens and underscores" placeholder="fhir-us-core">';
           content += '</div>';
           content += '<div class="col-md-3">';
           content += '<label for="git_branch" class="form-label">Branch</label>';
-          content += '<input type="text" class="form-control" id="git_branch" name="git_branch" required maxlength="255" pattern="' + validation.HTML_PATTERNS.git_branch + '" title="A git branch name - slashes are fine, but not spaces, backslashes or any of ~ ^ : ? * [" placeholder="main">';
+          content += '<input type="text" class="form-control" id="git_branch" name="git_branch" required maxlength="255" pattern="' + escape(validation.HTML_PATTERNS.git_branch) + '" title="A git branch name - slashes are fine, but not spaces, backslashes, markup characters, or any of ~ ^ : ? * [" placeholder="main">';
           content += '</div>';
           content += '<div class="col-md-4">';
           content += '<label for="npm_package_id" class="form-label">NPM Package ID</label>';
-          content += '<input type="text" class="form-control" id="npm_package_id" name="npm_package_id" required maxlength="128" pattern="' + validation.HTML_PATTERNS.npm_package_id + '" title="Letters, digits, dots, hyphens and underscores" placeholder="hl7.fhir.us.core">';
+          content += '<input type="text" class="form-control" id="npm_package_id" name="npm_package_id" required maxlength="128" pattern="' + escape(validation.HTML_PATTERNS.npm_package_id) + '" title="Letters, digits, dots, hyphens and underscores" placeholder="hl7.fhir.us.core">';
           content += '</div>';
           content += '<div class="col-md-4">';
           content += '<label for="version" class="form-label">Version</label>';
-          content += '<input type="text" class="form-control" id="version" name="version" required maxlength="64" pattern="' + validation.HTML_PATTERNS.version + '" title="Letters, digits, dots, hyphens and plus signs" placeholder="6.0.0">';
+          content += '<input type="text" class="form-control" id="version" name="version" required maxlength="64" pattern="' + escape(validation.HTML_PATTERNS.version) + '" title="Letters, digits, dots, hyphens and plus signs" placeholder="6.0.0">';
           content += '</div>';
           content += '<div class="col-md-4 d-flex align-items-end">';
           content += '<button type="submit" class="btn btn-primary">Create Task</button>';
@@ -1554,13 +1584,13 @@ class PublisherModule {
 
             content += '<tr>';
             content += '<td><strong>#' + task.id + '</strong></td>';
-            content += '<td><code>' + task.npm_package_id + '</code></td>';
-            content += '<td>' + task.version + '</td>';
-            content += '<td>' + task.website_name + '</td>';
-            content += '<td><span class="badge bg-' + this.getStatusColor(task.status) + '">' + task.status + '</span></td>';
+            content += '<td><code>' + escape(task.npm_package_id) + '</code></td>';
+            content += '<td>' + escape(task.version) + '</td>';
+            content += '<td>' + escape(task.website_name) + '</td>';
+            content += '<td><span class="badge bg-' + this.getStatusColor(task.status) + '">' + escape(task.status) + '</span></td>';
             content += '<td>' + (task.publisher_version ? '<code>' + escape(task.publisher_version) + '</code>' : '<span class="text-muted">—</span>') + '</td>';
             content += '<td>' + new Date(task.queued_at).toLocaleString() + '</td>';
-            content += '<td>' + task.user_name + '</td>';
+            content += '<td>' + escape(task.user_name) + '</td>';
             content += '<td class="task-actions">';
             content += '<a href="/publisher/tasks/' + task.id + '/history" class="btn btn-sm btn-outline-secondary me-1">History</a>';
 
@@ -1868,20 +1898,20 @@ class PublisherModule {
 
         if (req.headers.accept && req.headers.accept.includes('text/html')) {
           const htmlServer = require('../library/html-server');
-          let content = '<h3>Task Output: #' + task.id + ' - ' + task.npm_package_id + '#' + task.version + '</h3>';
-          content += '<p><strong>Status:</strong> <span class="badge bg-' + this.getStatusColor(task.status) + '">' + task.status + '</span></p>';
-          content += '<p><strong>GitHub:</strong> ' + task.github_org + '/' + task.github_repo + ' (' + task.git_branch + ')</p>';
+          let content = '<h3>Task Output: #' + task.id + ' - ' + escape(task.npm_package_id) + '#' + escape(task.version) + '</h3>';
+          content += '<p><strong>Status:</strong> <span class="badge bg-' + this.getStatusColor(task.status) + '">' + escape(task.status) + '</span></p>';
+          content += '<p><strong>GitHub:</strong> ' + escape(task.github_org) + '/' + escape(task.github_repo) + ' (' + escape(task.git_branch) + ')</p>';
 
           if (task.publisher_version) {
             content += '<p><strong>IG Publisher:</strong> <code>' + escape(task.publisher_version) + '</code></p>';
           }
 
           if (task.local_folder) {
-            content += '<p><strong>Local Folder:</strong> <code>' + task.local_folder + '</code></p>';
+            content += '<p><strong>Local Folder:</strong> <code>' + escape(task.local_folder) + '</code></p>';
           }
 
           if (task.failure_reason) {
-            content += '<div class="alert alert-danger"><strong>Failure Reason:</strong> ' + task.failure_reason + '</div>';
+            content += '<div class="alert alert-danger"><strong>Failure Reason:</strong> ' + escape(task.failure_reason) + '</div>';
           }
 
           // Task logs section
@@ -1893,7 +1923,7 @@ class PublisherModule {
             logs.forEach(log => {
               const timestamp = new Date(log.timestamp).toLocaleString();
               const levelClass = log.level === 'error' ? 'text-danger' : (log.level === 'warn' ? 'text-warning' : '');
-              content += '<div class="' + levelClass + '">[' + timestamp + '] [' + log.level.toUpperCase() + '] ' + log.message + '</div>';
+              content += '<div class="' + levelClass + '">[' + timestamp + '] [' + escape(log.level.toUpperCase()) + '] ' + escape(log.message) + '</div>';
             });
             content += '</div>';
           }
@@ -2009,7 +2039,7 @@ class PublisherModule {
         content += '<div class="card mb-4"><div class="card-body">';
         content += '<div class="row">';
         content += '<div class="col-md-6">';
-        content += '<p><strong>Status:</strong> <span class="badge bg-' + this.getStatusColor(task.status) + '">' + task.status + '</span></p>';
+        content += '<p><strong>Status:</strong> <span class="badge bg-' + this.getStatusColor(task.status) + '">' + escape(task.status) + '</span></p>';
         content += '<p><strong>Package:</strong> <code>' + escape(task.npm_package_id) + '</code></p>';
         content += '<p><strong>Version:</strong> ' + escape(task.version) + '</p>';
         content += '<p><strong>Website:</strong> ' + escape(task.website_name) + '</p>';
@@ -2085,7 +2115,7 @@ class PublisherModule {
           if (action.action === 'create_task') actionLabel = 'Created task';
           else if (action.action === 'approve_task') actionLabel = 'Approved task';
           else if (action.action === 'delete_task') actionLabel = 'Deleted task';
-          else actionLabel = action.action.replace(/_/g, ' ');
+          else actionLabel = escape(action.action.replace(/_/g, ' '));
 
           events.push({
             timestamp: action.timestamp,
@@ -2306,7 +2336,7 @@ class PublisherModule {
 
           websites.forEach(website => {
             content += '<tr>';
-            content += '<td>' + website.name + '</td>';
+            content += '<td>' + escape(website.name) + '</td>';
             content += '<td><code>' + escape(website.local_folder) + '</code></td>';
             content += '<td><code>' + escape(website.git_root || '') + '</code></td>';
             content += '<td><code>' + escape(website.history_templates) + '</code></td>';
@@ -2427,7 +2457,7 @@ class PublisherModule {
 
             content += '<div class="card mb-3">';
             content += '<div class="card-header">';
-            content += '<h5>' + user.name + ' (' + user.login + ') ' + (user.is_admin ? '<span class="badge bg-warning">Admin</span>' : '') + '</h5>';
+            content += '<h5>' + escape(user.name) + ' (' + escape(user.login) + ') ' + (user.is_admin ? '<span class="badge bg-warning">Admin</span>' : '') + '</h5>';
             content += '</div>';
             content += '<div class="card-body">';
 
@@ -2443,7 +2473,7 @@ class PublisherModule {
 
               websites.forEach(website => {
                 const perm = permissions.find(p => p.website_id === website.id) || {};
-                content += '<div>' + website.name + '</div>';
+                content += '<div>' + escape(website.name) + '</div>';
                 content += '<div>';
                 content += '<input type="checkbox" name="queue_' + website.id + '"' + (perm.can_queue ? ' checked' : '') + '>';
                 content += '</div>';

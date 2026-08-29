@@ -3,6 +3,7 @@ const {CanonicalResource} = require("./canonical-resource");
 const {codeSystemFromR5, codeSystemToR5} = require("../xversion/xv-codesystem");
 const {getValuePrimitive} = require("../../library/utilities");
 const {VersionUtilities} = require("../../library/version-utilities");
+const {countNested} = require("./nesting-limit");
 
 const CodeSystemContentMode = Object.freeze({
   Complete: 'complete',
@@ -33,18 +34,30 @@ class CodeSystem extends CanonicalResource {
     super(jsonObj, fhirVersion);
     // Convert to R5 format internally (modifies input for performance)
     this.jsonObj = codeSystemToR5(this.jsonObj, fhirVersion);
-    if (!noMaps) {
-      try {
+    try {
+      // Bound the nesting before anything walks the concept tree recursively - see
+      // nesting-limit.js. It has to precede validate(), which recurses itself, and it
+      // runs on the noMaps path too: validate() is skipped there, but the count below
+      // and every later consumer still walk the tree. The count is a by-product, so
+      // callers (e.g. the resource cache) get a cheap O(1) sense of the resource size
+      // without a second traversal.
+      // Optional chaining because this runs ahead of validate()'s "expected object"
+      // guard, and a null body must still get that message rather than a TypeError.
+      this._conceptCount = countNested(this.jsonObj?.concept, 'concept', 'Invalid CodeSystem: concept');
+      if (!noMaps) {
         this.validate();
-      } catch (e) {
-        const id = this.jsonObj?.url ? `${this.jsonObj.url}|${this.jsonObj.version || ''}` : this.jsonObj?.name || 'unknown';
-        throw new Error(`${e.message} (in ${id})`);
       }
+    } catch (e) {
+      const id = this.jsonObj?.url ? `${this.jsonObj.url}|${this.jsonObj.version || ''}` : this.jsonObj?.name || 'unknown';
+      const wrapped = new Error(`${e.message} (in ${id})`);
+      // Don't let the rewrap swallow the HTTP shape the thrower asked for.
+      if (e.statusCode) { wrapped.statusCode = e.statusCode; }
+      if (e.issueCode) { wrapped.issueCode = e.issueCode; }
+      throw wrapped;
+    }
+    if (!noMaps) {
       this.buildMaps();
     }
-    // Precalculated at construction so callers (e.g. the resource cache) have a
-    // cheap O(1) sense of how large this resource is.
-    this._conceptCount = CodeSystem._countConcepts(this.jsonObj.concept);
   }
 
   /**
@@ -54,25 +67,6 @@ class CodeSystem extends CanonicalResource {
    */
   conceptCount() {
     return this._conceptCount;
-  }
-
-  /**
-   * Recursively count concepts (including nested `concept` children).
-   * @param {Array} concepts
-   * @returns {number}
-   */
-  static _countConcepts(concepts) {
-    if (!Array.isArray(concepts)) {
-      return 0;
-    }
-    let n = 0;
-    for (const c of concepts) {
-      n++;
-      if (c && c.concept) {
-        n += CodeSystem._countConcepts(c.concept);
-      }
-    }
-    return n;
   }
 
   /**

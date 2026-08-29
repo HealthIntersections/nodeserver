@@ -15,6 +15,7 @@ const v8 = require('v8');
 const folders = require('./library/folder-setup');  // <-- ADD: load early
 const { statSync, readdirSync } = require('fs');
 const escape = require('escape-html');
+const { resolveWithin } = require('./library/path-safety');
 
 // Load configuration BEFORE logger
 let config;
@@ -540,10 +541,18 @@ app.use((req, res, next) => {
 });
 if (config.server?.webBase) {
   const overrideDir = path.resolve(config.server.webBase);
+  // Anything under overrideDir may be served; nothing outside it may - see
+  // library/path-safety.js for why path.join is not enough on its own.
   app.use((req, res, next) => {
-    const filePath = path.join(overrideDir, req.path);
-    fs.access(filePath, fs.constants.F_OK, (err) => {
-      if (!err) {
+    const filePath = resolveWithin(overrideDir, req.path);
+    if (filePath === null) {
+      return next();
+    }
+    // stat rather than access: a directory passes an existence check and then makes
+    // sendFile fail with EISDIR, where falling through to express.static serves its
+    // index.html instead.
+    fs.stat(filePath, (err, stat) => {
+      if (!err && stat.isFile()) {
         res.sendFile(filePath);
       } else {
         next();

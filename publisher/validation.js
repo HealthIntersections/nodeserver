@@ -6,9 +6,15 @@
  * lines, in URLs, and in file names, so they're checked at the boundary rather
  * than trusted to be harmless everywhere they're later used.
  *
- * The rules are the ones GitHub and git themselves enforce (see
+ * The rules are mostly the ones GitHub and git themselves enforce (see
  * git-check-ref-format(1) for the branch rules): anything rejected here would
- * have failed at clone time anyway, with a much worse error.
+ * have failed at clone time anyway, with a much worse error. The exception is
+ * the markup characters in a branch name, which git permits and we do not - see
+ * validateGitBranch.
+ *
+ * These checks are NOT the defence against markup in the pages that display
+ * these values. Output escaping is, and it has to stay there whatever this file
+ * allows; the branch rule below is a second line, not the first.
  */
 
 // GitHub owner names: letters, digits and single hyphens, no hyphen at either
@@ -83,6 +89,12 @@ function validateGitBranch(value) {
   // the characters git reserves for revision syntax
   if (/[~^:?*[\\]/.test(value)) {
     return 'Branch may not contain any of ~ ^ : ? * [ \\';
+  }
+  // git itself allows these, but a branch name is displayed on the task pages, and a value that
+  // has to be escaped everywhere it is shown is one escape away from being a stored XSS. Nobody
+  // needs a branch called <script>, so refuse it at the boundary as well as escaping on output
+  if (/[<>"'&]/.test(value)) {
+    return 'Branch may not contain any of < > " \' &';
   }
   if (value.includes('..')) {
     return 'Branch may not contain ..';
@@ -182,7 +194,7 @@ function validateTaskInput(input) {
 const HTML_PATTERNS = {
   github_org: '[A-Za-z0-9](-?[A-Za-z0-9])*',
   github_repo: '[A-Za-z0-9._-]+',
-  git_branch: '[^\\\\ ~^:?*\\[]+',
+  git_branch: '[^\\\\ ~^:?*\\[<>"\'&]+',
   npm_package_id: '[A-Za-z0-9][A-Za-z0-9._-]*',
   version: '[A-Za-z0-9][A-Za-z0-9.+-]*'
 };
