@@ -13,6 +13,9 @@ const {
 } = require('../sct/structures');
 const {SnomedExpressionServices} = require("../sct/expressions");
 
+// definitionStatusId values from the RF2 concept file
+const SNOMED_DEFINITION_STATUS_PRIMITIVE = 900000000000074008n;
+
 class SnomedModule extends BaseTerminologyModule {
 
   constructor() {
@@ -1342,7 +1345,13 @@ class SnomedImporter {
 
     for (let i = 0; i < this.conceptList.length; i++) {
       const concept = this.conceptList[i];
-      const flags = concept.active ? 0 : 1;
+      // Bits 0-3 are the status (MASK_CONCEPT_STATUS); bit 4 (MASK_CONCEPT_PRIMITIVE) says the
+      // concept is primitive. Without the primitive bit every concept looks fully defined, and
+      // normal form generation then runs for concepts that have no definition to expand.
+      let flags = concept.active ? 0 : 1;
+      if (concept.definitionStatusId === SNOMED_DEFINITION_STATUS_PRIMITIVE) {
+        flags |= SnomedConceptList.MASK_CONCEPT_PRIMITIVE;
+      }
       const effectiveTime = this.convertDateToSnomedDate(concept.effectiveTime);
 
       concept.index = this.concepts.addConcept(concept.id, effectiveTime, flags);

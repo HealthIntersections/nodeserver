@@ -1,4 +1,4 @@
-const { CodeSystemContentMode, CodeSystemFactoryProvider} = require('./cs-api');
+const { CodeSystemContentMode, CodeSystemFactoryProvider, cannotDetermineSubsumption} = require('./cs-api');
 const {
   SnomedStrings, SnomedWords, SnomedStems, SnomedReferences,
   SnomedDescriptions, SnomedDescriptionIndex, SnomedConceptList,
@@ -2393,9 +2393,21 @@ class SnomedProvider extends BaseCSServices {
   }
 
   // Subsumption testing
+  /**
+   * Subsumption between two codes, either of which may be a postcoordinated expression.
+   *
+   * PRECONDITION: both codes have already been validated. doSubsumes (the only caller)
+   * runs locate() on each first, which parses and runs checkExpression - so an
+   * expression that breaks the concept model is reported as an invalid code before it
+   * gets here, rather than having a subsumption answer computed for it. The check is
+   * deliberately not repeated here: it evaluates ECL for the MRCM range constraints, and
+   * doing that twice per request is not free.
+   *
+   * @param {string} codeA
+   * @param {string} codeB
+   * @returns {Promise<string>} equivalent | subsumes | subsumed-by | not-subsumed
+   */
   async subsumesTest(codeA, codeB) {
-
-
     try {
       const exprA = new SnomedExpressionParser(this.sct.concepts).parse(codeA);
       const exprB = new SnomedExpressionParser(this.sct.concepts).parse(codeB);
@@ -2424,10 +2436,32 @@ class SnomedProvider extends BaseCSServices {
         } else if (b2) {
           return 'subsumed-by';
         } else {
-          return 'not-subsumed';
+          // No structural relationship found - which is NOT the same as there being
+          // none. Structural comparison of normal forms is sound when it succeeds (a
+          // proof is a proof) but not when it fails: SNOMED's OWL axiom reference set
+          // carries general concept inclusions and property chains whose entailments
+          // are baked into the distributed inferred relationships for precoordinated
+          // concepts, but a postcoordinated expression is one the classifier never saw,
+          // so those entailments are not available for it. Answering 'not-subsumed'
+          // here would assert something we have not established, in the direction that
+          // wrongly excludes a code from a cohort.
+          //
+          // $subsumes has four outcome codes and none of them means "unknown", so the
+          // only honest answer is an error. Both codes are valid and the request is
+          // well formed, hence 422 rather than 400.
+          throw cannotDetermineSubsumption('Unable to determine the subsumption relationship between '
+            + `'${codeA}' and '${codeB}': at least one is a postcoordinated expression and no `
+            + 'relationship follows from comparing their normal forms. Establishing that there '
+            + 'is no relationship would require classification, which this server does not do, '
+            + 'so no outcome is returned rather than one that may be wrong');
         }
       }
     } catch (error) {
+      // Errors that already say how they should be reported pass straight through -
+      // wrapping them would lose the status and issue code.
+      if (error.statusCode) {
+        throw error;
+      }
       throw new Error(`Error in subsumption test: ${error.message}`);
     }
   }

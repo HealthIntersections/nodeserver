@@ -993,9 +993,38 @@ class CodeSystemFactoryProvider {
   }
 }
 
+/**
+ * The error a code system provider raises when it cannot work out the subsumption
+ * relationship between two codes.
+ *
+ * $subsumes has four outcome codes - equivalent, subsumes, subsumed-by, not-subsumed -
+ * and none of them means "unknown", so a server that cannot decide has no honest answer
+ * to give and must report an error instead. Answering `not-subsumed` would assert
+ * something the server has not established, in the direction that wrongly drops a code
+ * out of a cohort. See FHIR-58748.
+ *
+ * This is a real condition in more than one code system: SNOMED CT expressions that no
+ * classifier has seen, and media types whose difference lies in a parameter the server
+ * does not understand.
+ *
+ * 422 rather than 400 because the request is well formed and both codes are valid - the
+ * server simply cannot answer it.
+ *
+ * @param {string} message - what could not be determined, and why
+ * @returns {Error} tagged with statusCode, issueCode and txIssueType
+ */
+function cannotDetermineSubsumption(message) {
+  const error = new Error(message);
+  error.statusCode = 422;
+  error.issueCode = 'not-supported';
+  error.txIssueType = 'cannot-determine';
+  return error;
+}
+
 module.exports = {
   FilterExecutionContext,
   CodeSystemProvider,
   CodeSystemContentMode,
-  CodeSystemFactoryProvider
+  CodeSystemFactoryProvider,
+  cannotDetermineSubsumption
 };
