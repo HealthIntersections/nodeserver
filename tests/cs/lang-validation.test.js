@@ -379,6 +379,19 @@ describe('IETF language code validation', () => {
         expect(await inFilter(f, 'fr-US')).toBe(false);
       });
 
+      test('an absent component does not match a fixed one', async () => {
+        // A tag that simply does not say what its region is is not thereby a tag whose
+        // region is US: RFC 4647 basic filtering matches a prefix of the tag, and 'en'
+        // has no region subtag to compare. This is the distinction the 'out' cases below
+        // do not test, because they all supply a different value rather than none.
+        expect(await inFilter([['region', '=', 'US']], 'en')).toBe(false);
+        expect(await inFilter([['script', '=', 'Latn']], 'en-US')).toBe(false);
+        expect(await inFilter([['language', '=', 'en'], ['region', '=', 'US']], 'en')).toBe(false);
+        // the mirror case: a language filter is satisfied by the bare language, because
+        // there the component is present and equal
+        expect(await inFilter([['language', '=', 'en']], 'en')).toBe(true);
+      });
+
       test('the message names the rule that actually failed', async () => {
         const { ctx, sets } = await build([['language', '=', 'en'], ['region', '=', 'US']]);
         // en-GB has the right language, so complaining about the language would send the
