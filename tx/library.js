@@ -457,7 +457,7 @@ class Library {
         break;
       }
       case "mimetypes" : {
-        const mime = new MimeTypeServicesFactory(this.i18n);
+        const mime = new MimeTypeServicesFactory(this.i18n, this.cacheFolder, this.log);
         await mime.load();
         this.registerProvider('internal', mime);
         break;

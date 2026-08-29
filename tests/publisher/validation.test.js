@@ -92,6 +92,19 @@ describe('publication task input validation', () => {
     ])('rejects %s (%s)', (value) => {
       expect(validateGitBranch(value)).not.toBeNull();
     });
+
+    // git allows these, we don't: a branch name is shown on the task pages, and none of these
+    // has any business being in one. Output escaping is still what makes those pages safe -
+    // this is the second line, not the first
+    test.each([
+      ['<script>alert(1)</script>', 'markup'],
+      ['a"onmouseover="alert(1)', 'double quote'],
+      ["a'b", 'single quote'],
+      ['a>b', 'greater than'],
+      ['x&y', 'ampersand']
+    ])('rejects %s (%s)', (value) => {
+      expect(validateGitBranch(value)).not.toBeNull();
+    });
   });
 
   describe('package id and version', () => {
