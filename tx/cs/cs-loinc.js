@@ -1037,12 +1037,53 @@ class LoincServices extends BaseCSServices {
     return set.hasKey(concept.key);
   }
 
-  // Subsumption testing
+  /**
+   * Subsumption over the LOINC multiaxial hierarchy. The Closure table is a full transitive
+   * ancestor/descendent closure - the importer walks PATH_TO_ROOT from
+   * ComponentHierarchyBySystem and records every ancestor on the path, not just the immediate
+   * parent - so one indexed lookup each way answers the question. This is the same table the
+   * `is-a` / `descendent-of` filters run against, so $subsumes and an expansion agree.
+   *
+   * In practice the relationships found are Part-to-Part and Part-to-code: LOINC codes hang off
+   * the hierarchy as leaves, so two codes never subsume one another.
+   *
+   * @param {string|LoincProviderContext} codeA
+   * @param {string|LoincProviderContext} codeB
+   * @returns {string} equivalent, subsumes, subsumed-by or not-subsumed
+   */
   async subsumesTest(codeA, codeB) {
-    await this.#ensureContext(codeA);
-    await this.#ensureContext(codeB);
+    const a = await this.#ensureContext(codeA);
+    const b = await this.#ensureContext(codeB);
 
-    return 'not-subsumed'; // Not implemented yet
+    if (a.key === b.key) {
+      return 'equivalent';
+    }
+    if (await this.#isAncestorOf(a.key, b.key)) {
+      return 'subsumes';
+    }
+    if (await this.#isAncestorOf(b.key, a.key)) {
+      return 'subsumed-by';
+    }
+    return 'not-subsumed';
+  }
+
+  /**
+   * Is ancestorKey an ancestor of descendentKey in the multiaxial hierarchy?
+   * @param {number} ancestorKey
+   * @param {number} descendentKey
+   * @returns {Promise<boolean>}
+   */
+  async #isAncestorOf(ancestorKey, descendentKey) {
+    return new Promise((resolve, reject) => {
+      const sql = 'SELECT 1 FROM Closure WHERE AncestorKey = ? AND DescendentKey = ? LIMIT 1';
+      this.db.get(sql, [ancestorKey, descendentKey], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(!!row);
+        }
+      });
+    });
   }
 
   versionAlgorithm() {
