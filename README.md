@@ -283,7 +283,7 @@ GitHub Actions will automatically:
 ### Tx Conformance Statement
      {copy content from text-cases-summary.txt}
 ```
-2. Update `package.json` to have the same release version
+2. Update `package.json` & `package-lock.json` to have the same release version
 
 3. Commit your changes:
 ```bash

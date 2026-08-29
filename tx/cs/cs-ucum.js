@@ -7,6 +7,7 @@ const { FilterExecutionContext, CodeSystemFactoryProvider} = require('./cs-api')
 const ValueSet = require("../library/valueset");
 const assert = require('assert');
 const {UcumService} = require("../library/ucum-service");
+const {Pair, Decimal} = require("../library/ucum-types");
 const {validateArrayParameter, validateParameter, validateOptionalParameter} = require("../../library/utilities");
 const {DesignationUse} = require("../library/designations");
 const {BaseCSServices} = require("./cs-base");
@@ -397,11 +398,40 @@ class UcumCodeSystemProvider extends BaseCSServices {
     return codeA === codeB;
   }
 
+  /**
+   * UCUM has no hierarchy, so no code is ever a subtype of another. Two different codes can
+   * still mean the same unit though - 1/min and min-1 are the same thing written two ways -
+   * so when the codes differ, compare what they canonicalise to.
+   *
+   * This is the canonical *form*, not the canonical units: getCanonicalUnits() drops the
+   * magnitude, so m and cm both answer 'm' and would compare equal when they are different
+   * units. getCanonicalForm() carries the conversion factor with the unit, which is what
+   * distinguishes the same unit written differently from a merely comparable one.
+   *
+   * @param {string|UcumContext} codeA
+   * @param {string|UcumContext} codeB
+   * @returns {string} equivalent or not-subsumed
+   */
   async subsumesTest(codeA, codeB) {
+    const a = await this.#ensureContext(codeA);
+    const b = await this.#ensureContext(codeB);
 
-    await this.#ensureContext(codeA);
-    await this.#ensureContext(codeB);
-    return 'not-subsumed'; // No subsumption in UCUM
+    if (a.code === b.code) {
+      return 'equivalent';
+    }
+
+    try {
+      const ca = this.ucumService.getCanonicalForm(new Pair(Decimal.one(), a.code));
+      const cb = this.ucumService.getCanonicalForm(new Pair(Decimal.one(), b.code));
+      if (ca.getCode() === cb.getCode() && ca.getValue().comparesTo(cb.getValue()) === 0) {
+        return 'equivalent';
+      }
+    } catch (e) {
+      // a unit that won't canonicalise is simply not equivalent to anything. locate() has
+      // already accepted both codes, so this is a unit the analyser can't reduce, not junk
+    }
+
+    return 'not-subsumed';
   }
 
   async extendLookup(ctxt, props, params) {

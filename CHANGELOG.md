@@ -61,6 +61,153 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The XML parser could be made to loop forever, which on a single-threaded server means the
+  process stops answering anything at all - not just the request that carried the input. Several
+  scans used `indexOf` without checking for -1 and assigned the result to the cursor, sending it
+  backwards; `<ValueSet><x bare></x></ValueSet>` was enough, as was any `<!DOCTYPE` or an
+  unterminated comment. The parser has been rewritten to be total: every delimiter search fails
+  loudly, every loop asserts that it consumed input, nesting past 1000 elements is an error rather
+  than a stack overflow, and a document type declaration is refused outright (FHIR XML has no DTD,
+  and accepting one is how a parser ends up expanding entities on someone else's behalf).
+  Malformed documents now produce a positioned parse error
+- SNOMED CT: normalising an expression discarded a primitive concept's defining attributes, so
+  real subsumption answers were lost. A primitive's definition is necessary but not sufficient, so
+  the concept itself must not be replaced by it - but its attributes are still entailed:
+  `4846001 |Anicteric viral hepatitis|` is primitive and carries an inferred
+  `363698007 |Finding site| = 10200004 |Liver structure|`, so `64572001:{363698007=10200004}`
+  really does subsume it, and the server said not-subsumed. The attributes are now added
+  alongside the concept, which keeps the other direction sound - the primitive stays in the focus
+  as an atom nothing else can match, so its conditions never become sufficient and nothing is
+  reported equivalent to it. Read from the concept's relationships at query time rather than from
+  the stored normal form, so existing caches need no rebuild
+- IETF language codes (`urn:ietf:bcp:47`) are validated properly. Four things were wrong, all
+  visible only through the code system: the registry writes private-use allocations as ranges
+  (`QM..QZ`, `Qaaa..Qabx`, `qaa..qtz`, `XA..XZ`) and those were stored as literal keys nobody
+  could ever look up, so every code inside them read as unregistered while singly-allocated `AA`
+  worked; the 26 grandfathered tags were skipped at load, so registered tags like `i-klingon`
+  were rejected; a variant was never checked against the registry at all, so `en-abcdef` parsed
+  happily; and the registry's `Prefix` field - its only statement about which subtags may go
+  together - was ignored, so `en-cmn` passed even though `cmn` may only follow `zh`. Tags are
+  also matched case-insensitively now, per BCP 47 §2.1.1, so `en-us` is accepted as a way of
+  writing `en-US`. The stricter checks are options on the parser, applied by the code system;
+  Accept-Language parsing is deliberately left as it was. Redundant registry entries such as
+  `zh-Hans` still decompose into language plus script rather than being matched whole
+- Language codes gained `=` filters on `language`, `script` and `region`, and three of the
+  combinations can now be expanded. The BCP 47 grammar is unbounded, so an expansion is only
+  possible where fixing part of a tag leaves a finite list of registry entries to vary: a fixed
+  language gives every region plus the bare language (344 codes), a fixed region gives every
+  language with it (8787, so too-costly unless paged), and language and region together give
+  every script plus the tag with none (275). Anything else - a script on its own, a language with
+  a script, an `exists` filter - answers 422 rather than pretending, and `filterMore` throws
+  rather than returning false so a mistake cannot surface as an empty expansion that reads like
+  "there are none". Every one of these is marked unclosed, since a variant, extension or
+  private-use subtag can always be added. A filter value that is not a registered subtag of the
+  right kind is refused when the filter is built, rather than silently selecting nothing
+- `$subsumes` works for language codes, where it used to answer `not-subsumed` for everything
+  behind a comment reading "No subsumption in language codes". A tag is a set of named
+  components rather than an ordered path, so one tag subsumes another when it states a subset of
+  what the other states and the languages match: `en` subsumes `en-US`, `zh` subsumes
+  `zh-Hans-CN`, `de` subsumes `de-1901`. `en-US` subsumes `en-Latn-US` too, even though the added
+  script sits between the two subtags `en-US` names - that is RFC 4647's extended filtering
+  rather than basic filtering, and it is what keeps the relation transitive. Comparison is
+  case-insensitive, and a grandfathered tag relates only to itself, having no components to
+  compare. Suppress-Script is deliberately not consulted, so `en` subsumes `en-Latn` rather than
+  being equivalent to it
+- A language code written in the wrong case now comes back with a `normalized-code` and an
+  information issue saying so, the way any other case-insensitive code system already behaved -
+  `en-us` validates, and the server answers with `en-US`. BCP 47 recommends lower case for the
+  language, Titlecase for the script and UPPER CASE for the region; the whole mechanism was
+  already in the validator, waiting on the code system to report the canonical spelling of a code
+  rather than echoing what the caller wrote
+- Validating a language code now says which subtag is wrong and why - "the extLanguage 'cmn' in
+  the code 'en-cmn' may only be used with 'zh'" - instead of only "unknown code". The mechanism
+  for this already existed in the validator; the language provider had been discarding the reason
+- `$subsumes` can now report that it cannot determine the relationship, as a 422 carrying
+  `cannot-determine` from the tx-issue-type code system (FHIR-58748). There is no outcome code
+  meaning "unknown", so a server that cannot decide has no honest answer to give and must report
+  an error; answering `not-subsumed` asserts something it has not established. The condition is
+  real in more than one code system, so the error is raised through one shared helper
+  (`cannotDetermineSubsumption`)
+- Media types: subsumption is only decided on parameters the server understands - `charset`,
+  `format`, `delsp` and `version`. Reasoning that a parameter narrows the type, and that two of
+  its values exclude one another, are properties of that parameter's definition, and neither can
+  be asserted for one the server has never seen: `text/plain` vs `text/plain; foo=bar` might be
+  subsumption or might be the same thing. Where an unknown parameter is what the two codes differ
+  in, the answer is now cannot-determine. A parameter carried identically by both codes cannot
+  affect the relationship and is ignored, so it does not trigger a decline, and a type or subtype
+  mismatch stays decidable whatever parameters are present. `boundary` and `profile` are
+  deliberately excluded from the understood list: a differing boundary does not narrow anything
+  (two multipart bodies with different boundaries are the same media type) and profile values can
+  be hierarchical, so neither can be judged by comparing values
+
+- SNOMED CT: `$subsumes` no longer answers `not-subsumed` when it has not established it. Comparing
+  normal forms is sound when it succeeds and not when it fails: SNOMED's OWL axiom reference set
+  carries general concept inclusions and property chains whose entailments are baked into the
+  distributed inferred relationships for precoordinated concepts, but a postcoordinated expression
+  is one the classifier never saw, so they are not available for it. Where either code is an
+  expression and no relationship follows structurally, the server now returns a 422 rather than
+  claiming there is none - the claim would be the one that wrongly drops a code out of a cohort,
+  and `$subsumes` has no outcome code meaning "unknown". Two plain concepts are unaffected: there
+  the transitive closure comes from the classifier's own output and all four outcomes are sound
+
+- SNOMED CT: the MRCM `grouped` flag was parsed into the attribute domain rules and then never
+  read, so an attribute the concept model requires to be in a relationship group could be written
+  outside one and pass validation - `40468003:363698007=10200004` was accepted even though
+  `363698007 |Finding site|` is grouped and the expression is not classifiable. It is now
+  enforced, for expressions wherever they appear ($validate-code, $lookup and $subsumes all
+  validate through the same path), and the message names the attribute and shows the corrected
+  form. Attributes the MRCM marks as ungrouped, such as `272741003 |Laterality|`, are unaffected:
+  the flag is read from the concept model rather than every brace-less refinement being rejected.
+  SNOMED's postcoordination guide treats the ungrouped form as Close To User Form and defines a
+  transformation to the classifiable form; that transformation is not implemented, so the
+  expression is rejected rather than silently repaired
+- Publisher: with no `sessionSecret` configured, the session middleware fell back to a constant
+  written into the source. In an open-source project that is a published signing key - anyone
+  could mint themselves an admin session on any deployment that had missed the setting, and
+  nothing about the server would look wrong. The fallback is now a random secret plus a warning,
+  which fails safe: logins simply do not survive a restart. Session cookies are also marked
+  `Secure` by default now (set `modules.publisher.cookieSecure` false to run over plain HTTP),
+  and `POST /login` is rate limited - it is the one unauthenticated route that runs bcrypt, and
+  bcrypt holds a libuv threadpool thread for ~100ms, so unlimited attempts stall the server's
+  file I/O as well as inviting guessing
+- Publisher: twenty more values reached the task, history and admin pages unescaped -
+  `npm_package_id`, `version`, `status`, `user_name`, `website_name`, `local_folder`,
+  `failure_reason`, the task log messages, and the user and website names on the admin pages.
+  Most are constrained elsewhere, but `failure_reason` and the log messages carry build output
+  from the IG being published, which is not. The earlier fix covered `github_org`, `github_repo`
+  and `git_branch` only; output escaping is the boundary that has to be complete to be worth
+  anything
+- The static file handler for `server.webBase` built its filename with `path.join(webBase, req.path)`
+  and no containment check, so a literal `..` in the request path walked straight out of the
+  directory: `GET /../../etc/passwd` read any file the server user could read. (The encoded forms
+  never worked - Express does not decode `req.path` - and a proxy in front normalises `..` away,
+  which is why this survived.) Paths are now resolved and required to stay inside the configured
+  directory, in `library/path-safety.js` so the rule is testable and reusable; a request that
+  escapes falls through to the next handler instead of being served
+- `POST /packages/crawl` triggered a full registry crawl for anyone who asked. It now requires a
+  shared secret, `modules.packages.crawlToken`, in an `x-crawl-token` header, compared in constant
+  time. With no token configured the endpoint is disabled rather than open: an administrative
+  trigger that silently defaults to unauthenticated is how a deployment ends up exposed with
+  nothing about it looking wrong. The scheduled crawler is unaffected
+
+- `CodeSystem.concept` and `ValueSet.expansion.contains` nest without limit in FHIR, and both are
+  walked recursively in a dozen places - the expansion map, the concept counts, the renderer, the
+  expander's index, the R5-to-R4 converter. A resource of a couple of hundred KB could nest deeply
+  enough to exhaust the JS stack, and hardening those walkers one at a time would not have been
+  enough anyway: `JSON.stringify` itself, which we do not control, overflows at a nesting depth of
+  about 1800 on node 22, so a deep enough resource could not be serialised even if every walker
+  were iterative. Nesting is now bounded once, at construction, at 100 levels - far past SNOMED
+  CT's ~30 or LOINC's ~10, and well clear of anything that breaks - which makes every walker safe
+  by construction, including ones not yet written. The bounding walk is iterative and doubles as
+  the concept count, so the tree is still traversed only once, and an over-nested resource comes
+  back as a 400 rather than a 500
+
+- Publisher: the task output page wrote `github_org`, `github_repo` and `git_branch` into the HTML
+  without escaping. The first two are constrained to letters, digits and punctuation, but a branch
+  name was only checked against git's own rules, which say nothing about markup - so a branch
+  called `<script>...</script>` was stored XSS on a page that needs no login to read. The fields
+  are escaped now, and a branch name carrying `< > " ' &` is refused at the boundary as well
+
 - `$expand`: `status` was lost from imported property declarations, and a concept carrying the
   same property more than once had the repeats collapsed to a single value
 - Expansion properties are de-duplicated when they arrive from more than one place (the request,
@@ -70,6 +217,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the field the cache key hashes
 - Boolean parameters passed as strings (as they always are on a GET) are now accepted, which
   revives five parameters that were dead on GET requests
+- `$subsumes`: an unknown `codeA`/`codeB` returned a bare OperationOutcome - no
+  `operationoutcome-message-id` extension and no `tx-issue-type#invalid-code` detail code - so
+  clients could not tell what kind of failure it was. It now reports the same issue that
+  `$validate-code` does for an unknown code
+- SNOMED CT import did not record definition status, so every concept looked fully defined. A
+  normal form was then generated for concepts that have no definition to expand, and the result
+  was stored unparseable - which made `$subsumes` fail with a 500 for any post-coordinated
+  expression. **Caches built by the affected importer have to be rebuilt**
+- SNOMED CT `isPrimitive` tested bit 0 of the concept flags, which is part of the status, instead
+  of the primitive bit
+- A concept's own stored normal form was run through the MRCM postcoordination checks when it was
+  read back. Those rules are about expressions a client sends, not about precoordinated content,
+  and they rejected the normal form of any concept defined with a precoordinated-only attribute
+- The expression parser did not resolve attribute names to concept references, so refinements were
+  compared by reference in one direction and by code in the other. Subsumption between two refined
+  expressions could come out true one way and false the other
+- Subsumption checked each refinement group against only the first group whose attribute names
+  lined up. Where several groups share attribute names, the answer depended on the order the
+  groups happened to be in after normalisation
+- `$subsumes` reported an unexpected error in `diagnostics`, which the test runner strips from
+  every issue it compares, so a failing test showed nothing but `severity`/`code`. The message now
+  goes in `details.text` (the same helper elsewhere in the server has the same problem)
+- `$subsumes` ignored a front-loaded cache on a GET: it only looked for `tx-resource` and the
+  cache-id when the request had a Parameters body, so a client that put its code systems in a
+  server-side cache and sent the id in `X-Cache-Id` got "could not be found" for every one of
+  them
+- `$subsumes` reported an unknown code against `codeA`/`codeB` in `expression` even when the code
+  came in as `codingA`/`codingB`
+
+### Changed
+
+- `$subsumes` on UCUM now answers `equivalent` for two different codes that mean the same unit -
+  `1/min` and `min-1`, `N` and `kg.m/s2`, `mg{total}` and `mg`. UCUM still has no hierarchy, so
+  nothing ever subsumes anything; this compares the canonical *form* (which carries the conversion
+  factor), not the canonical units, so `m` and `cm` remain distinct rather than collapsing onto
+  their shared canonical unit
+- `$subsumes` on LOINC is implemented against the multiaxial hierarchy. The importer already
+  builds a full transitive closure from `PATH_TO_ROOT` in ComponentHierarchyBySystem - the same
+  table the `is-a` / `descendent-of` filters use - so subsumption and expansion now agree.
+  Relationships run Part-to-Part and Part-to-code, so two LOINC codes still never subsume each
+  other
+- Mime types support a `base` filter, taking either `type` or `type/subtype`, which selects the
+  codes consistent with it - parameters on the code are ignored, so `text/plain; charset=utf-8`
+  matches a base of `text` and of `text/plain`. Media types cannot be enumerated, so the filter
+  validates a code rather than expanding; a value carrying parameters, a wildcard, or anything
+  that is not a type or type/subtype is rejected
+- A `registered = true` mime type filter can be expanded: the IANA registry is a finite list, so
+  the expander walks it, and the expansion is marked `valueset-unclosed` because every registered
+  type also has unboundedly many parameterised forms that belong to the value set. A second filter
+  in the same include still narrows it, so `registered = true` + `base = text/plain` expands to
+  one code
+- Everything else that cannot be enumerated - the whole code system, a `base` filter on its own,
+  `registered = false` - answers 422 `not-supported` with `CODESYSTEM_NOT_ENUMERABLE`, the same as
+  HGVS, instead of the 500 exception a filter used to raise. Expanding every registered media type
+  at once is a couple of thousand codes, so without a `count` it answers `too-costly` like any
+  other oversized expansion
+- Mime types support a `registered` filter (`true`/`false`), testing whether a media type is in
+  the IANA registry. The provider downloads
+  https://www.iana.org/assignments/media-types/media-types.xml into the terminology cache at
+  startup and keeps only the names; a failed download falls back to the cached copy, and if there
+  is no copy at all, using the filter reports that rather than answering. The download is written
+  to a temporary file and only replaces the cached copy once it has parsed, so a truncated
+  transfer cannot leave behind a registry that looks valid but is short
+- `$subsumes` on mime types understands parameters. A parameter narrows the media type, so
+  `text/plain` subsumes `text/plain; charset=utf-8`, and two spellings of the same type are
+  equivalent - type, subtype and parameter names are matched case-insensitively, as are charset
+  values, and quoted values are unquoted. Type and subtype themselves still have no hierarchy,
+  so a structured syntax suffix does not make `application/fhir+xml` a kind of `application/xml`
+- **Breaking (LOINC import):** the accessory files are now required, not optional. An import
+  missing ComponentHierarchyBySystem previously succeeded and produced a cache with an empty
+  closure, so the server answered `not-subsumed` to everything with no way to tell that apart
+  from a real answer; the same argument applies to the part links and answer lists. Only the
+  linguistic variants stay optional, since a main-only import is a reasonable thing to want and
+  their absence costs designations rather than correctness
+
+- The mime type tests are their own test mode (`mimetypes`) rather than part of `general`, and
+  FHIRsmith's test run declares it. fhir-core gains it in all four places the mode set is
+  declared: the runner default (`TxTestHTTPHandler`) and the local and external terminology
+  service test runs, which will be red until tx-dev implements the filters
+
+### Removed
+
+- `POST /packages/update-package`, along with `forceUpdatePackage` and
+  `deleteVersionsByIdVersion`. Its authentication was conditional on `updateToken`, which was set
+  in no configuration file and not even mentioned in the template, so in practice the endpoint let
+  anyone hand the server a URL to fetch and store - server-side request forgery against anything
+  the host can reach, and a write into the package registry. It existed to push out a corrected
+  package after a bad publish; that is rare enough to do by hand
 
 ### Tx Conformance Statement
 
