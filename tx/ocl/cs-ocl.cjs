@@ -200,7 +200,7 @@ class OCLCodeSystemProvider extends AbstractCodeSystemProvider {
       } else {
         // Resolver unavailable: keep whatever defaults we knew; new canonicals
         // stay HEAD-only until a later cycle succeeds.
-        console.warn('[OCL] Default-version resolution unavailable; keeping previous defaults');
+        oclLog.warn('Default-version resolution unavailable; keeping previous defaults');
       }
     }
 
@@ -236,7 +236,7 @@ class OCLCodeSystemProvider extends AbstractCodeSystemProvider {
     }
 
     if (releaseCount > 0) {
-      console.log(`[OCL] ${releaseCount} code system(s) defaulting to a released version (HEAD kept as |HEAD)`);
+      oclLog.info(`${releaseCount} code system(s) defaulting to a released version (HEAD kept as |HEAD)`);
     }
   }
 
@@ -325,7 +325,7 @@ class OCLCodeSystemProvider extends AbstractCodeSystemProvider {
         }
       }
     } catch (error) {
-      console.warn(`[OCL] Global /sources/ listing failed (${error.message}); falling back to per-org discovery`);
+      oclLog.warn(`Global /sources/ listing failed (${error.message}); falling back to per-org discovery`);
     }
 
     const organizations = await this.#fetchOrganizationIds();

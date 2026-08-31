@@ -4,6 +4,8 @@ const { PAGE_SIZE } = require('./shared/constants');
 const { createOclHttpClient } = require('./http/client');
 const { fetchAllPages, extractItemsAndNext } = require('./http/pagination');
 const { OclReferenceResolver, isOclRepoPath } = require('./resolve/reference-resolver');
+const Logger = require('../../library/logger');
+const oclCmLog = Logger.getInstance().child({ module: 'ocl-cm' });
 
 const DEFAULT_MAX_SEARCH_PAGES = 10;
 
@@ -547,8 +549,8 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
     if (!this.referenceResolver.isEnabled()) {
       if (!this._resolverDisabledLogged) {
         this._resolverDisabledLogged = true;
-        console.log(
-          `[OCL] $resolveReference not in use (${this.referenceResolver.disabledReason}); using source search`
+        oclCmLog.info(
+          `$resolveReference not in use (${this.referenceResolver.disabledReason}); using source search`
         );
       }
       return null;
@@ -558,18 +560,18 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
     try {
       resolved = await this.referenceResolver.resolve(systemUrl);
     } catch (error) {
-      console.warn(`[OCL] $resolveReference lookup failed for ${systemUrl}: ${error.message}`);
+      oclCmLog.warn(`$resolveReference lookup failed for ${systemUrl}: ${error.message}`);
       return null;
     }
 
     if (!resolved?.resolved || !resolved.repoUrl) {
-      console.log(`[OCL] $resolveReference did not resolve ${systemUrl}; falling back to source search`);
+      oclCmLog.info(`$resolveReference did not resolve ${systemUrl}; falling back to source search`);
       return null;
     }
 
     // Logged on success too: resolver and search return the same thing, so without
     // this there is no way -- from outside or from the logs -- to tell which path ran.
-    console.log(`[OCL] $resolveReference resolved ${systemUrl} -> ${resolved.repoUrl}`);
+    oclCmLog.info(`$resolveReference resolved ${systemUrl} -> ${resolved.repoUrl}`);
 
     // Keep the canonical<->repo caches coherent with the search path's bookkeeping.
     // Index under what was asked, but record OCL's own canonical_url as the repo's
@@ -663,7 +665,7 @@ class OCLConceptMapProvider extends AbstractConceptMapProvider {
           }
         }
       } catch (error) {
-        console.warn(`[OCL] $resolveReference batch for source canonicals failed: ${error.message}`);
+        oclCmLog.warn(`$resolveReference batch for source canonicals failed: ${error.message}`);
       }
     }
 

@@ -1287,7 +1287,7 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
         version ? { url: canonicalUrl, version } : canonicalUrl
       );
     } catch (error) {
-      console.warn(`[OCL-ValueSet] $resolveReference lookup failed for ${canonicalUrl}: ${error.message}`);
+      oclVsLog.warn(`$resolveReference lookup failed for ${canonicalUrl}: ${error.message}`);
       return null;
     }
 
@@ -1305,7 +1305,7 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
       const response = await this.httpClient.get(resolved.repoUrl);
       collection = response?.data || null;
     } catch (error) {
-      console.warn(`[OCL-ValueSet] failed to fetch resolved collection ${resolved.repoUrl}: ${error.message}`);
+      oclVsLog.warn(`failed to fetch resolved collection ${resolved.repoUrl}: ${error.message}`);
       return null;
     }
 
@@ -1319,7 +1319,7 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
       return null;
     }
 
-    console.log(`[OCL-ValueSet] $resolveReference resolved ${canonicalUrl} -> ${resolved.repoUrl}`);
+    oclVsLog.info(`$resolveReference resolved ${canonicalUrl} -> ${resolved.repoUrl}`);
     return collection;
   }
 
@@ -1407,7 +1407,7 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
         }
       }
     } catch (error) {
-      console.warn(`[OCL-ValueSet] Global /collections/ listing failed (${error.message}); falling back to per-org discovery`);
+      oclVsLog.warn(`Global /collections/ listing failed (${error.message}); falling back to per-org discovery`);
     }
 
     const organizations = await this.#fetchOrganizationIds();
@@ -1915,7 +1915,7 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
     try {
       results = await this.referenceResolver.resolveReferences(pending.map(p => p.ref));
     } catch (error) {
-      console.warn(`[OCL-ValueSet] $resolveReference batch failed: ${error.message}`);
+      oclVsLog.warn(`$resolveReference batch failed: ${error.message}`);
       return;
     }
 
@@ -1934,7 +1934,7 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
       }
     }
     if (resolvedCount > 0) {
-      console.log(`[OCL-ValueSet] $resolveReference batch resolved ${resolvedCount}/${pending.length} source canonical(s) in one request`);
+      oclVsLog.info(`$resolveReference batch resolved ${resolvedCount}/${pending.length} source canonical(s) in one request`);
     }
   }
 
