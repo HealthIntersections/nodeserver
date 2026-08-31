@@ -1394,6 +1394,7 @@ describe('FHIR CodeSystem Provider', () => {
           expect(await simpleProvider.doesFilter('concept', 'is-a', 'code1')).toBe(true);
           expect(await simpleProvider.doesFilter('code', 'descendent-of', 'code2')).toBe(true);
           expect(await simpleProvider.doesFilter('concept', 'is-not-a', 'code1')).toBe(true);
+          expect(await simpleProvider.doesFilter('concept', 'child-of', 'code2')).toBe(true);
           expect(await simpleProvider.doesFilter('code', 'in', 'code1,code2')).toBe(true);
           expect(await simpleProvider.doesFilter('code', '=', 'code1')).toBe(true);
           expect(await simpleProvider.doesFilter('code', 'regex', 'code.*')).toBe(true);

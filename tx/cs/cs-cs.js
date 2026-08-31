@@ -1004,7 +1004,7 @@ class FhirCodeSystemProvider extends BaseCSServices {
     }
     // Supported hierarchy filters
     if ((prop === 'concept' || prop === 'code') &&
-      ['is-a', 'descendent-of', 'is-not-a', 'in', '=', 'regex'].includes(op)) {
+      ['is-a', 'descendent-of', 'is-not-a', 'child-of', 'in', '=', 'regex'].includes(op)) {
       return true;
     }
 
