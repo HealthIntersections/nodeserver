@@ -1,5 +1,7 @@
 const fs = require('fs/promises');
 const fsSync = require('fs');
+const Logger = require('../../../library/logger');
+const oclLog = Logger.getInstance().child({ module: 'ocl' });
 
 async function ensureCacheDirectories(...dirs) {
   for (const dir of dirs) {
@@ -10,12 +12,12 @@ async function ensureCacheDirectories(...dirs) {
     try {
       await fs.mkdir(dir, { recursive: true });
     } catch (error) {
-      console.error('[OCL] Failed to create cache directory:', dir, error.message);
+      oclLog.error(`Failed to create cache directory: ${dir} ${error.message}`);
     }
   }
 }
 
-function getColdCacheAgeMs(cacheFilePath, logPrefix = '[OCL]') {
+function getColdCacheAgeMs(cacheFilePath) {
   try {
     const stats = fsSync.statSync(cacheFilePath);
     if (!stats || !Number.isFinite(stats.mtimeMs)) {
@@ -25,7 +27,7 @@ function getColdCacheAgeMs(cacheFilePath, logPrefix = '[OCL]') {
     return Math.max(0, Date.now() - stats.mtimeMs);
   } catch (error) {
     if (error && error.code !== 'ENOENT') {
-      console.error(`${logPrefix} Failed to inspect cold cache file ${cacheFilePath}: ${error.message}`);
+      oclLog.error(`Failed to inspect cold cache file ${cacheFilePath}: ${error.message}`);
     }
     return null;
   }

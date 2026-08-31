@@ -13,6 +13,8 @@ const { CACHE_VS_DIR, getCacheFilePath } = require('./cache/cache-paths');
 const { ensureCacheDirectories, getColdCacheAgeMs, formatCacheAgeMinutes } = require('./cache/cache-utils');
 const { computeValueSetExpansionFingerprint } = require('./fingerprint/fingerprint');
 const { ensureTxParametersHashIncludesFilter, patchValueSetExpandWholeSystemForOcl } = require('./shared/patches');
+const Logger = require('../../library/logger');
+const oclVsLog = Logger.getInstance().child({ module: 'ocl-vs' });
 
 
 ensureTxParametersHashIncludesFilter(TxParameters);
@@ -122,16 +124,16 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
           this.valueSetFingerprints.set(cacheKey, cached.fingerprint || null);
           loadedCount++;
         } catch (error) {
-          console.error(`[OCL-ValueSet] Failed to load cold cache file ${file}:`, error.message);
+          oclVsLog.error(`Failed to load cold cache file ${file}: ${error.message}`);
         }
       }
 
       if (loadedCount > 0) {
-        console.log(`[OCL-ValueSet] Loaded ${loadedCount} ValueSet expansions from cold cache`);
+        oclVsLog.info(`Loaded ${loadedCount} ValueSet expansions from cold cache`);
       }
     } catch (error) {
       if (error.code !== 'ENOENT') {
-        console.error('[OCL-ValueSet] Failed to load cold cache:', error.message);
+        oclVsLog.error(`Failed to load cold cache: ${error.message}`);
       }
     }
   }
@@ -165,11 +167,11 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
       };
 
       await fs.writeFile(cacheFilePath, JSON.stringify(cacheData, null, 2), 'utf-8');
-      console.log(`[OCL-ValueSet] Saved ValueSet compose to cold cache: ${canonicalUrl} (${conceptCount} concepts, fingerprint=${fingerprint?.substring(0, 8)})`);
+      oclVsLog.info(`Saved ValueSet compose to cold cache: ${canonicalUrl} (${conceptCount} concepts, fingerprint=${fingerprint?.substring(0, 8)})`);
 
       return fingerprint;
     } catch (error) {
-      console.error(`[OCL-ValueSet] Failed to save cold cache for ValueSet ${canonicalUrl}:`, error.message);
+      oclVsLog.error(`Failed to save cold cache for ValueSet ${canonicalUrl}: ${error.message}`);
       return null;
     }
   }
@@ -194,7 +196,7 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
         await this.#loadColdCacheForValueSets();
 
         const collections = await this.#fetchCollectionsForDiscovery();
-        console.log(`[OCL-ValueSet] Fetched ${collections.length} collections`);
+        oclVsLog.info(`Fetched ${collections.length} collections`);
 
         for (const collection of collections) {
           const valueSet = this.#toValueSet(collection);
@@ -204,12 +206,12 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
           this.#indexValueSet(valueSet);
         }
 
-        console.log(`[OCL-ValueSet] Loaded ${this.valueSetMap.size} value sets`);
+        oclVsLog.info(`Loaded ${this.valueSetMap.size} value sets`);
         this._initialized = true;
       } catch (error) {
-        console.error(`[OCL-ValueSet] Initialization failed:`, error.message);
+        oclVsLog.error(`Initialization failed: ${error.message}`);
         if (error.response) {
-          console.error(`[OCL-ValueSet] HTTP ${error.response.status}: ${error.response.statusText}`);
+          oclVsLog.error(`HTTP ${error.response.status}: ${error.response.statusText}`);
         }
         throw error;
       }
@@ -1104,9 +1106,9 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
       // Ensure no stale inline expansion
       delete vs.jsonObj.expansion;
 
-      console.log(`[OCL-ValueSet] compose cached: ${vs.url} (${conceptCount} concepts)`);
+      oclVsLog.info(`compose cached: ${vs.url} (${conceptCount} concepts)`);
     } catch (error) {
-      console.error(`[OCL-ValueSet] ValueSet background expansion failed: ${cacheKey}: ${error.message}`);
+      oclVsLog.error(`ValueSet background expansion failed: ${cacheKey}: ${error.message}`);
     } finally {
       this.backgroundExpansionProgress.delete(cacheKey);
     }
@@ -1350,7 +1352,7 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
 
     this._organizationIdsFetchPromise = (async () => {
       const endpoint = '/orgs/';
-      console.log(`[OCL-ValueSet] Loading organizations from: ${this.baseUrl}${endpoint}`);
+      oclVsLog.info(`Loading organizations from: ${this.baseUrl}${endpoint}`);
       const orgs = await this.#fetchAllPages(endpoint);
 
       const ids = [];
@@ -1468,7 +1470,7 @@ class OCLValueSetProvider extends AbstractValueSetProvider {
         this.pendingCollectionConceptPageRequests.delete(cacheKey);
       }
     } catch (error) {
-      console.error(`[OCL-ValueSet] #fetchConceptPage ERROR: ${error.message}`);
+      oclVsLog.error(`#fetchConceptPage ERROR: ${error.message}`);
       throw error;
     }
   }

@@ -1,6 +1,7 @@
 const fs = require('fs/promises');
 const { AbstractCodeSystemProvider } = require('../cs/cs-provider-api');
 const { CodeSystemProvider, CodeSystemFactoryProvider, CodeSystemContentMode, FilterExecutionContext } = require('../cs/cs-api');
+const { BaseCSServices } = require('../cs/cs-base');
 const { CodeSystem } = require('../library/codesystem');
 const { SearchFilterText } = require('../library/designations');
 const { PAGE_SIZE, CONCEPT_PAGE_SIZE, COLD_CACHE_FRESHNESS_MS, OCL_CODESYSTEM_MARKER_EXTENSION } = require('./shared/constants');
@@ -12,8 +13,10 @@ const { computeCodeSystemFingerprint } = require('./fingerprint/fingerprint');
 const { OCLBackgroundJobQueue } = require('./jobs/background-queue');
 const { OCLConceptFilterContext } = require('./model/concept-filter-context');
 const { toConceptContext } = require('./mappers/concept-mapper');
-const { patchSearchWorkerForOCLCodeFiltering } = require('./shared/patches');
+const { patchSearchWorkerForOCLCodeFiltering, patchProviderForOCLFactorySync } = require('./shared/patches');
 const regexUtilities = require("../../library/regex-utilities");
+const Logger = require('../../library/logger');
+const oclLog = Logger.getInstance().child({ module: 'ocl' });
 
 patchSearchWorkerForOCLCodeFiltering();
 
@@ -66,17 +69,17 @@ class OCLCodeSystemProvider extends AbstractCodeSystemProvider {
     this._initializePromise = (async () => {
       try {
         const sources = await this.#fetchSourcesForDiscovery();
-        console.log(`[OCL] Fetched ${sources.length} sources`);
+        oclLog.info(`Fetched ${sources.length} sources`);
 
         const snapshot = this.#buildSourceSnapshot(sources);
         this.#applySnapshot(snapshot);
 
-        console.log(`[OCL] Loaded ${this._codeSystemsByCanonical.size} code systems`);
+        oclLog.info(`Loaded ${this._codeSystemsByCanonical.size} code systems`);
         this._initialized = true;
       } catch (error) {
-        console.error(`[OCL] Initialization failed:`, error.message);
+        oclLog.error(`Initialization failed: ${error.message}`);
         if (error.response) {
-          console.error(`[OCL] HTTP ${error.response.status}: ${error.response.statusText}`);
+          oclLog.error(`HTTP ${error.response.status}: ${error.response.statusText}`);
         }
         throw error;
       }
@@ -149,9 +152,18 @@ class OCLCodeSystemProvider extends AbstractCodeSystemProvider {
         const nextSnapshot = this.#buildSourceSnapshot(sources);
         const changes = this.#diffSnapshots(this._sourceStateByCanonical, nextSnapshot);
         this.#applySnapshot(nextSnapshot);
+        for (const cs of changes.added || []) {
+          const entry = nextSnapshot.get(cs.url);
+          if (entry?.meta && !OCLSourceCodeSystemFactory.hasFactory(cs.url, cs.version || null)) {
+            const factory = OCLSourceCodeSystemFactory.createForDiscoveredSource(this.httpClient, entry.meta);
+            if (factory) {
+              oclLog.info(`Factory created for newly discovered source: ${cs.url}`);
+            }
+          }
+        }
         this._pendingChanges = changes;
       } catch (error) {
-        console.error('[OCL] Incremental source refresh failed:', error.message);
+        oclLog.error(`Incremental source refresh failed: ${error.message}`);
         this._pendingChanges = this.#emptyChanges();
       } finally {
         this._refreshPromise = null;
@@ -326,7 +338,7 @@ class OCLCodeSystemProvider extends AbstractCodeSystemProvider {
       const versionChanged = (previousEntry.cs.version || null) !== (nextEntry.cs.version || null);
       if (checksumChanged || versionChanged) {
         if (checksumChanged) {
-          console.log(`[OCL] CodeSystem checksum changed: ${canonicalUrl} (${previousChecksum} -> ${nextChecksum})`);
+          oclLog.info(`CodeSystem checksum changed: ${canonicalUrl} (${previousChecksum} -> ${nextChecksum})`);
         }
         changed.push(nextEntry.cs);
       }
@@ -553,8 +565,8 @@ class OCLCodeSystemProvider extends AbstractCodeSystemProvider {
       const result = await fetchAllPages(this.httpClient, path, {
         pageSize: PAGE_SIZE,
         baseUrl: this.baseUrl,
-        logger: console,
-        loggerPrefix: '[OCL]'
+        logger: oclLog,
+        loggerPrefix: ''
       });
       // Extra check: payload must be object or array
       if (!result || (typeof result !== 'object' && !Array.isArray(result))) {
@@ -563,8 +575,8 @@ class OCLCodeSystemProvider extends AbstractCodeSystemProvider {
       return result;
     } catch (error) {
       if (error.response) {
-        console.error(`[OCL] HTTP ${error.response.status}: ${error.response.statusText}`);
-        console.error('[OCL] Response:', error.response.data);
+        oclLog.error(`HTTP ${error.response.status}: ${error.response.statusText}`);
+        oclLog.error(`Response: ${JSON.stringify(error.response.data)}`);
       }
       throw error;
     }
@@ -586,7 +598,7 @@ class OCLCodeSystemProvider extends AbstractCodeSystemProvider {
   }
 }
 
-class OCLSourceCodeSystemProvider extends CodeSystemProvider {
+class OCLSourceCodeSystemProvider extends BaseCSServices {
   constructor(opContext, supplements, client, meta, sharedCaches = null) {
     super(opContext, supplements);
     this.httpClient = client;
@@ -724,6 +736,36 @@ class OCLSourceCodeSystemProvider extends CodeSystemProvider {
         }
       }
       this._listSupplementDesignations(ctxt.code, displays);
+    }
+  }
+
+  async extendLookup(ctxt, props, params) {
+    const context = await this.#ensureContext(ctxt);
+    const extras = context && context.extras;
+    if (!extras || typeof extras !== 'object') {
+      return;
+    }
+    for (const [key, value] of Object.entries(extras)) {
+      if (!key || value === null || value === undefined) {
+        continue;
+      }
+      if (!this._hasProp(props, key, true)) {
+        continue;
+      }
+      const part = [{ name: 'code', valueCode: key }];
+      if (typeof value === 'boolean') {
+        part.push({ name: 'value', valueBoolean: value });
+      } else if (typeof value === 'number' && Number.isInteger(value)) {
+        part.push({ name: 'value', valueInteger: value });
+      } else if (typeof value === 'number' && Number.isFinite(value)) {
+        part.push({ name: 'value', valueDecimal: value });
+      } else if (typeof value === 'string') {
+        part.push({ name: 'value', valueString: value });
+      } else {
+        // Extras may hold arbitrary JSON (arrays, objects); serialize rather than drop data.
+        part.push({ name: 'value', valueString: JSON.stringify(value) });
+      }
+      params.push({ name: 'property', part });
     }
   }
 
@@ -1251,6 +1293,14 @@ class OCLSourceCodeSystemProvider extends CodeSystemProvider {
 
 class OCLSourceCodeSystemFactory extends CodeSystemFactoryProvider {
   static factoriesByKey = new Map();
+  static #sharedI18n = null;
+
+  static createForDiscoveredSource(httpClient, meta) {
+    if (!OCLSourceCodeSystemFactory.#sharedI18n) {
+      return null;
+    }
+    return new OCLSourceCodeSystemFactory(OCLSourceCodeSystemFactory.#sharedI18n, httpClient, meta);
+  }
 
   static #normalizeSystem(system) {
     return normalizeCanonicalSystem(system);
@@ -1319,6 +1369,9 @@ class OCLSourceCodeSystemFactory extends CodeSystemFactoryProvider {
 
   constructor(i18n, client, meta) {
     super(i18n);
+    if (!OCLSourceCodeSystemFactory.#sharedI18n) {
+      OCLSourceCodeSystemFactory.#sharedI18n = i18n;
+    }
     this.httpClient = client;
     this.meta = meta;
     this.sharedConceptCache = new Map();
@@ -1375,7 +1428,7 @@ class OCLSourceCodeSystemFactory extends CodeSystemFactoryProvider {
 
     } catch (error) {
       if (error.code !== 'ENOENT') {
-        console.error(`[OCL] Failed to load cold cache for CodeSystem ${canonicalUrl}:`, error.message);
+        oclLog.error(`Failed to load cold cache for CodeSystem ${canonicalUrl}: ${error.message}`);
       }
     }
   }
@@ -1402,7 +1455,7 @@ class OCLSourceCodeSystemFactory extends CodeSystemFactoryProvider {
       
       return fingerprint;
     } catch (error) {
-      console.error(`[OCL] Failed to save cold cache for CodeSystem ${canonicalUrl}:`, error.message);
+      oclLog.error(`Failed to save cold cache for CodeSystem ${canonicalUrl}: ${error.message}`);
       return null;
     }
   }
@@ -1542,9 +1595,9 @@ class OCLSourceCodeSystemFactory extends CodeSystemFactoryProvider {
         }
       }
 
-      console.log(`[OCL] CodeSystem loaded: ${this.system()} (${count} concepts)`);
+      oclLog.info(`CodeSystem loaded: ${this.system()} (${count} concepts)`);
     } catch (error) {
-      console.error(`[OCL] CodeSystem background load failed: ${key}: ${error.message}`);
+      oclLog.error(`CodeSystem background load failed: ${key}: ${error.message}`);
     }
   }
 
@@ -1660,7 +1713,7 @@ class OCLSourceCodeSystemFactory extends CodeSystemFactoryProvider {
         this.meta.codeSystem.jsonObj.content = CodeSystemContentMode.NotPresent;
         delete this.meta.codeSystem.jsonObj.concept;
       }
-      console.log(`[OCL] CodeSystem checksum changed, invalidated warm cache: ${this.#resourceKey()}`);
+      oclLog.info(`CodeSystem checksum changed, invalidated warm cache: ${this.#resourceKey()}`);
     }
   }
 
@@ -1824,8 +1877,11 @@ class OCLSourceCodeSystemFactory extends CodeSystemFactoryProvider {
   }
 }
 
+patchProviderForOCLFactorySync(() => OCLSourceCodeSystemFactory.factoriesByKey);
+
 module.exports = {
   OCLCodeSystemProvider,
+  OCLSourceCodeSystemProvider,
   OCLSourceCodeSystemFactory,
   OCLBackgroundJobQueue
 };
