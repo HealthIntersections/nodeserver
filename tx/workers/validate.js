@@ -953,7 +953,7 @@ class ValueSetChecker {
         let msg = this.worker.i18n.translate('INACTIVE_CONCEPT_FOUND', this.params.HTTPLanguages, [vstatus.value, coding.code]);
         messages.push(msg);
         op.addIssue(new Issue('warning', 'business-rule', path, 'INACTIVE_CONCEPT_FOUND', msg, 'code-comment'));
-      } else if (vstatus.value.toLowerCase() === 'deprecated') {
+      } else if (vstatus.value && vstatus.value.toLowerCase() === 'deprecated') {
         result.addParamCode('status', vstatus.value);
         let msg = this.worker.i18n.translate('DEPRECATED_CONCEPT_FOUND', this.params.HTTPLanguages, [vstatus.value, coding.code]);
         messages.push(msg);
@@ -1249,6 +1249,17 @@ class ValueSetChecker {
               c.version = prov.version();
             }
             await this.worker.listDisplaysFromCodeSystem(list, prov, ctxt.context);
+            // the code resolved in the code system, so its status is known whether or not it
+            // turns out to be in the value set. check() only picks the status up on the paths
+            // where the code was found in the value set, so pick it up here for the rest
+            if (!this.params.membershipOnly && !inactive.value && await prov.isInactive(ctxt.context)) {
+              inactive.value = true;
+              inactive.path = path;
+              const st = await prov.getStatus(ctxt.context);
+              if (st) {
+                vstatus.value = st;
+              }
+            }
             let pd = list.preferredDisplay(this.params.workingLanguages());
             if (pd) {
               pdisp = pd;
@@ -1535,7 +1546,7 @@ class ValueSetChecker {
         let msg = this.worker.i18n.translate('INACTIVE_CONCEPT_FOUND', this.params.HTTPLanguages, [vstatus.value, code]);
         messages.push(msg);
         op.addIssue(new Issue('warning', 'business-rule', 'code', 'INACTIVE_CONCEPT_FOUND', msg, 'code-comment'));
-      } else if (vstatus.value.toLowerCase() === 'deprecated') {
+      } else if (vstatus.value && vstatus.value.toLowerCase() === 'deprecated') {
         result.addParamCode('status', vstatus.value);
         let msg = this.worker.i18n.translate('DEPRECATED_CONCEPT_FOUND', this.params.HTTPLanguages, [vstatus.value, code]);
         messages.push(msg);
@@ -1744,6 +1755,19 @@ class ValueSetChecker {
           if (vcc !== null) {
             if (!vcc.coding) { vcc.coding = []}
             vcc.coding.push( { system : cs.system(), version: cs.version(), code: await cs.code(loc), display: displays.preferredDisplay(this.params.workingLanguages())});
+          }
+          if (role !== 'not in' && !inactive.value) {
+            if (await cs.isInactive(loc)) {
+              inactive.value = true;
+              inactive.path = path;
+              // only replace a status we already have with a real one - a filter context
+              // doesn't always carry the status (SNOMED, LOINC), and the assembly reads
+              // vstatus for the message wording as well as for the status parameter
+              const st = await cs.getStatus(loc);
+              if (st) {
+                vstatus.value = st;
+              }
+            }
           }
           result = true;
           return result;
