@@ -14,7 +14,7 @@ let count = 0;
 let error = 0;
 
 function txTestModeSet() {
-   return new Set(['tx.fhir.org', 'omop', 'general', 'snomed', 'mimetypes']);
+   return new Set(['tx.fhir.org', 'omop', 'general', 'snomed', 'mimetypes', 'icd-11']);
 }
 
 async function startTxTests() {

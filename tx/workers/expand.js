@@ -14,7 +14,7 @@ const {Designations, SearchFilterText} = require("../library/designations");
 const {Extensions} = require("../library/extensions");
 const {getValuePrimitive, getValueName, validateParameter} = require("../../library/utilities");
 const {div} = require("../../library/html");
-const {Issue, OperationOutcome} = require("../library/operation-outcome");
+const { Issue, OperationOutcome, buildOperationOutcome, outcomeFromError } = require('../library/operation-outcome');
 const crypto = require('crypto');
 const ValueSet = require("../library/valueset");
 const {VersionUtilities} = require("../../library/version-utilities");
@@ -1094,7 +1094,7 @@ class ValueSetExpander {
           this.worker.opContext.log('prep filters');
           const prep = await cs.getPrepContext(true);
           if (!filter.isNull) {
-            await cs.searchFilter(filter, prep, true);
+            await cs.searchFilter(prep, filter, true);
           }
 
           if (cs.specialEnumeration()) {
@@ -1950,18 +1950,7 @@ class ExpandWorker extends TerminologyWorker {
         oo.addIssue(error);
         return res.status(error.statusCode || 500).json(oo.jsonObj);
       } else {
-        const issueCode = error.issueCode || 'exception';
-        return res.status(statusCode).json({
-          resourceType: 'OperationOutcome',
-          issue: [{
-            severity: 'error',
-            code: issueCode,
-            details: {
-              text: error.message
-            },
-            diagnostics: error.message
-          }]
-        });
+        return res.status(statusCode).json(outcomeFromError(error));
       }
     }
   }
@@ -1980,18 +1969,7 @@ class ExpandWorker extends TerminologyWorker {
       debugLog(error);
       req.logInfo = this.usedSources.join("|")+" - error"+(error.msgId  ? " "+error.msgId : "");
       const statusCode = error.statusCode || 500;
-      const issueCode = error.issueCode || 'exception';
-      return res.status(statusCode).json({
-        resourceType: 'OperationOutcome',
-        issue: [{
-          severity: 'error',
-          code: issueCode,
-          details: {
-            text : error.message
-          },
-          diagnostics: error.message
-        }]
-      });
+      return res.status(statusCode).json(outcomeFromError(error));
     }
   }
 
@@ -2253,15 +2231,9 @@ class ExpandWorker extends TerminologyWorker {
    * @param {string} message - Diagnostic message
    * @returns {Object} OperationOutcome resource
    */
-  operationOutcome(severity, code, message) {
-    return {
-      resourceType: 'OperationOutcome',
-      issue: [{
-        severity,
-        code,
-        diagnostics: message
-      }]
-    };
+  operationOutcome(severity, code, message, txIssueType = null) {
+    // the shared builder, so that every outcome has details.text and a tx-issue-type coding
+    return buildOperationOutcome(severity, code, message, txIssueType);
   }
 
 }

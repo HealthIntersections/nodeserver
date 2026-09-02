@@ -7,6 +7,7 @@
 const { TerminologyWorker } = require('./worker');
 const {debugLog} = require("../operation-context");
 
+const { buildOperationOutcome } = require('../library/operation-outcome');
 class ReadWorker extends TerminologyWorker {
   /**
    * @param {OperationContext} opContext - Operation context
@@ -50,27 +51,13 @@ class ReadWorker extends TerminologyWorker {
           return await this.handleConceptMap(req, res, id);
 
         default:
-          return res.status(404).json({
-            resourceType: 'OperationOutcome',
-            issue: [{
-              severity: 'error',
-              code: 'not-found',
-              diagnostics: `Unknown resource type: ${resourceType}`
-            }]
-          });
+          return res.status(404).json(buildOperationOutcome('error', 'not-found', `Unknown resource type: ${resourceType}`));
       }
     } catch (error) {
       this.log.error(error);
       debugLog(error);
       req.logInfo = this.usedSources.join("|")+" - error"+(error.msgId  ? " "+error.msgId : "");
-      return res.status(500).json({
-        resourceType: 'OperationOutcome',
-        issue: [{
-          severity: 'error',
-          code: 'exception',
-          diagnostics: error.message
-        }]
-      });
+      return res.status(500).json(buildOperationOutcome('error', 'exception', error.message));
     }
   }
 
@@ -127,14 +114,7 @@ class ReadWorker extends TerminologyWorker {
       }
     }
 
-    return res.status(404).json({
-      resourceType: 'OperationOutcome',
-      issue: [{
-        severity: 'error',
-        code: 'not-found',
-        diagnostics: `CodeSystem/${id} not found`
-      }]
-    });
+    return res.status(404).json(buildOperationOutcome('error', 'not-found', `CodeSystem/${id} not found`));
   }
 
   /**
@@ -151,14 +131,7 @@ class ReadWorker extends TerminologyWorker {
       }
     }
 
-    return res.status(404).json({
-      resourceType: 'OperationOutcome',
-      issue: [{
-        severity: 'error',
-        code: 'not-found',
-        diagnostics: `ValueSet/${id} not found`
-      }]
-    });
+    return res.status(404).json(buildOperationOutcome('error', 'not-found', `ValueSet/${id} not found`));
   }
   /**
    * Handle ConceptMap read
@@ -174,14 +147,7 @@ class ReadWorker extends TerminologyWorker {
       }
     }
 
-    return res.status(404).json({
-      resourceType: 'OperationOutcome',
-      issue: [{
-        severity: 'error',
-        code: 'not-found',
-        diagnostics: `ConceptMap/${id} not found`
-      }]
-    });
+    return res.status(404).json(buildOperationOutcome('error', 'not-found', `ConceptMap/${id} not found`));
   }
 }
 

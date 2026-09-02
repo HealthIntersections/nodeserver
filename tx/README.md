@@ -278,6 +278,27 @@ Loads OMOP (Observational Medical Outcomes Partnership) vocabulary mappings from
 ```
 The file is built by importing OMOP (see [documentation](importers/readme.md))
 
+#### `icd11` - ICD-11
+
+Loads ICD-11 from a SQLite database built by importing from the WHO ICD-API.
+
+```yaml
+- icd11:icd11-2026-01.db
+```
+
+One database holds three code systems - the MMS and ICF linearizations and the Foundation -
+so a single source line registers a provider for each one it finds:
+
+| system | url |
+|---|---|
+| MMS | `http://id.who.int/icd/release/11/mms` |
+| ICF | `http://id.who.int/icd/release/11/icf` |
+| Foundation | `http://id.who.int/icd/entity` |
+
+The file is built by importing ICD-11 (see [documentation](importers/icd11-schema.md)). Note
+that only the WHO native API can enumerate the classification; the FHIR endpoint cannot, which
+is why the importer reads from the native one.
+
 #### `npm` - FHIR NPM Packages
 
 Loads CodeSystem, ValueSet, and ConceptMap resources from FHIR NPM packages. Packages are fetched from the FHIR package registry (packages2.fhir.org).

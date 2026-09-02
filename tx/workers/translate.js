@@ -10,7 +10,7 @@
 const { TerminologyWorker } = require('./worker');
 const { TxParameters } = require('../params');
 const { Parameters } = require('../library/parameters');
-const { Issue, OperationOutcome } = require('../library/operation-outcome');
+const { Issue, OperationOutcome, buildOperationOutcome, outcomeFromError } = require('../library/operation-outcome');
 const {ConceptMap} = require("../library/conceptmap");
 const {Extensions} = require("../library/extensions");
 const {VersionUtilities} = require("../../library/version-utilities");
@@ -62,8 +62,7 @@ class TranslateWorker extends TerminologyWorker {
         oo.addIssue(error);
         return res.status(error.statusCode || 500).json(oo.jsonObj);
       } else {
-        return res.status(error.statusCode || 500).json(this.operationOutcome(
-          'error', error.issueCode || 'exception', error.message));
+        return res.status(error.statusCode || 500).json(outcomeFromError(error));
       }
     }
   }
@@ -85,8 +84,7 @@ class TranslateWorker extends TerminologyWorker {
         oo.addIssue(error);
         return res.status(error.statusCode || 500).json(oo.jsonObj);
       } else {
-        return res.status(error.statusCode || 500).json(this.operationOutcome(
-          'error', error.issueCode || 'exception', error.message));
+        return res.status(error.statusCode || 500).json(outcomeFromError(error));
       }
     }
   }
@@ -1013,21 +1011,17 @@ class TranslateWorker extends TerminologyWorker {
     }
   }
   /**
-   * Build an OperationOutcome
+   * Build an OperationOutcome. Delegates to the shared builder so that every outcome this
+   * server emits has details.text and a tx-issue-type coding: diagnostics is stripped by
+   * the test harness, so nothing a caller needs may live there.
    * @param {string} severity - error, warning, information
-   * @param {string} code - Issue code
-   * @param {string} message - Diagnostic message
+   * @param {string} code - FHIR issue type
+   * @param {string} message - the human readable account of the problem
+   * @param {string} [txIssueType] - tx-issue-type; defaulted from code when not given
    * @returns {Object} OperationOutcome resource
    */
-  operationOutcome(severity, code, message) {
-    return {
-      resourceType: 'OperationOutcome',
-      issue: [{
-        severity,
-        code,
-        diagnostics: message
-      }]
-    };
+  operationOutcome(severity, code, message, txIssueType = null) {
+    return buildOperationOutcome(severity, code, message, txIssueType);
   }
 
   /**

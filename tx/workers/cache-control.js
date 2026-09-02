@@ -16,7 +16,7 @@
 const crypto = require('crypto');
 const { TerminologyWorker, CACHE_ID_HEADER } = require('./worker');
 const { Parameters } = require('../library/parameters');
-const { Issue } = require('../library/operation-outcome');
+const { Issue, buildOperationOutcome, outcomeFromError } = require('../library/operation-outcome');
 const { debugLog } = require('../operation-context');
 
 class CacheControlWorker extends TerminologyWorker {
@@ -71,8 +71,8 @@ class CacheControlWorker extends TerminologyWorker {
       debugLog(error);
       req.logInfo = this.usedSources.join('|') + ' - error' + (error.msgId ? ' ' + error.msgId : '');
       const statusCode = error.statusCode || 500;
-      const issueCode = error.issueCode || 'exception';
-      return res.status(statusCode).json(this.operationOutcome('error', issueCode, error.message));
+      return res.status(statusCode).json(
+        outcomeFromError(error));
     }
   }
 
@@ -276,15 +276,9 @@ class CacheControlWorker extends TerminologyWorker {
    * @param {string} message - Diagnostic message
    * @returns {Object} OperationOutcome resource
    */
-  operationOutcome(severity, code, message) {
-    return {
-      resourceType: 'OperationOutcome',
-      issue: [{
-        severity,
-        code,
-        details: { text: message }
-      }]
-    };
+  operationOutcome(severity, code, message, txIssueType = null) {
+    // the shared builder, so that every outcome has details.text and a tx-issue-type coding
+    return buildOperationOutcome(severity, code, message, txIssueType);
   }
 }
 

@@ -5,6 +5,8 @@
 // POST /ConceptMap/$closure
 //
 
+const { buildOperationOutcome } = require('../library/operation-outcome');
+
 class ClosureWorker {
   /**
    * Handle a $closure request
@@ -18,14 +20,7 @@ class ClosureWorker {
     this.log.debug('ConceptMap $closure with params:', params);
 
     // TODO: Implement closure logic using provider
-    res.status(501).json({
-      resourceType: 'OperationOutcome',
-      issue: [{
-        severity: 'error',
-        code: 'not-supported',
-        diagnostics: 'ConceptMap $closure operation not yet implemented'
-      }]
-    });
+    res.status(501).json(buildOperationOutcome('error', 'not-supported', 'ConceptMap $closure operation not yet implemented'));
   }
 }
 

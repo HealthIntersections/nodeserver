@@ -51,6 +51,7 @@ const ClosureWorker = require("./workers/closure");
 const {BundleXML} = require("./xml/bundle-xml");
 const ConceptUsageTracker = require("./usage-tracker");
 const ProblemFinder = require("./problems");
+const { buildOperationOutcome } = require('./library/operation-outcome');
 // const {writeFileSync} = require("fs");
 
 class TXModule {
@@ -437,14 +438,7 @@ class TXModule {
             }
           } catch (e) {
             this.log.error(`JSON parse error: ${e.message}`);
-            return res.status(400).json({
-              resourceType: 'OperationOutcome',
-              issue: [{
-                severity: 'error',
-                code: 'invalid',
-                diagnostics: `Invalid JSON: ${e.message}`
-              }]
-            });
+            return res.status(400).json(buildOperationOutcome('error', 'invalid', `Invalid JSON: ${e.message}`));
           }
         }
 
@@ -465,25 +459,11 @@ class TXModule {
             req.body = this.convertXmlToResource(xmlStr);
           } catch (e) {
             this.log.error(`XML parse error: ${e.message}`);
-            return res.status(400).json({
-              resourceType: 'OperationOutcome',
-              issue: [{
-                severity: 'error',
-                code: 'invalid',
-                diagnostics: `Invalid XML: ${e.message}`
-              }]
-            });
+            return res.status(400).json(buildOperationOutcome('error', 'invalid', `Invalid XML: ${e.message}`));
           }
         }
       } else if (contentType != 'application/x-www-form-urlencoded') {
-        return res.status(415).json({
-          resourceType: 'OperationOutcome',
-          issue: [{
-            severity: 'error',
-            code: 'invalid',
-            diagnostics: `Unsupported Media Type: ${contentType}`
-          }]
-        });
+        return res.status(415).json(buildOperationOutcome('error', 'invalid', `Unsupported Media Type: ${contentType}`));
       }
 
       if (req.body) {
@@ -1010,14 +990,7 @@ class TXModule {
     router.get('/', async (req, res) => {
       const start = Date.now();
       try {
-        await res.json({
-          resourceType: 'OperationOutcome',
-          issue: [{
-            severity: 'information',
-            code: 'informational',
-            diagnostics: `FHIR Terminology Server - FHIR v${req.txEndpoint.fhirVersion}`
-          }]
-        });
+        await res.json(buildOperationOutcome('information', 'informational', `FHIR Terminology Server - FHIR v${req.txEndpoint.fhirVersion}`));
       } finally {
         this.countRequest(endpointPath, 'home', Date.now() - start);
       }
@@ -1125,17 +1098,17 @@ class TXModule {
   }
 
   /**
-   * Build an OperationOutcome for errors
+   * Build an OperationOutcome. Delegates to the shared builder so that every outcome this
+   * server emits has details.text and a tx-issue-type coding: diagnostics is stripped by
+   * the test harness, so nothing a caller needs may live there.
+   * @param {string} severity - error, warning, information
+   * @param {string} code - FHIR issue type
+   * @param {string} message - the human readable account of the problem
+   * @param {string} [txIssueType] - tx-issue-type; defaulted from code when not given
+   * @returns {Object} OperationOutcome resource
    */
-  operationOutcome(severity, code, message) {
-    return {
-      resourceType: 'OperationOutcome',
-      issue: [{
-        severity,
-        code,
-        diagnostics: message
-      }]
-    };
+  operationOutcome(severity, code, message, txIssueType = null) {
+    return buildOperationOutcome(severity, code, message, txIssueType);
   }
 
   /**

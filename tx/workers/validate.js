@@ -16,7 +16,7 @@ const {Languages, Language} = require("../../library/languages");
 const {Extensions} = require("../library/extensions");
 const {validateParameter, isAbsoluteUrl, validateOptionalParameter, getValuePrimitive} = require("../../library/utilities");
 const {TxParameters} = require("../params");
-const {OperationOutcome, Issue} = require("../library/operation-outcome");
+const { OperationOutcome, Issue, buildOperationOutcome, outcomeFromError } = require('../library/operation-outcome');
 const {Parameters} = require("../library/parameters");
 const {Designations, DisplayCheckingStyle, DisplayDifference, SearchFilterText} = require("../library/designations");
 const ValueSet = require("../library/valueset");
@@ -1964,8 +1964,7 @@ class ValidateWorker extends TerminologyWorker {
           // this is actually handled in the inner method
         }
       } else {
-        return res.status(error.statusCode || 500).json(this.operationOutcome(
-          'error', error.issueCode || 'exception', error.message));
+        return res.status(error.statusCode || 500).json(outcomeFromError(error));
       }
 
     }
@@ -2073,8 +2072,7 @@ class ValidateWorker extends TerminologyWorker {
     } catch (error) {
       this.log.error(error);
       debugLog(error);
-      return res.status(error.statusCode || 500).json(this.operationOutcome(
-        'error', error.issueCode || 'exception', error.message));
+      return res.status(error.statusCode || 500).json(outcomeFromError(error));
     }
   }
 
@@ -2099,8 +2097,7 @@ class ValidateWorker extends TerminologyWorker {
         op.addIssue(error);
         return res.status(error.statusCode || 500).json(op.jsonObj);
       } else {
-        return res.status(error.statusCode || 500).json(this.operationOutcome(
-          'error', error.issueCode || 'exception', error.message));
+        return res.status(error.statusCode || 500).json(outcomeFromError(error));
       }
     }
   }
@@ -2174,8 +2171,7 @@ class ValidateWorker extends TerminologyWorker {
     } catch (error) {
       this.log.error(error);
       debugLog(error);
-      return res.status(error.statusCode || 500).json(this.operationOutcome(
-        'error', error.issueCode || 'exception', error.message));
+      return res.status(error.statusCode || 500).json(outcomeFromError(error));
     }
   }
 
@@ -2515,18 +2511,9 @@ class ValidateWorker extends TerminologyWorker {
   /**
    * Build an OperationOutcome
    */
-  operationOutcome(severity, code, message) {
-    return {
-      resourceType: 'OperationOutcome',
-      issue: [{
-        severity,
-        code,
-        details: {
-          text: message
-        },
-        diagnostics: message
-      }]
-    };
+  operationOutcome(severity, code, message, txIssueType = null) {
+    // the shared builder, so that every outcome has details.text and a tx-issue-type coding
+    return buildOperationOutcome(severity, code, message, txIssueType);
   }
 
 

@@ -5,6 +5,64 @@ All notable changes to the Health Intersections Node Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- ICD-11 support, in three parts. `tx/importers/import-icd11.js` builds a SQLite database from
+  the WHO ICD-API - 110,441 concepts across MMS, ICF and the Foundation for the 2026-01 release,
+  in every language the API advertises. The native API is the content source because it is the
+  only one that can enumerate the classification: the FHIR endpoint exposes no all-codes value
+  set, accepts no client-supplied value sets, and its 28 top-level entities report no parent, so
+  nothing there tells a client what the roots are. `tx/importers/export-icd11-codesystem.js`
+  writes the content back out as FHIR CodeSystems, language supplements and the 25,354
+  postcoordination scale ValueSets, optionally as a FHIR NPM package. `tx/cs/cs-icd11.js` is the
+  provider; it is a skeleton at this point - metadata, code location, displays and definitions
+  work, while designations, properties, extendLookup, filters, iteration, subsumption and
+  postcoordinated expressions are still to come. The `icd-11` suite from the tx-ecosystem IG is
+  the specification for the rest of it. Postcoordinated expressions now work:
+  `tx/cs/icd11-expressions.js` parses the short-code, entity-uri and ICF dotted forms,
+  binds each value to the axis it belongs on, and renders the expression back. The binding
+  rule is that an axis not yet carrying a value is preferred over one that is, and required
+  axes come before WHO's declaration order - which is what keeps the two values of
+  1D01.0Y/1G41/1G40 on the two axes a coder meant them for instead of coalescing them onto
+  the first, and what stops a repeated value being silently dropped. `&` asserts that what
+  follows is a value on an axis of the stem, so a value on none of them is an error that
+  names the axes; `/` asserts only cluster membership, so a member that fits an unfilled
+  axis is taken as a value and one that does not starts a new stem. The provider also now
+  answers `concept is-a` / `descendent-of` filters and text search, iterates children and
+  roots, tests subsumption, and builds the 25,354 postcoordination scale value sets on
+  demand from the database rather than shipping them
+
+### Changed
+
+- Every OperationOutcome the server emits now carries `details.text` and a tx-issue-type
+  coding in `details.coding`. `diagnostics` is stripped outright by the test harness, so
+  anything a client needs had to stop living *only* there -- it is still sent, and is still
+  the right place for server-specific detail: the four (in fact nine) private
+  `operationOutcome()` helpers that built `{severity, code, diagnostics}` by hand now all
+  delegate to `buildOperationOutcome()` in `tx/library/operation-outcome.js`, and
+  `Issue.asIssue()` falls back to a tx-issue-type derived from the FHIR issue type when an
+  Issue does not name one, so the guarantee holds without revisiting all ~170 Issue
+  construction sites. An informational issue that is not about a code or a value set -- the
+  server banner -- gets text but no coding, since it is not a tx issue
+
+### Fixed
+
+- The exclude branch of `$expand` called `searchFilter(filter, prep, true)` -- the first two
+  arguments the wrong way round, so a provider that implements a text search would have been
+  handed the filter where it expected its own filter context. The other three call sites,
+  and the declared signature, are `(filterContext, filter, sort)`
+- `$lookup` reported a code that is not in the code system as `not-found`; the code system
+  was found, so it is `invalid-code`, which is what the other 62 unknown-code expectations
+  in the tx-ecosystem suite assert
+- `$lookup`'s two top-level catch blocks put `Issue.issueCode` -- a tx-issue-type -- into
+  `OperationOutcome.issue.code`, which takes a FHIR issue type. Two conventions were in use:
+  an `Issue` carries the FHIR issue type in `cause` and the tx-issue-type in `issueCode`,
+  while a plain Error tagged by its thrower carries the FHIR issue type in `issueCode` and
+  the tx-issue-type in `txIssueType`. Every catch block now goes through
+  `outcomeFromError()`, which is the one place that knows about both
+
 ## [0.12.0] - 2026-08-27
 
 ### Added
