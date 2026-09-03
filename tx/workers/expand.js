@@ -447,8 +447,21 @@ class ValueSetExpander {
           }
         }
 
+        // '*' asks for every property the code system defines for the concept (R6's
+        // ValueSet.compose.property allows it, and a request can name it too). It is handled
+        // here rather than by expanding it into a list of names, because which properties
+        // exist is a property of the concept, not of the request
+        if (this.params.properties.includes('*') && csProps != null && cs != null) {
+          for (const cp of csProps) {
+            const vn = getValueName(cp);
+            this.defineProperty(expansion, n, this.getPropUrl(cs, cp.code, cp), cp.code, vn, cp[vn], true);
+          }
+        }
+
         for (const pn of this.params.properties) {
-          if (pn === 'definition') {
+          if (pn === '*') {
+            continue; // done above
+          } else if (pn === 'definition') {
             if (definition) {
               this.defineProperty(expansion, n, 'http://hl7.org/fhir/concept-properties#definition', pn, "valueString", definition);
             }
@@ -1699,16 +1712,23 @@ class ValueSetExpander {
     if (!expansion.property) {
       expansion.property = [];
     }
-    let pd = expansion.property.find(t1 => t1.uri == url || t1.code == code);
+    // match on the uri only when there is one. A code system may declare several properties with
+    // no uri at all, and those are told apart by their code - matching on an undefined uri would
+    // collapse all of them into whichever one was declared first
+    let pd = url
+      ? expansion.property.find(t1 => t1.uri == url || t1.code == code)
+      : expansion.property.find(t1 => t1.code == code);
     if (!pd) {
       pd = {};
       expansion.property.push(pd);
-      pd.uri = url;
       pd.code = code;
-    } else if (!pd.uri) {
+      if (url) {
+        pd.uri = url;
+      }
+    } else if (url && !pd.uri) {
       pd.uri = url;
     }
-    if (pd.uri != url) {
+    if (url && pd.uri != url) {
       throw new Error('URL mismatch on expansion: ' + pd.uri + ' vs ' + url + ' for code ' + code);
     }
     return pd.code;
@@ -1738,7 +1758,7 @@ class ValueSetExpander {
       }
     }
     for (const definition of definitions) {
-      if (definition.uri && used.has(definition.code)) {
+      if (used.has(definition.code)) {
         this.declareProperty(expansion, definition.uri, definition.code);
       }
     }
@@ -1754,10 +1774,9 @@ class ValueSetExpander {
     if (value === undefined || value == null) {
       return;
     }
-    // we only define it if the code system has a definition
-    if (url) {
-      code = this.declareProperty(expansion, url, code);
-    }
+    // every property that appears in contains.property has to be declared in expansion.property,
+    // whether or not the code system gave it a uri
+    code = this.declareProperty(expansion, url, code);
 
     if (!contains.property) {
       contains.property = [];
