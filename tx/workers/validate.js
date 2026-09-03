@@ -1051,6 +1051,7 @@ class ValueSetChecker {
     this.checkCanonicalStatus(issuePath, op, this.valueSet.jsonObj, this.valueSet.jsonObj);
     let list = new Designations(this.worker.languages);
     let ok = false;
+    let matchedCodings = new Set();
     let codelist = '';
     mt = [];
     let i = 0;
@@ -1081,6 +1082,9 @@ class ValueSetChecker {
       let v = await this.check(path, c.system, c.version, c.code, list, unknownSystems, ver, inactive, normalForm, vstatus, cause, op, vcc, result, contentMode, impliedSystem, ts, mt, defLang, c.display);
       if (v === false) {
         cause.value = 'code-invalid';
+      }
+      if (v === true) {
+        matchedCodings.add(i);
       }
       let ws;
       if (impliedSystem.value) {
@@ -1301,6 +1305,36 @@ class ValueSetChecker {
       }
       i++;
     }
+
+    // A required binding on a CodeableConcept is satisfied when ANY coding is in the value set, so
+    // a coding whose code system could not be resolved must not veto a membership that another
+    // coding has confirmed. It is still reported, but as a warning, and with a message that does
+    // not read as though nothing could be validated (hapifhir/org.hl7.fhir.core#2272).
+    if (issuePath === 'CodeableConcept' && matchedCodings.size > 0) {
+      const notChecked = ['UNKNOWN_CODESYSTEM', 'UNKNOWN_CODESYSTEM_VERSION', 'UNKNOWN_CODESYSTEM_VERSION_NONE'];
+      let j = 0;
+      for (let c of code.coding || []) {
+        if (!matchedCodings.has(j)) {
+          let sysPath = issuePath + '.coding[' + j + '].system';
+          for (let iss of op.jsonObj.issue || []) {
+            let mid = (iss.extension || []).find(e => e.url === 'http://hl7.org/fhir/StructureDefinition/operationoutcome-message-id');
+            if (iss.severity === 'error' && mid && notChecked.includes(mid.valueString) && (iss.expression || []).includes(sysPath)) {
+              let was = iss.details.text;
+              let now = this.worker.i18n.translate('UNKNOWN_CODESYSTEM_CODING_NOT_CHECKED', this.params.HTTPLanguages,
+                [c.version ? c.system + '|' + c.version : c.system]);
+              iss.severity = 'warning';
+              iss.details.text = now;
+              mid.valueString = 'UNKNOWN_CODESYSTEM_CODING_NOT_CHECKED';
+              // the summary message is built from mt, so it has to say the same thing
+              mt = mt.filter(t => t !== was);
+              msg(now);
+            }
+          }
+        }
+        j++;
+      }
+    }
+
     // for an internally defined value set (CodeSystem validation), the code-system-level
     // message is preferred - but if nothing produced an error, this is the only
     // explanation there will be, so it can't be suppressed
@@ -1334,7 +1368,10 @@ class ValueSetChecker {
       }
     }
 
-    result.addParamBool('result', ok === true && !op.hasErrors());
+    // the answer, which is not the same as ok: a coding can be in the value set and still carry an
+    // error of its own (an unknown version, say), and then the CodeableConcept is not valid
+    let valid = ok === true && !op.hasErrors();
+    result.addParamBool('result', valid);
     if (psys) {
       result.addParamUri('system', psys);
     } else if (ok === true && impliedSystem.value) {
@@ -1346,9 +1383,10 @@ class ValueSetChecker {
     for (let us of unknownSystems) {
       if (ok === false) {
         result.addParamCanonical('x-unknown-system', us);
-      } else {
+      } else if (!valid) {
         result.addParamCanonical('x-caused-by-unknown-system', us);
       }
+      // if the CodeableConcept is valid, the unknown system caused nothing: neither parameter applies
     }
     if (normalForm.value) {
       result.addParamCode('normalized-code', normalForm.value);
