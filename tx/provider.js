@@ -461,7 +461,7 @@ class Provider {
       }
     }
     return false;
-  }x
+  }
 
   async updateCodeSystemList() {
     for (let csp of this.codeSystemProviders) {

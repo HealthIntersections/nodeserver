@@ -58,12 +58,17 @@ jobs:
         id: extract_release_notes
         run: |
           VERSION=$(echo ${{ steps.get_version.outputs.VERSION }} | sed 's/^v//')
-          # Extract section for current version from CHANGELOG
-          SECTION=$(sed -n "/## \\[v${VERSION}\\]/,/## \\[v[0-9]\\+\\.[0-9]\\+\\.[0-9]\\+\\]/p" CHANGELOG.md | sed '$d')
+          # Extract section for current version from CHANGELOG. The 'v' is optional in the
+          # heading: the tag always has one, the changelog heading only sometimes does, and
+          # insisting on it is why every release from v0.11.0 on shipped with no notes.
+          SECTION=$(sed -n "/^## \\[v\\?${VERSION}\\]/,/^## \\[v\\?[0-9]\\+\\.[0-9]\\+\\.[0-9]\\+\\]/p" CHANGELOG.md | sed '$d')
           
-          # If no section found, use a default message
+          # If no section found, use a default message. Say so in the job as well: this is a
+          # release going out without notes, which is worth seeing at the time rather than
+          # discovering later on the releases page.
           if [ -z "$SECTION" ]; then
-            SECTION="## [v${VERSION}] - $(date +%Y-%m-%d)\nNo detailed release notes available."
+            echo "::warning::No CHANGELOG.md section found for ${VERSION} in the tagged commit - releasing without notes"
+            SECTION=$(printf '## [v%s] - %s\nNo detailed release notes available: CHANGELOG.md at this tag has no entry for %s.' "${VERSION}" "$(date +%Y-%m-%d)" "${VERSION}")
           fi
           
           # Write multiline release notes using heredoc delimiter
