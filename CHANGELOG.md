@@ -5,7 +5,7 @@ All notable changes to the Health Intersections Node Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.13.0] - 2026-09-04
+## [v0.13.0] - 2026-09-04
 
 ### Added
 
@@ -75,7 +75,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the tx-issue-type in `txIssueType`. Every catch block now goes through
   `outcomeFromError()`, which is the one place that knows about both
 
-## [0.12.0] - 2026-08-27
+### Tx Conformance Statement
+
+FHIRsmith passed all 3489 HL7 terminology service tests (modes tx.fhir.org+omop+general+snomed+mimetypes+icd-11, tests v1.9.4, runner v6.10.4)
+
+## [v0.12.0] - 2026-08-27
 
 ### Added
 
@@ -380,7 +384,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 FHIRsmith passed all 2822 HL7 terminology service tests (modes tx.fhir.org+omop+general+snomed, tests v1.9.3, runner v6.10.3)
 
-## [0.11.2] - 2026-08-12
+## [v0.11.2] - 2026-08-12
 
 ### Fixed
 
@@ -395,7 +399,7 @@ FHIRsmith passed all 2822 HL7 terminology service tests (modes tx.fhir.org+omop+
 
 FHIRsmith passed all 2729 HL7 terminology service tests (modes tx.fhir.org+omop+general+snomed, tests v1.9.3, runner v6.10.1)
 
-## [0.11.1] - 2026-07-30
+## [v0.11.1] - 2026-07-30
 
 ### Added
 
@@ -429,7 +433,7 @@ FHIRsmith passed all 2729 HL7 terminology service tests (modes tx.fhir.org+omop+
 
 FHIRsmith passed all 2729 HL7 terminology service tests (modes tx.fhir.org+omop+general+snomed, tests v1.9.2, runner v6.9.12)
 
-## [0.11.0] - 2026-mm-dd
+## [v0.11.0] - 2026-mm-dd
 
 ### Added
 
