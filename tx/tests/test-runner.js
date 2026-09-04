@@ -12,6 +12,8 @@ const {VersionUtilities} = require("../../library/version-utilities");
 
 let count = 0;
 let error = 0;
+// which pass we are in, so the output of the three passes can be told apart on disk
+let forcedCaching = false;
 
 function txTestModeSet() {
    return new Set(['tx.fhir.org', 'omop', 'general', 'snomed', 'mimetypes', 'icd-11']);
@@ -30,6 +32,7 @@ async function startTxTests() {
  * of the cache key) that the fast, normally-uncached runs cannot.
  */
 function setForcedCaching(enabled) {
+    forcedCaching = enabled;
     if (!txModule || !Array.isArray(txModule.endpoints)) {
         return;
     }
@@ -69,7 +72,13 @@ async function runTest(test, version = true) {
         // the modes have to travel with the request. Without them the validator falls back to
         // its own default set, which is not this one, and every test in a mode it does not
         // have comes back "n/a" - which the runner counts as a failure, not a skip
-        modes: Array.from(txTestModeSet()).join(',')
+        modes: Array.from(txTestModeSet()).join(','),
+        // name the output folder ourselves rather than letting the validator name it after the
+        // server, and give each pass its own subfolder. All three passes are the same server
+        // and produce the same two filenames, so without this the R4, R5 and cached runs write
+        // over each other and the diff left on disk is from whichever finished last
+        folder: 'fhirsmith',
+        label: (VersionUtilities.isR5Plus(version) ? 'r5' : 'r4') + (forcedCaching ? '-cached' : '')
     };
     count++;
     const result = await validator.runTxTest(params);

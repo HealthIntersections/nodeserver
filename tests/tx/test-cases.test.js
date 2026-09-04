@@ -45,6 +45,7 @@ describe('properties', () => {
     await runTest({"suite":"properties","test":"expand-with-valueset.compose.property-all-properties-enums"}, "5.0");
   });
 
+
 });
 
 describe('simple-cases', () => {

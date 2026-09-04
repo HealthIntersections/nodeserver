@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The tx test runner now names its own output folder (`fhirsmith`) and labels each pass (`r4`,
+  `r5`, `r5-cached`), so the three passes stop writing over each other's expected/actual files.
+  It also passes its mode set to the validator, which was previously falling back to its own
+  default - one that does not include `icd-11`, so every icd-11 test came back "n/a" and was
+  counted as a failure. Needs validator 6.10.5 and validator-wrapper 1.4
 - The R5 -> R4 cross-version conversion dropped `ValueSet.compose.property` - the element a
   client uses to say which properties it wants back in an expansion. R4 and R3 have nowhere to
   put it, so it now travels as
