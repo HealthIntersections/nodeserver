@@ -6,11 +6,11 @@
  * Foundation -- so the factory is constructed per system and several factories share one
  * file. `tx/library.js` registers one per system found in the database.
  *
- * STATUS: stage 1. Metadata, code location, displays, definitions, designations,
- * properties and extendLookup work. Filters, iteration, subsumption and postcoordinated
- * expressions are still to come; each returns the safe empty answer and is marked below.
  * The tx-ecosystem `icd-11` test suite is the specification -- it was written to assert
- * correct behaviour, so the definition of done is that its 51 tests go green.
+ * correct behaviour, and it is what these are tested against; there is no unit test file
+ * of their own. Metadata, code location, displays, definitions, designations, properties,
+ * extendLookup, filters, iteration, subsumption and postcoordinated expressions are all
+ * implemented.
  */
 
 const sqlite3 = require('sqlite3').verbose();
@@ -118,6 +118,25 @@ class ICD11Services extends BaseCSServices {
   description() { return this.shared.title; }
   totalCount() { return this.shared.count; }
   defLang() { return 'en'; }
+
+  /**
+   * WHO publishes the classification in the languages the database was crawled with, so
+   * the base class's English-only assumption is wrong here: it decides whether a failed
+   * display check says "no display in that language" or "none at all".
+   */
+  hasAnyDisplays(languages) {
+    const langs = this._ensureLanguages(languages);
+    for (const l of langs) {
+      const base = l.language || String(l.code || '').split('-')[0];
+      if (base && this.shared.languages.includes(base)) {
+        return true;
+      }
+    }
+    return super.hasAnyDisplays(langs);
+  }
+
+  /** Versions are WHO release ids -- '2026-01'. */
+  versionAlgorithm() { return 'date'; }
 
   /**
    * The WHO CodeSystem says caseSensitive: false, but its own $validate-code rejects
@@ -285,13 +304,17 @@ class ICD11Services extends BaseCSServices {
     return row ? (row.code || row.uri) : null;
   }
 
-  /** The best language for display, given what the request asked for. */
+  /**
+   * The best language for display, given what the request asked for. Languages is an
+   * iterable of Language, in quality order; the database holds translations keyed on the
+   * primary subtag, so that is what is matched.
+   */
   #displayLang() {
     const langs = this.opContext?.langs;
     if (langs) {
-      for (const l of (langs.codes ? langs.codes() : [])) {
-        const base = String(l).split('-')[0];
-        if (this.shared.languages.includes(base)) return base;
+      for (const l of langs) {
+        const base = l.language || String(l.code || '').split('-')[0];
+        if (base && this.shared.languages.includes(base)) return base;
       }
     }
     return this.defLang();
@@ -697,6 +720,22 @@ class ICD11ServicesFactory extends CodeSystemFactoryProvider {
   system() { return this._shared?.url; }
   version() { return this._shared?.version; }
   defaultVersion() { return this._shared?.version; }
+
+  /**
+   * Short label for the home page and for code system links. Deliberately not the WHO
+   * title from the database (which the provider uses): this has to answer before load(),
+   * since the home page sorts factories by name.
+   */
+  name() {
+    switch (this.systemCode) {
+      case 'mms': return 'ICD-11 MMS';
+      case 'icf': return 'ICD-11 ICF';
+      case 'foundation': return 'ICD-11 Foundation';
+      default: return `ICD-11 ${this.systemCode}`;
+    }
+  }
+
+  id() { return `icd11-${this.systemCode}`; }
 
   async load() {
     if (this._loaded) return;
