@@ -33,6 +33,20 @@ describe('metadata', () => {
 
 });
 
+describe('properties', () => {
+  // Testing the ValueSet.compose.property element
+
+  it("expand-with-valueset.compose.property-all-properties-wildcard" + 'R5', async () => {
+    await runTest({"suite":"properties","test":"expand-with-valueset.compose.property-all-properties-wildcard"}, "5.0");
+  });
+
+
+  it("expand-with-valueset.compose.property-all-properties-enums" + 'R5', async () => {
+    await runTest({"suite":"properties","test":"expand-with-valueset.compose.property-all-properties-enums"}, "5.0");
+  });
+
+});
+
 describe('simple-cases', () => {
   // basic tests, setting up for the API tests to come
 
@@ -1291,6 +1305,14 @@ describe('validation', () => {
 
   it("validation-simple-coding-bad-system" + 'R4', async () => {
     await runTest({"suite":"validation","test":"validation-simple-coding-bad-system"}, "4.0");
+  });
+
+  it("validation-simple-codeableconcept-unknown-system" + 'R5', async () => {
+    await runTest({"suite":"validation","test":"validation-simple-codeableconcept-unknown-system"}, "5.0");
+  });
+
+  it("validation-simple-codeableconcept-unknown-system" + 'R4', async () => {
+    await runTest({"suite":"validation","test":"validation-simple-codeableconcept-unknown-system"}, "4.0");
   });
 
   it("validation-simple-coding-bad-system2" + 'R5', async () => {
@@ -9486,6 +9508,19 @@ describe('metadata', () => {
 
 });
 
+describe('properties', () => {
+  // Testing the ValueSet.compose.property element
+
+  it("expand-with-valueset.compose.property-all-properties-wildcard" + 'R5-cached', async () => {
+    await runTest({"suite":"properties","test":"expand-with-valueset.compose.property-all-properties-wildcard"}, "5.0");
+  });
+
+  it("expand-with-valueset.compose.property-all-properties-enums" + 'R5-cached', async () => {
+    await runTest({"suite":"properties","test":"expand-with-valueset.compose.property-all-properties-enums"}, "5.0");
+  });
+
+});
+
 describe('simple-cases', () => {
   // basic tests, setting up for the API tests to come
 
@@ -10128,6 +10163,10 @@ describe('validation', () => {
 
   it("validation-simple-coding-bad-system" + 'R5-cached', async () => {
     await runTest({"suite":"validation","test":"validation-simple-coding-bad-system"}, "5.0");
+  });
+
+  it("validation-simple-codeableconcept-unknown-system" + 'R5-cached', async () => {
+    await runTest({"suite":"validation","test":"validation-simple-codeableconcept-unknown-system"}, "5.0");
   });
 
   it("validation-simple-coding-bad-system2" + 'R5-cached', async () => {

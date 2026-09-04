@@ -36,6 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The R5 -> R4 cross-version conversion dropped `ValueSet.compose.property` - the element a
+  client uses to say which properties it wants back in an expansion. R4 and R3 have nowhere to
+  put it, so it now travels as
+  `http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.property` (the same
+  extension the Java convertors use) and is read back on the way up, with the extension removed
+  so it does not show up twice. Before this, an R4 client that asked for properties got an
+  expansion without them
 - Every OperationOutcome the server emits now carries `details.text` and a tx-issue-type
   coding in `details.coding`. `diagnostics` is stripped outright by the test harness, so
   anything a client needs had to stop living *only* there -- it is still sent, and is still

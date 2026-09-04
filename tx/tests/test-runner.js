@@ -65,7 +65,11 @@ async function runTest(test, version = true) {
         server: 'http://localhost:'+TEST_PORT+(VersionUtilities.isR5Plus(version) ? "/r5" : "/r4"),
         suiteName: test.suite,
         testName: test.test,
-        version: version
+        version: version,
+        // the modes have to travel with the request. Without them the validator falls back to
+        // its own default set, which is not this one, and every test in a mode it does not
+        // have comes back "n/a" - which the runner counts as a failure, not a skip
+        modes: Array.from(txTestModeSet()).join(',')
     };
     count++;
     const result = await validator.runTxTest(params);
