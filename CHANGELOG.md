@@ -5,7 +5,7 @@ All notable changes to the Health Intersections Node Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.13.0] - 2026-09-04
 
 ### Added
 
@@ -36,6 +36,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The tx test runner now names its own output folder (`fhirsmith`) and labels each pass (`r4`,
+  `r5`, `r5-cached`), so the three passes stop writing over each other's expected/actual files.
+  It also passes its mode set to the validator, which was previously falling back to its own
+  default - one that does not include `icd-11`, so every icd-11 test came back "n/a" and was
+  counted as a failure. Needs validator 6.10.5 and validator-wrapper 1.4
+- The R5 -> R4 cross-version conversion dropped `ValueSet.compose.property` - the element a
+  client uses to say which properties it wants back in an expansion. R4 and R3 have nowhere to
+  put it, so it now travels as
+  `http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.compose.property` (the same
+  extension the Java convertors use) and is read back on the way up, with the extension removed
+  so it does not show up twice. Before this, an R4 client that asked for properties got an
+  expansion without them
 - Every OperationOutcome the server emits now carries `details.text` and a tx-issue-type
   coding in `details.coding`. `diagnostics` is stripped outright by the test harness, so
   anything a client needs had to stop living *only* there -- it is still sent, and is still
